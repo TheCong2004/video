@@ -26,23 +26,23 @@ lines.push('  <g stroke-linecap="round">');
 
 for (let x = 0; x <= w; x += step) {
     if (x % (step * 5) === 0) {
-        lines.push(`    <line x1="${x}" y1="0" x2="${x}" y2="${h}" stroke="#33466B" stroke-width="1" stroke-opacity="0.30"/>`);
+        lines.push(`    <line x1="${x}" y1="0" x2="${x}" y2="${h}" stroke="#33466B" stroke-width="1" stroke-opacity="0.14"/>`);
     } else {
-        lines.push(`    <line x1="${x}" y1="0" x2="${x}" y2="${h}" stroke="#26365F" stroke-width="1" stroke-opacity="0.15"/>`);
+        lines.push(`    <line x1="${x}" y1="0" x2="${x}" y2="${h}" stroke="#26365F" stroke-width="1" stroke-opacity="0.06"/>`);
     }
 }
 
 for (let y = 0; y <= h; y += step) {
     if (y % (step * 5) === 0) {
-        lines.push(`    <line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="#33466B" stroke-width="1" stroke-opacity="0.30"/>`);
+        lines.push(`    <line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="#33466B" stroke-width="1" stroke-opacity="0.14"/>`);
     } else {
-        lines.push(`    <line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="#26365F" stroke-width="1" stroke-opacity="0.15"/>`);
+        lines.push(`    <line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="#26365F" stroke-width="1" stroke-opacity="0.06"/>`);
     }
 }
 
 for (let x = 0; x <= w; x += step * 5) {
     for (let y = 0; y <= h; y += step * 5) {
-        lines.push(`    <circle cx="${x}" cy="${y}" r="1.5" fill="#39C8FF" fill-opacity="0.45"/>`);
+        lines.push(`    <circle cx="${x}" cy="${y}" r="1.5" fill="#39C8FF" fill-opacity="0.18"/>`);
     }
 }
 

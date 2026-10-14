@@ -147,121 +147,96 @@ export component StudioLivePage inherits VerticalLayout {
         HorizontalLayout {
             padding: 14px;
             spacing: 12px;
+            alignment: space-between;
 
-            // Left: Username input & Inspect & Connect
+            // Brand & Mode
             HorizontalLayout {
-                spacing: 10px;
-                horizontal-stretch: 1;
+                spacing: 12px;
                 alignment: start;
 
-                user-box := Rectangle {
-                    background: Floword.field;
+                Rectangle {
+                    width: 38px;
+                    height: 38px;
                     border-radius: 10px;
+                    background: Floword.cyan.with-alpha(0.18);
                     border-width: 1px;
-                    border-color: user-in.has-focus ? Floword.violet : Floword.line;
-                    min-height: 40px;
-                    max-height: 40px;
-                    min-width: 250px;
-                    horizontal-stretch: 1;
+                    border-color: Floword.cyan.with-alpha(0.4);
 
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        spacing: 8px;
-                        alignment: center;
-
-                        Text {
-                            text: "@";
-                            color: Floword.accent;
-                            font-size: 15px;
-                            font-weight: 700;
-                            vertical-alignment: center;
-                        }
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            user-in := TextInput {
-                                width: 100%;
-                                height: 100%;
-                                text: StudioLive.username;
-                                enabled: !StudioLive.busy && StudioLive.state != "connected";
-                                color: Floword.text;
-                                font-size: 13px;
-                                vertical-alignment: center;
-                                edited => { StudioLive.username = self.text; }
-                            }
-                            if StudioLive.username == "" && !user-in.has-focus: Text {
-                                width: 100%;
-                                text: I18n.t("studioLive.usernamePlaceholder");
-                                color: Floword.muted;
-                                font-size: 13px;
-                                vertical-alignment: center;
-                            }
-                        }
+                    Icon {
+                        glyph: Glyph.waveform;
+                        size: 18px;
+                        tint: Floword.cyan;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
                     }
                 }
 
-                if StudioLive.state != "connected" && StudioLive.state != "connecting" && StudioLive.state != "stopping": StudioButton {
-                    label: I18n.t("studioLive.inspect");
-                    enabled: !StudioLive.busy && StudioLive.username != "";
-                    clicked => { StudioLive.inspect(StudioLive.username); }
-                }
+                VerticalLayout {
+                    spacing: 2px;
+                    alignment: center;
 
-                if StudioLive.state != "connected" && StudioLive.state != "connecting" && StudioLive.state != "stopping": StudioButton {
-                    label: StudioLive.busy ? I18n.t("studioLive.working") : I18n.t("studioLive.connect");
-                    primary: true;
-                    enabled: !StudioLive.busy && StudioLive.username != "";
-                    clicked => { StudioLive.connect(StudioLive.username); }
-                }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "TIKTOK LIVE AI BROADCAST STUDIO";
+                            color: Floword.text;
+                            font-size: 15px;
+                            font-weight: 800;
+                        }
 
-                if StudioLive.state == "connected" || StudioLive.state == "connecting" || StudioLive.state == "stopping": StudioButton {
-                    label: StudioLive.busy ? I18n.t("studioLive.working") : I18n.t("studioLive.disconnect");
-                    enabled: !StudioLive.busy;
-                    clicked => { StudioLive.disconnect(); }
+                        // Connection State Pill
+                        Rectangle {
+                            background: StudioLive.state == "connected" ? Floword.success.with-alpha(0.2)
+                                : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.2)
+                                : Floword.field;
+                            border-radius: 10px;
+                            border-width: 1px;
+                            border-color: StudioLive.state == "connected" ? Floword.success.with-alpha(0.5)
+                                : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.5)
+                                : Floword.line;
+
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                padding-top: 3px;
+                                padding-bottom: 3px;
+                                spacing: 6px;
+                                alignment: center;
+
+                                Rectangle {
+                                    width: 7px;
+                                    height: 7px;
+                                    border-radius: 3.5px;
+                                    background: StudioLive.state == "connected" ? Floword.success
+                                        : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning
+                                        : Floword.muted;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                Text {
+                                    text: StudioLive.state == "connected" ? I18n.t("studioLive.connected")
+                                        : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? I18n.t("studioLive.connecting")
+                                        : I18n.t("studioLive.stopped");
+                                    color: StudioLive.state == "connected" ? Floword.success : Floword.text;
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "Phát sóng tương tác AI đa kênh · Tự động trả lời bình luận & chốt đơn sản phẩm";
+                        color: Floword.muted;
+                        font-size: 12px;
+                    }
                 }
             }
 
-            Rectangle { horizontal-stretch: 1; }
-
-            // Right: Status Badge & Modals toggles
+            // Right: Modals toggles
             HorizontalLayout {
                 spacing: 10px;
                 alignment: end;
-
-                // Status Badge Pill
-                Rectangle {
-                    background: Floword.field;
-                    border-radius: 10px;
-                    border-width: 1px;
-                    border-color: Floword.line;
-                    min-height: 40px;
-                    max-height: 40px;
-
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        spacing: 8px;
-                        alignment: center;
-
-                        Rectangle {
-                            width: 9px;
-                            height: 9px;
-                            border-radius: 4.5px;
-                            background: StudioLive.state == "connected" ? Floword.success
-                                : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning
-                                : Floword.muted;
-                        }
-
-                        Text {
-                            text: StudioLive.state == "connected" ? I18n.t("studioLive.connected")
-                                : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? I18n.t("studioLive.connecting")
-                                : I18n.t("studioLive.stopped");
-                            color: Floword.text;
-                            font-size: 13px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
 
                 // Products Manager button
                 StudioButton {
@@ -438,35 +413,76 @@ export component StudioLivePage inherits VerticalLayout {
         // COLUMN 1: LIVE STUDIO OUTPUT & AVATAR SETTINGS
         // ---------------------------------------------------------------------
         StudioCard {
-            width: 300px;
+            width: 320px;
             horizontal-stretch: 0;
             spacing: 12px;
 
-            StudioHeading { title: I18n.t("studioLive.outputTitle"); glyph: Glyph.film; }
+            StudioHeading { title: "1. KẾT NỐI TIKTOK LIVE"; glyph: Glyph.waveform; }
 
-            // Mode section
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: I18n.t("studioLive.charMode"); color: Floword.text; font-size: 13px; font-weight: 600; }
-                Rectangle {
-                    background: Floword.field;
-                    border-radius: 8px;
-                    border-width: 1px;
-                    border-color: Floword.line;
-                    HorizontalLayout {
-                        padding: 8px;
-                        Text { text: I18n.t("studioLive.modeMotion"); color: Floword.text; font-size: 13px; }
+            // TikTok Username Input
+            StudioField {
+                label: "Kênh TikTok Live (@username):";
+                placeholder: "@ten_kenh_tiktok";
+                value: StudioLive.username;
+                enabled: !StudioLive.busy && StudioLive.state != "connected";
+                edited(text) => { StudioLive.username = text; }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                if StudioLive.state != "connected" && StudioLive.state != "connecting" && StudioLive.state != "stopping": StudioButton {
+                    label: "Kiểm tra phòng";
+                    enabled: !StudioLive.busy && StudioLive.username != "";
+                    clicked => { StudioLive.inspect(StudioLive.username); }
+                }
+
+                if StudioLive.state != "connected" && StudioLive.state != "connecting" && StudioLive.state != "stopping": StudioButton {
+                    label: StudioLive.busy ? "Đang kết nối…" : "Kết nối Live";
+                    primary: true;
+                    enabled: !StudioLive.busy && StudioLive.username != "";
+                    clicked => { StudioLive.connect(StudioLive.username); }
+                }
+
+                if StudioLive.state == "connected" || StudioLive.state == "connecting" || StudioLive.state == "stopping": StudioButton {
+                    label: StudioLive.busy ? "Đang ngắt…" : "Ngắt kết nối";
+                    enabled: !StudioLive.busy;
+                    clicked => { StudioLive.disconnect(); }
+                }
+            }
+
+            // Connection status feedback
+            Rectangle {
+                background: Floword.field;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: StudioLive.state == "connected" ? Floword.success.with-alpha(0.4) : Floword.line;
+                HorizontalLayout {
+                    padding: 8px;
+                    spacing: 8px;
+                    Rectangle {
+                        width: 8px; height: 8px; border-radius: 4px;
+                        background: StudioLive.state == "connected" ? Floword.success : Floword.warning;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: StudioLive.state == "connected" ? "Đã kết nối phòng Live"
+                            : StudioLive.state == "connecting" ? "Đang dò tìm luồng phát..."
+                            : "Chưa kết nối · Nhập @username";
+                        color: StudioLive.state == "connected" ? Floword.success : Floword.muted;
+                        font-size: 11px;
+                        font-weight: 600;
                     }
                 }
-                Text { text: I18n.t("studioLive.modeNote"); color: Floword.muted; font-size: 11px; wrap: word-wrap; }
             }
 
             Rectangle { height: 1px; background: Floword.line; }
 
+            StudioHeading { title: "2. NHÂN VẬT & GIỌNG ĐỌC"; glyph: Glyph.film; }
+
             // Avatar selection
             VerticalLayout {
                 spacing: 6px;
-                Text { text: I18n.t("studioOpenTalking.avatar"); color: Floword.text; font-size: 13px; }
+                Text { text: I18n.t("studioOpenTalking.avatar"); color: Floword.text; font-size: 13px; font-weight: 600; }
                 Select {
                     options: StudioOpenTalking.avatar-options;
                     current <=> StudioOpenTalking.avatar-index;
@@ -481,7 +497,7 @@ export component StudioLivePage inherits VerticalLayout {
             // Voice selection
             VerticalLayout {
                 spacing: 6px;
-                Text { text: I18n.t("studioOpenTalking.voice"); color: Floword.text; font-size: 13px; }
+                Text { text: I18n.t("studioOpenTalking.voice"); color: Floword.text; font-size: 13px; font-weight: 600; }
                 Select {
                     options: StudioOpenTalking.voice-options;
                     current <=> StudioOpenTalking.voice-index;
@@ -496,7 +512,7 @@ export component StudioLivePage inherits VerticalLayout {
             // Model selection
             VerticalLayout {
                 spacing: 6px;
-                Text { text: I18n.t("studioAi.defaultModel"); color: Floword.text; font-size: 13px; }
+                Text { text: I18n.t("studioAi.defaultModel"); color: Floword.text; font-size: 13px; font-weight: 600; }
                 Select {
                     options: StudioAi.models;
                     current <=> StudioAi.model-index;
@@ -507,8 +523,6 @@ export component StudioLivePage inherits VerticalLayout {
                     enabled: !StudioAi.busy && StudioAi.models-loaded;
                 }
             }
-
-            Text { text: I18n.t("studioLive.outputGuide"); color: Floword.muted; font-size: 11px; wrap: word-wrap; }
 
             // Actions
             HorizontalLayout {
@@ -531,17 +545,32 @@ export component StudioLivePage inherits VerticalLayout {
         // ---------------------------------------------------------------------
         VerticalLayout {
             horizontal-stretch: 1;
-            min-width: 340px;
+            min-width: 360px;
             spacing: 14px;
 
             // Virtual Host Video Screen
             Rectangle {
-                background: #0f1420;
+                background: Floword.surface;
                 border-radius: 16px;
                 border-width: 1px;
-                border-color: Floword.line;
-                min-height: 310px;
+                border-color: Floword.line-bright;
+                min-height: 360px;
                 clip: true;
+
+                // High Definition 3D Live Streamer Background
+                Image {
+                    width: 100%;
+                    height: 100%;
+                    source: @image-url("../assets/studio-live.jpg");
+                    image-fit: cover;
+                }
+
+                // Dark atmospheric gradient overlay for readability
+                Rectangle {
+                    width: 100%;
+                    height: 100%;
+                    background: @linear-gradient(180deg, #080D1BDD 0%, #080D1B44 35%, #080D1B33 65%, #080D1BEE 100%);
+                }
 
                 VerticalLayout {
                     alignment: space-between;
@@ -553,7 +582,7 @@ export component StudioLivePage inherits VerticalLayout {
 
                         // Speaking / Status Pill
                         Rectangle {
-                            background: #000000a0;
+                            background: #000000bb;
                             border-radius: 14px;
                             border-width: 1px;
                             border-color: #ffffff20;
@@ -568,10 +597,11 @@ export component StudioLivePage inherits VerticalLayout {
                                     width: 8px;
                                     height: 8px;
                                     border-radius: 4px;
-                                    background: StudioLive.is-speaking ? Floword.success : Floword.warning;
+                                    background: StudioLive.state == "connected" ? Floword.success : Floword.warning;
+                                    y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: StudioLive.is-speaking ? I18n.t("studioLive.previewBadgeSpeaking") : I18n.t("studioLive.previewBadgeIdle");
+                                    text: StudioLive.state == "connected" ? "LIVE PHÁT SÓNG" : "CHƯA KẾT NỐI PHIÊN LIVE";
                                     color: #ffffff;
                                     font-size: 11px;
                                     font-weight: 700;
@@ -581,7 +611,7 @@ export component StudioLivePage inherits VerticalLayout {
 
                         // Host info badge
                         Rectangle {
-                            background: #000000a0;
+                            background: #000000bb;
                             border-radius: 14px;
                             border-width: 1px;
                             border-color: #ffffff20;
@@ -592,9 +622,11 @@ export component StudioLivePage inherits VerticalLayout {
                                 padding-right: 10px;
                                 spacing: 6px;
                                 alignment: center;
-                                Icon { glyph: Glyph.sparkle; size: 13px; tint: Floword.success; }
+                                Icon { glyph: Glyph.sparkle; size: 13px; tint: Floword.cyan; }
                                 Text {
-                                    text: I18n.t("studioLive.aiHost");
+                                    text: StudioOpenTalking.avatar-options.length > 0 && StudioOpenTalking.avatar-index < StudioOpenTalking.avatar-options.length
+                                        ? StudioOpenTalking.avatar-options[StudioOpenTalking.avatar-index]
+                                        : "Chọn nhân vật để xem trước";
                                     color: #ffffff;
                                     font-size: 11px;
                                     font-weight: 600;
@@ -604,19 +636,25 @@ export component StudioLivePage inherits VerticalLayout {
                     }
 
                     // Center Canvas area
-                    Rectangle {
-                        min-height: 160px;
-                        Text {
-                            text: StudioOpenTalking.avatar-options.length > 0
-                                ? (StudioOpenTalking.avatar-options[StudioOpenTalking.avatar-index] != ""
-                                    ? StudioOpenTalking.avatar-options[StudioOpenTalking.avatar-index]
-                                    : I18n.t("studioLive.noAvatar"))
-                                : I18n.t("studioLive.noAvatar");
-                            color: Floword.muted;
-                            font-size: 15px;
-                            font-weight: 600;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                    if StudioOpenTalking.avatar-options.length == 0 || StudioOpenTalking.avatar-index >= StudioOpenTalking.avatar-options.length: Rectangle {
+                        min-height: 120px;
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 6px;
+                            Text {
+                                text: "CHỌN NHÂN VẬT ĐỂ BẮT ĐẦU XEM TRƯỚC";
+                                color: Floword.cyan;
+                                font-size: 14px;
+                                font-weight: 700;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: "Chọn nhân vật và giọng đọc từ bảng điều khiển bên trái để kích hoạt AI Host.";
+                                color: Floword.muted;
+                                font-size: 12px;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
                         }
                     }
 
@@ -655,7 +693,7 @@ export component StudioLivePage inherits VerticalLayout {
 
                         // Subtitle card
                         Rectangle {
-                            background: #000000c0;
+                            background: #000000cc;
                             border-radius: 12px;
                             border-width: 1px;
                             border-color: #ffffff18;
@@ -663,7 +701,7 @@ export component StudioLivePage inherits VerticalLayout {
                             HorizontalLayout {
                                 padding: 10px;
                                 spacing: 10px;
-                                Icon { glyph: Glyph.volume; size: 16px; tint: Floword.success; }
+                                Icon { glyph: Glyph.volume; size: 16px; tint: Floword.cyan; }
                                 Text {
                                     text: StudioLive.displayed-subtitle;
                                     color: #f1f5f9;

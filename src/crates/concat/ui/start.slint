@@ -653,23 +653,23 @@ component RailItem inherits Rectangle {
 
     height: root.studio-tone ? 40px : 36px;
     border-radius: root.studio-tone ? 10px : Theme.r;
-    background: root.current && root.studio-tone ? Floword.raised : root.lit && root.studio-tone ? Floword.field : root.current || root.lit ? Theme.launch-raised : Colors.transparent;
-    border-width: root.current && root.studio-tone ? 1px : 0px;
-    border-color: Floword.line-bright;
+    background: root.current && root.studio-tone ? Floword.raised : root.lit && root.studio-tone ? Floword.raised.with-alpha(0.6) : root.current || root.lit ? Theme.launch-raised : Colors.transparent;
+    border-width: root.current && root.studio-tone ? 1px : root.lit && root.studio-tone ? 1px : 0px;
+    border-color: root.current && root.studio-tone ? Floword.line-bright : Floword.line;
     opacity: root.enabled ? 1.0 : 0.4;
 
     animate background, border-color { duration: 160ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     if root.current && root.studio-tone: Rectangle {
-        x: 1px; y: 6px; width: 3.5px; height: root.height - 12px;
+        x: 2px; y: 7px; width: 3.5px; height: root.height - 14px;
         background: Floword.cyan;
         border-radius: 2px;
     }
 
     HorizontalLayout {
         padding-left: root.compact ? 0px : 12px;
-        padding-right: root.compact ? 0px : 10px;
-        spacing: 10px;
+        padding-right: root.compact ? 0px : 12px;
+        spacing: 11px;
         alignment: root.compact ? LayoutAlignment.center : LayoutAlignment.start;
 
         VerticalLayout {
@@ -677,7 +677,7 @@ component RailItem inherits Rectangle {
             Icon {
                 glyph: root.glyph;
                 size: 16px;
-                tint: root.current && root.studio-tone ? Floword.cyan : root.ink;
+                tint: root.current && root.studio-tone ? Floword.cyan : (root.lit && root.studio-tone ? Floword.text : root.ink);
             }
         }
 
@@ -686,8 +686,8 @@ component RailItem inherits Rectangle {
             horizontal-stretch: 1;
             Text {
                 text: root.label;
-                color: root.current && root.studio-tone ? Floword.text : root.ink;
-                font-size: root.studio-tone ? 13px : Theme.fs-lg;
+                color: root.current && root.studio-tone ? Floword.text : (root.lit && root.studio-tone ? Floword.text : root.ink);
+                font-size: root.studio-tone ? 12.5px : Theme.fs-lg;
                 font-weight: root.current ? 700 : Theme.weight-title;
                 overflow: elide;
             }
@@ -700,11 +700,9 @@ component RailItem inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    // Only where the word has been taken away. A tip repeating a label that
-    // is already on screen is noise.
     Tip {
         text: root.label;
-        active: touch.has-hover;
+        active: touch.has-hover && root.compact;
     }
 }
 
@@ -1180,7 +1178,7 @@ export component StartScreen inherits Rectangle {
     property <length> content-w: 1120px;
     /// The rail's width, and the page's left edge. Zero is a phone, which
     /// has the rail's verbs on the heading's row instead.
-    property <length> rail-w: root.narrow && root.phone ? 0px : (root.compact-rail ? 62px : 208px);
+    property <length> rail-w: root.narrow && root.phone ? 0px : (root.compact-rail ? 62px : 236px);
 
     background: Theme.launch-page;
     clip: true;
