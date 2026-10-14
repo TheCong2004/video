@@ -68,18 +68,20 @@ component LiveCheckbox inherits Rectangle {
     HorizontalLayout {
         spacing: 8px;
         alignment: start;
-        Rectangle {
-            width: 16px;
-            height: 16px;
-            border-radius: 4px;
-            border-width: 1px;
-            border-color: root.checked ? Floword.success : Floword.line;
-            background: root.checked ? Floword.success.with-alpha(0.2) : Floword.field;
-            y: (parent.height - self.height) / 2;
-            if root.checked: Icon {
-                x: 2px; y: 2px; width: 12px; height: 12px;
-                glyph: Glyph.check;
-                tint: Floword.success;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 16px;
+                height: 16px;
+                border-radius: 4px;
+                border-width: 1px;
+                border-color: root.checked ? Floword.success : Floword.line;
+                background: root.checked ? Floword.success.with-alpha(0.2) : Floword.field;
+                if root.checked: Icon {
+                    x: 2px; y: 2px; width: 12px; height: 12px;
+                    glyph: Glyph.check;
+                    tint: Floword.success;
+                }
             }
         }
         Text {
@@ -148,7 +150,7 @@ export component StudioLivePage inherits VerticalLayout {
         HorizontalLayout {
             padding-left: 12px;
             padding-right: 12px;
-            spacing: 10px;
+            spacing: 12px;
             alignment: space-between;
 
             // Brand title & Live Status Pill
@@ -156,26 +158,27 @@ export component StudioLivePage inherits VerticalLayout {
                 spacing: 8px;
                 alignment: start;
 
-                Rectangle {
-                    width: 28px;
-                    height: 28px;
-                    border-radius: 7px;
-                    background: Floword.cyan.with-alpha(0.18);
-                    border-width: 1px;
-                    border-color: Floword.cyan.with-alpha(0.4);
-                    y: (parent.height - self.height) / 2;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 28px;
+                        height: 28px;
+                        border-radius: 7px;
+                        background: Floword.cyan.with-alpha(0.18);
+                        border-width: 1px;
+                        border-color: Floword.cyan.with-alpha(0.4);
 
-                    Icon {
-                        glyph: Glyph.waveform;
-                        size: 14px;
-                        tint: Floword.cyan;
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
+                        Icon {
+                            glyph: Glyph.waveform;
+                            size: 14px;
+                            tint: Floword.cyan;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
                     }
                 }
 
                 VerticalLayout {
-                    spacing: 1px;
                     alignment: center;
                     Text {
                         text: "TIKTOK LIVE AI BROADCAST";
@@ -183,48 +186,53 @@ export component StudioLivePage inherits VerticalLayout {
                         font-size: 13px;
                         font-weight: 800;
                         letter-spacing: 0.5px;
+                        vertical-alignment: center;
                     }
                 }
 
                 Rectangle { width: 4px; }
 
-                // Live status pill
-                Rectangle {
-                    background: StudioLive.state == "connected" ? Floword.success.with-alpha(0.2)
-                        : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.2)
-                        : Floword.field;
-                    border-radius: 6px;
-                    border-width: 1px;
-                    border-color: StudioLive.state == "connected" ? Floword.success.with-alpha(0.5)
-                        : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.5)
-                        : Floword.line;
-                    y: (parent.height - self.height) / 2;
+                // Live status pill (Fixed height 24px)
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        height: 24px;
+                        background: StudioLive.state == "connected" ? Floword.success.with-alpha(0.2)
+                            : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.2)
+                            : Floword.field;
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: StudioLive.state == "connected" ? Floword.success.with-alpha(0.5)
+                            : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.5)
+                            : Floword.line;
 
-                    HorizontalLayout {
-                        padding-left: 7px;
-                        padding-right: 7px;
-                        padding-top: 3px;
-                        padding-bottom: 3px;
-                        spacing: 5px;
-                        alignment: center;
+                        HorizontalLayout {
+                            padding-left: 9px;
+                            padding-right: 9px;
+                            spacing: 6px;
+                            alignment: center;
 
-                        Rectangle {
-                            width: 6px;
-                            height: 6px;
-                            border-radius: 3px;
-                            background: StudioLive.state == "connected" ? Floword.success
-                                : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning
-                                : Floword.muted;
-                            y: (parent.height - self.height) / 2;
-                        }
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 6px;
+                                    height: 6px;
+                                    border-radius: 3px;
+                                    background: StudioLive.state == "connected" ? Floword.success
+                                        : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning
+                                        : Floword.muted;
+                                }
+                            }
 
-                        Text {
-                            text: StudioLive.state == "connected" ? I18n.t("studioLive.connected")
-                                : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? I18n.t("studioLive.connecting")
-                                : I18n.t("studioLive.stopped");
-                            color: StudioLive.state == "connected" ? Floword.success : Floword.text;
-                            font-size: 10.5px;
-                            font-weight: 700;
+                            Text {
+                                text: StudioLive.state == "connected" ? I18n.t("studioLive.connected")
+                                    : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? I18n.t("studioLive.connecting")
+                                    : I18n.t("studioLive.stopped");
+                                color: StudioLive.state == "connected" ? Floword.success : Floword.text;
+                                font-size: 10.5px;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
                         }
                     }
                 }
@@ -232,44 +240,102 @@ export component StudioLivePage inherits VerticalLayout {
 
             // Center: Service Readiness indicators
             HorizontalLayout {
-                spacing: 10px;
+                spacing: 8px;
                 alignment: center;
 
-                HorizontalLayout {
-                    spacing: 4px;
-                    alignment: center;
-                    Icon { glyph: Glyph.volume; size: 11px; tint: StudioOpenTalking.voice-options.length > 0 ? Floword.success : Floword.warning; }
-                    Text {
-                        text: StudioOpenTalking.voice-options.length > 0 ? I18n.t("studioLive.voiceReady") : I18n.t("studioLive.voiceNotReady");
-                        color: StudioOpenTalking.voice-options.length > 0 ? Floword.text : Floword.warning;
-                        font-size: 10.5px;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 4px;
-                    alignment: center;
-                    Icon { glyph: Glyph.sparkle; size: 11px; tint: StudioAi.models-loaded ? Floword.success : Floword.warning; }
-                    Text {
-                        text: StudioAi.models-loaded ? I18n.t("studioLive.aiReady") : I18n.t("studioLive.aiNotReady");
-                        color: StudioAi.models-loaded ? Floword.text : Floword.warning;
-                        font-size: 10.5px;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 4px;
+                // Voice status badge
+                VerticalLayout {
                     alignment: center;
                     Rectangle {
-                        width: 5px; height: 5px; border-radius: 2.5px;
-                        background: StudioLive.auto-reply ? Floword.success : Floword.warning;
-                        y: (parent.height - self.height) / 2;
+                        height: 24px;
+                        background: StudioOpenTalking.voice-options.length > 0 ? Floword.field : Floword.warning.with-alpha(0.12);
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: StudioOpenTalking.voice-options.length > 0 ? Floword.line : Floword.warning.with-alpha(0.3);
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 6px;
+                            alignment: center;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Icon { glyph: Glyph.volume; size: 12px; tint: StudioOpenTalking.voice-options.length > 0 ? Floword.success : Floword.warning; }
+                            }
+                            Text {
+                                text: StudioOpenTalking.voice-options.length > 0 ? I18n.t("studioLive.voiceReady") : I18n.t("studioLive.voiceNotReady");
+                                color: StudioOpenTalking.voice-options.length > 0 ? Floword.text : Floword.warning;
+                                font-size: 10.5px;
+                                vertical-alignment: center;
+                            }
+                        }
                     }
-                    Text {
-                        text: StudioLive.auto-reply ? "Tự động: BẬT" : "Tự động: TẮT";
-                        color: StudioLive.auto-reply ? Floword.success : Floword.warning;
-                        font-size: 10.5px;
-                        font-weight: 600;
+                }
+
+                // AI status badge
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        height: 24px;
+                        background: StudioAi.models-loaded ? Floword.field : Floword.warning.with-alpha(0.12);
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: StudioAi.models-loaded ? Floword.line : Floword.warning.with-alpha(0.3);
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 6px;
+                            alignment: center;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Icon { glyph: Glyph.sparkle; size: 12px; tint: StudioAi.models-loaded ? Floword.success : Floword.warning; }
+                            }
+                            Text {
+                                text: StudioAi.models-loaded ? I18n.t("studioLive.aiReady") : I18n.t("studioLive.aiNotReady");
+                                color: StudioAi.models-loaded ? Floword.text : Floword.warning;
+                                font-size: 10.5px;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Auto-reply badge
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        height: 24px;
+                        background: StudioLive.auto-reply ? Floword.success.with-alpha(0.15) : Floword.field;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: StudioLive.auto-reply ? Floword.success.with-alpha(0.4) : Floword.line;
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 6px;
+                            alignment: center;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 6px;
+                                    height: 6px;
+                                    border-radius: 3px;
+                                    background: StudioLive.auto-reply ? Floword.success : Floword.warning;
+                                }
+                            }
+                            Text {
+                                text: StudioLive.auto-reply ? "Tự động: BẬT" : "Tự động: TẮT";
+                                color: StudioLive.auto-reply ? Floword.success : Floword.warning;
+                                font-size: 10.5px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                        }
                     }
                 }
             }
@@ -279,16 +345,22 @@ export component StudioLivePage inherits VerticalLayout {
                 spacing: 6px;
                 alignment: end;
 
-                StudioButton {
-                    compact: true;
-                    label: I18n.t1("studioLive.manageProductsBtn", "" + StudioProducts.rows.length);
-                    clicked => { StudioLive.show-products = !StudioLive.show-products; }
+                VerticalLayout {
+                    alignment: center;
+                    StudioButton {
+                        compact: true;
+                        label: I18n.t1("studioLive.manageProductsBtn", "" + StudioProducts.rows.length);
+                        clicked => { StudioLive.show-products = !StudioLive.show-products; }
+                    }
                 }
 
-                StudioButton {
-                    compact: true;
-                    label: I18n.t("studioLive.advancedSettings");
-                    clicked => { StudioLive.show-settings = !StudioLive.show-settings; }
+                VerticalLayout {
+                    alignment: center;
+                    StudioButton {
+                        compact: true;
+                        label: I18n.t("studioLive.advancedSettings");
+                        clicked => { StudioLive.show-settings = !StudioLive.show-settings; }
+                    }
                 }
             }
         }
@@ -437,10 +509,12 @@ export component StudioLivePage inherits VerticalLayout {
                     padding-right: 8px;
                     spacing: 6px;
                     alignment: start;
-                    Rectangle {
-                        width: 6px; height: 6px; border-radius: 3px;
-                        background: StudioLive.state == "connected" ? Floword.success : Floword.warning;
-                        y: (parent.height - self.height) / 2;
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 6px; height: 6px; border-radius: 3px;
+                            background: StudioLive.state == "connected" ? Floword.success : Floword.warning;
+                        }
                     }
                     Text {
                         text: StudioLive.state == "connected" ? "Đã kết nối phòng Live"
@@ -574,18 +648,21 @@ export component StudioLivePage inherits VerticalLayout {
                                 padding-right: 8px;
                                 spacing: 5px;
                                 alignment: center;
-                                Rectangle {
-                                    width: 6px;
-                                    height: 6px;
-                                    border-radius: 3px;
-                                    background: StudioLive.state == "connected" ? Floword.success : Floword.warning;
-                                    y: (parent.height - self.height) / 2;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Rectangle {
+                                        width: 6px;
+                                        height: 6px;
+                                        border-radius: 3px;
+                                        background: StudioLive.state == "connected" ? Floword.success : Floword.warning;
+                                    }
                                 }
                                 Text {
                                     text: StudioLive.state == "connected" ? "LIVE PHÁT SÓNG" : "CHƯA KẾT NỐI PHIÊN LIVE";
                                     color: #ffffff;
                                     font-size: 10px;
                                     font-weight: 700;
+                                    vertical-alignment: center;
                                 }
                             }
                         }
