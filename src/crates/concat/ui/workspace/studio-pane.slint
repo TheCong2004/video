@@ -34,6 +34,7 @@ export struct StudioWorkflowRow {
 }
 
 export global StudioBridge {
+    in-out property <bool> show-advanced: false;
     in-out property <bool> checking;
     // 0 unchecked, 1 reachable JSON, 2 unavailable, 3 invalid response.
     in-out property <int> promax-state;
@@ -88,16 +89,16 @@ export component StudioPage inherits VerticalLayout {
     callback choose-project();
     callback back();
     callback navigate(route: StudioRoute);
-    padding: 26px;
-    spacing: 22px;
+    padding: 24px;
+    spacing: 20px;
     alignment: start;
 
     HorizontalLayout {
         spacing: 20px;
         VerticalLayout {
             spacing: 7px;
-            Text { text: "FLOWORD STUDIO"; color: Floword.violet; font-size: 12px; font-weight: 600; }
-            Text { text: StudioBridge.title(root.route); color: Floword.text; font-size: 25px; font-weight: 700; wrap: word-wrap; }
+            Text { text: "OBSIDIAN MOTION STUDIO"; color: Floword.violet; font-size: 12px; font-weight: 600; }
+            Text { text: StudioBridge.title(root.route); color: Floword.text; font-size: 27px; font-weight: 700; wrap: word-wrap; }
         }
         Rectangle { horizontal-stretch: 1; }
         StudioButton { label: I18n.t("start.projects"); clicked => { root.back(); } }
@@ -142,7 +143,7 @@ export component StudioPage inherits VerticalLayout {
                         Icon { glyph: Glyph.film; size: 20px; tint: Floword.violet; }
                         Text { text: "Xưởng Phim AI"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
                     }
-                    Text { text: "Sản xuất video phân cảnh tự động từ brief kịch bản và nhân vật AI."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+                    Text { text: "Từ ý tưởng đến video hoàn chỉnh. Chỉ cần mô tả câu chuyện và làm theo hướng dẫn."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
                     HorizontalLayout {
                         Rectangle { horizontal-stretch: 1; }
                         StudioButton {
@@ -169,7 +170,7 @@ export component StudioPage inherits VerticalLayout {
                         Icon { glyph: Glyph.sparkle; size: 20px; tint: Floword.violet; }
                         Text { text: "Chợ Kịch Bản"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
                     }
-                    Text { text: "Kho mẫu kịch bản điện ảnh triệu view và câu chuyện xúc động từ ArtCraft."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+                    Text { text: "Chọn một mẫu câu chuyện có sẵn để bắt đầu nhanh hơn."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
                     HorizontalLayout {
                         Rectangle { horizontal-stretch: 1; }
                         StudioButton {
@@ -249,7 +250,7 @@ export component StudioPage inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: center;
-                    Text { text: "Promax Engine (43100):"; color: Floword.muted; font-size: 12px; }
+                    Text { text: "Dịch vụ tạo video:"; color: Floword.muted; font-size: 12px; }
                     Text {
                         text: StudioBridge.promax-state == 1 ? "Sẵn sàng" : "Chưa kết nối";
                         color: StudioBridge.promax-state == 1 ? Floword.success : Floword.warning;
@@ -259,7 +260,7 @@ export component StudioPage inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: center;
-                    Text { text: "ArtCraft Media (30000):"; color: Floword.muted; font-size: 12px; }
+                    Text { text: "Dịch vụ xử lý hình ảnh:"; color: Floword.muted; font-size: 12px; }
                     Text {
                         text: StudioBridge.artcraft-state == 1 ? "Sẵn sàng" : "Chưa kết nối";
                         color: StudioBridge.artcraft-state == 1 ? Floword.success : Floword.warning;

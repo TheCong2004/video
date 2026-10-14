@@ -572,8 +572,8 @@ component PillButton inherits Rectangle {
             alignment: center;
             Icon {
                 glyph: root.glyph;
-                size: 15px;
-                tint: root.ink;
+                size: root.studio-tone ? 18px : 15px;
+                tint: root.current && root.studio-tone ? Floword.violet : root.ink;
             }
         }
 
@@ -649,14 +649,20 @@ component RailItem inherits Rectangle {
     callback clicked();
 
     property <bool> lit: touch.has-hover && root.enabled;
-    property <brush> ink: root.current ? (root.studio-tone ? Floword.accent : Theme.accent) : root.lit ? Theme.fg : Theme.fg-muted;
+    property <brush> ink: root.current ? (root.studio-tone ? Floword.text : Theme.accent) : root.lit ? (root.studio-tone ? Floword.text : Theme.fg) : (root.studio-tone ? Floword.muted : Theme.fg-muted);
 
-    height: 36px;
-    border-radius: Theme.r;
-    background: root.current && root.studio-tone ? Floword.raised : root.current || root.lit ? Theme.launch-raised : Colors.transparent;
+    height: root.studio-tone ? 42px : 36px;
+    border-radius: root.studio-tone ? 11px : Theme.r;
+    background: root.current && root.studio-tone ? Floword.raised : root.lit && root.studio-tone ? Floword.field : root.current || root.lit ? Theme.launch-raised : Colors.transparent;
     opacity: root.enabled ? 1.0 : 0.4;
 
-    animate background { duration: 120ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background { duration: 160ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+
+    if root.current && root.studio-tone: Rectangle {
+        x: 1px; y: 7px; width: 3px; height: root.height - 14px;
+        background: Floword.accent;
+        border-radius: 2px;
+    }
 
     HorizontalLayout {
         padding-left: root.compact ? 0px : 13px;
@@ -679,7 +685,7 @@ component RailItem inherits Rectangle {
             Text {
                 text: root.label;
                 color: root.ink;
-                font-size: Theme.fs-lg;
+                font-size: root.studio-tone ? 14px : Theme.fs-lg;
                 font-weight: Theme.weight-title;
                 overflow: elide;
             }
@@ -717,7 +723,7 @@ component Rail inherits Rectangle {
     callback studio-picked(route: StudioRoute);
     callback projects();
 
-    background: Theme.launch-panel;
+    background: root.studio-open ? Floword.surface : Theme.launch-panel;
 
     Rectangle {
         x: parent.width - 1px;
@@ -755,7 +761,7 @@ component Rail inherits Rectangle {
                     font-size: Theme.fs-sm;
                 }
                 for route in [StudioRoute.overview, StudioRoute.production,
-                    StudioRoute.opentalking, StudioRoute.live, StudioRoute.workflows, StudioRoute.scripts, StudioRoute.bulk]: RailItem {
+                    StudioRoute.scripts, StudioRoute.opentalking, StudioRoute.live]: RailItem {
                     label: StudioBridge.title(route);
                     glyph: route == StudioRoute.scripts ? Glyph.text-mark : route == StudioRoute.overview ? Glyph.rows : route == StudioRoute.workflows ? Glyph.curves : route == StudioRoute.bulk ? Glyph.import : Glyph.film;
                     compact: root.compact;
@@ -763,6 +769,26 @@ component Rail inherits Rectangle {
                     current: root.studio-open && root.studio-route == route;
                     studio-tone: true;
                     clicked => { root.studio-picked(route); }
+                }
+                RailItem {
+                    label: StudioBridge.show-advanced ? "Ẩn công cụ nâng cao" : "Hiện công cụ nâng cao";
+                    glyph: Glyph.settings;
+                    compact: root.compact;
+                    enabled: root.enabled;
+                    studio-tone: true;
+                    clicked => { StudioBridge.show-advanced = !StudioBridge.show-advanced; }
+                }
+                if StudioBridge.show-advanced: VerticalLayout {
+                    spacing: 4px;
+                    for route in [StudioRoute.workflows, StudioRoute.bulk]: RailItem {
+                        label: StudioBridge.title(route);
+                        glyph: route == StudioRoute.workflows ? Glyph.curves : Glyph.import;
+                        compact: root.compact;
+                        enabled: root.enabled;
+                        current: root.studio-open && root.studio-route == route;
+                        studio-tone: true;
+                        clicked => { root.studio-picked(route); }
+                    }
                 }
                 if !root.compact: Text {
                     text: I18n.t("productionStudio.operations");
