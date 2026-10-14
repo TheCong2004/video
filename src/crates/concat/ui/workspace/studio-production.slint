@@ -228,7 +228,7 @@ export component StudioProduction inherits VerticalLayout {
             }
             StudioField {
                 label: "Phong cách hình ảnh";
-                placeholder: "Ví dụ: Cinematic 35mm film still, warm golden lantern lighting, photorealistic 8k...";
+                placeholder: "Ví dụ: Phong cách điện ảnh, ánh sáng hoàng hôn ấm áp, màu sắc tự nhiên...";
                 value: ProductionStudio.visual-style; enabled: !ProductionStudio.busy;
                 edited(text) => { ProductionStudio.visual-style = text; }
             }
@@ -283,6 +283,7 @@ export component StudioProduction inherits VerticalLayout {
                 }
             }
 
+            Text { text: "Nếu bạn mới sử dụng, hãy giữ lựa chọn được đề xuất. Quy trình quyết định cách các công đoạn được tự động thực hiện."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
             Text { text: I18n.t("nativeStudio.workflowHint"); color: Floword.muted; font-size: 12px; wrap: word-wrap; }
 
             StudioButton {
@@ -294,6 +295,14 @@ export component StudioProduction inherits VerticalLayout {
                 edited(text) => { ProductionStudio.extra-inputs = text; ProductionStudio.invalidate(); }
             }
 
+            if !ProductionStudio.ready && !ProductionStudio.busy: Text {
+                text: "Hãy bấm Kiểm tra trước khi tạo để xác nhận các thiết lập đã sẵn sàng.";
+                color: Floword.muted; font-size: 13px; wrap: word-wrap;
+            }
+            if ProductionStudio.ready && !ProductionStudio.busy: Text {
+                text: "Đã kiểm tra. Bạn có thể bắt đầu tạo video.";
+                color: Floword.success; font-size: 13px; wrap: word-wrap;
+            }
             VerticalLayout {
                 spacing: 8px;
                 StudioButton {
