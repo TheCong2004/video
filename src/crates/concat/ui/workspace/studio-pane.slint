@@ -1,0 +1,520 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+import { I18n } from "../i18n.slint";
+import { Theme, Button } from "../primitives/primitives.slint";
+import { StudioScripts } from "studio-scripts.slint";
+import { StudioAiPage } from "studio-ai.slint";
+import { StudioSessionPanel } from "studio-session.slint";
+import { StudioBrowserPanel } from "studio-browser.slint";
+import { StudioPagesPanel } from "studio-pages.slint";
+import { StudioOpenTalkingPage } from "studio-opentalking.slint";
+import { StudioLivePage } from "studio-live.slint";
+import { StudioBulkPanel } from "studio-bulk.slint";
+import { StudioPublishPanel } from "studio-publish.slint";
+import { ScriptLibrary } from "studio-scripts.slint";
+import { ProductionStudio, StudioProduction, StudioRunList } from "studio-production.slint";
+import { Floword } from "../theme/floword.slint";
+import { Glyph, Icon } from "../icons.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField, StudioMetric } from "studio-chrome.slint";
+import { StudioChannels } from "studio-pages.slint";
+
+// Launcher tools: available before a project exists; not part of MediaFilter.
+export enum StudioRoute {
+    overview, production, opentalking, live, workflows, scripts, bulk,
+    jobs, channels, publish, history, settings, keys,
+}
+
+export struct StudioWorkflowRow {
+    id: string,
+    name: string,
+    version: string,
+    description: string,
+    nodes: int,
+    edges: int,
+}
+
+export global StudioBridge {
+    in-out property <bool> checking;
+    // 0 unchecked, 1 reachable JSON, 2 unavailable, 3 invalid response.
+    in-out property <int> promax-state;
+    in-out property <int> artcraft-state;
+    callback check-services();
+    in-out property <[StudioWorkflowRow]> workflows;
+    in-out property <bool> workflows-loading;
+    in-out property <bool> workflow-worker-busy;
+    in-out property <int> workflow-generation;
+    // 0 idle, 1 success, 2 auth, 3 forbidden, 4 limit, 5 unavailable,
+    // 6 invalid response, 7 configuration. Error text never comes from server.
+    in-out property <int> workflows-state;
+    callback refresh-workflows();
+    callback cancel-workflows();
+
+    public pure function workflow-status(state: int) -> string {
+        return state == 1 ? I18n.t("productionStudio.workflowsLoaded")
+            : state == 2 ? I18n.t("productionStudio.authRequired")
+            : state == 3 ? I18n.t("productionStudio.accessDenied")
+            : state == 4 ? I18n.t("productionStudio.rateLimited")
+            : state == 5 ? I18n.t("productionStudio.workflowUnavailable")
+            : state == 6 ? I18n.t("productionStudio.workflowInvalid")
+            : state == 7 ? I18n.t("productionStudio.workflowConfiguration")
+            : state == 8 ? I18n.t("productionStudio.workflowCancelled")
+            : I18n.t("productionStudio.workflowIdle");
+    }
+
+    public pure function status-label(state: int) -> string {
+        return state == 1 ? I18n.t("productionStudio.reachable")
+            : state == 2 ? I18n.t("productionStudio.unavailable")
+            : state == 3 ? I18n.t("productionStudio.invalidResponse") : I18n.t("productionStudio.unchecked");
+    }
+
+    public pure function title(route: StudioRoute) -> string {
+        return route == StudioRoute.overview ? I18n.t("productionStudio.overview")
+            : route == StudioRoute.production ? I18n.t("productionStudio.production")
+            : route == StudioRoute.opentalking ? I18n.t("studioOpenTalking.nav")
+            : route == StudioRoute.live ? I18n.t("studioLive.nav")
+            : route == StudioRoute.workflows ? I18n.t("productionStudio.workflows")
+            : route == StudioRoute.scripts ? I18n.t("productionStudio.scripts")
+            : route == StudioRoute.bulk ? I18n.t("productionStudio.bulk")
+            : route == StudioRoute.jobs ? I18n.t("productionStudio.jobs")
+            : route == StudioRoute.channels ? I18n.t("productionStudio.channels")
+            : route == StudioRoute.publish ? I18n.t("productionStudio.publish")
+            : route == StudioRoute.history ? I18n.t("productionStudio.history")
+            : route == StudioRoute.settings ? I18n.t("productionStudio.settings") : I18n.t("productionStudio.keys");
+    }
+}
+
+export component StudioPage inherits VerticalLayout {
+    in property <StudioRoute> route;
+    callback choose-project();
+    callback back();
+    callback navigate(route: StudioRoute);
+    padding: 26px;
+    spacing: 22px;
+    alignment: start;
+
+    HorizontalLayout {
+        spacing: 20px;
+        VerticalLayout {
+            spacing: 7px;
+            Text { text: "FLOWORD STUDIO"; color: Floword.violet; font-size: 12px; font-weight: 600; }
+            Text { text: StudioBridge.title(root.route); color: Floword.text; font-size: 25px; font-weight: 700; wrap: word-wrap; }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        StudioButton { label: I18n.t("start.projects"); clicked => { root.back(); } }
+    }
+    if root.route == StudioRoute.overview: VerticalLayout {
+        spacing: 20px;
+
+        // Metric Counters Row
+        HorizontalLayout {
+            spacing: 16px;
+            StudioMetric { label: I18n.t("nativeStudio.jobs"); value: ProductionStudio.runs-loaded ? "\{ProductionStudio.runs.length}" : "—"; }
+            StudioMetric { label: I18n.t("nativeStudio.workflow"); value: StudioBridge.workflows-state == 1 && !StudioBridge.workflows-loading ? "\{StudioBridge.workflows.length}" : "—"; }
+            StudioMetric { label: I18n.t("productionStudio.scripts"); value: ScriptLibrary.loaded ? "\{ScriptLibrary.rows.length}" : "4 Mẫu"; }
+            StudioMetric { label: "Kênh Hoạt Động"; value: "\{StudioChannels.rows.length}"; }
+        }
+
+        // Quick Launch Console Cards Grid
+        HorizontalLayout {
+            spacing: 16px;
+            // Card 1: Xưởng Phim AI
+            Rectangle {
+                background: Floword.surface;
+                border-radius: 14px;
+                border-width: 1px;
+                border-color: Floword.line;
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Icon { glyph: Glyph.film; size: 20px; tint: Floword.violet; }
+                        Text { text: "Xưởng Phim AI"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
+                    }
+                    Text { text: "Sản xuất video phân cảnh tự động từ brief kịch bản và nhân vật AI."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+                    HorizontalLayout {
+                        Rectangle { horizontal-stretch: 1; }
+                        StudioButton {
+                            label: "Mở Xưởng phim";
+                            primary: true;
+                            clicked => { root.navigate(StudioRoute.production); }
+                        }
+                    }
+                }
+            }
+
+            // Card 2: Chợ Kịch Bản
+            Rectangle {
+                background: Floword.surface;
+                border-radius: 14px;
+                border-width: 1px;
+                border-color: Floword.line;
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Icon { glyph: Glyph.sparkle; size: 20px; tint: Floword.violet; }
+                        Text { text: "Chợ Kịch Bản"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
+                    }
+                    Text { text: "Kho mẫu kịch bản điện ảnh triệu view và câu chuyện xúc động từ ArtCraft."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+                    HorizontalLayout {
+                        Rectangle { horizontal-stretch: 1; }
+                        StudioButton {
+                            label: "Xem kịch bản";
+                            clicked => { root.navigate(StudioRoute.scripts); }
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 16px;
+            // Card 3: TikTok LIVE Studio
+            Rectangle {
+                background: Floword.surface;
+                border-radius: 14px;
+                border-width: 1px;
+                border-color: Floword.line;
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Icon { glyph: Glyph.volume; size: 20px; tint: Floword.success; }
+                        Text { text: "TikTok LIVE Studio"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
+                    }
+                    Text { text: "Phát sóng avatar ảo tương tác trực tiếp và trả lời bình luận theo thời gian thực."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+                    HorizontalLayout {
+                        Rectangle { horizontal-stretch: 1; }
+                        StudioButton {
+                            label: "Vào phòng Live";
+                            clicked => { root.navigate(StudioRoute.live); }
+                        }
+                    }
+                }
+            }
+
+            // Card 4: Hàng Đợi Đăng Bài
+            Rectangle {
+                background: Floword.surface;
+                border-radius: 14px;
+                border-width: 1px;
+                border-color: Floword.line;
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Icon { glyph: Glyph.import; size: 20px; tint: Floword.warning; }
+                        Text { text: "Hàng Đợi Đăng Bài"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
+                    }
+                    Text { text: "Lên lịch và tự động hóa xuất bản đa nền tảng (TikTok, YouTube, Facebook)."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+                    HorizontalLayout {
+                        Rectangle { horizontal-stretch: 1; }
+                        StudioButton {
+                            label: "Xem lịch đăng";
+                            clicked => { root.navigate(StudioRoute.publish); }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Service Connectivity Ribbon
+        Rectangle {
+            background: Floword.surface;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Floword.line;
+            HorizontalLayout {
+                padding: 14px;
+                spacing: 20px;
+                alignment: space-between;
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: center;
+                    Text { text: "Promax Engine (43100):"; color: Floword.muted; font-size: 12px; }
+                    Text {
+                        text: StudioBridge.promax-state == 1 ? "Sẵn sàng" : "Chưa kết nối";
+                        color: StudioBridge.promax-state == 1 ? Floword.success : Floword.warning;
+                        font-size: 12px; font-weight: 600;
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: center;
+                    Text { text: "ArtCraft Media (30000):"; color: Floword.muted; font-size: 12px; }
+                    Text {
+                        text: StudioBridge.artcraft-state == 1 ? "Sẵn sàng" : "Chưa kết nối";
+                        color: StudioBridge.artcraft-state == 1 ? Floword.success : Floword.warning;
+                        font-size: 12px; font-weight: 600;
+                    }
+                }
+                StudioButton {
+                    label: StudioBridge.checking ? "Đang kiểm tra..." : "Kiểm tra kết nối dịch vụ";
+                    enabled: !StudioBridge.checking;
+                    clicked => { StudioBridge.check-services(); }
+                }
+            }
+        }
+
+        // Job Run List
+        StudioRunList { }
+    }
+    if root.route == StudioRoute.production: VerticalLayout {
+        spacing: 16px;
+        HorizontalLayout {
+            StudioButton {
+                label: I18n.t("nativeStudio.loadWorkflows"); enabled: !StudioBridge.workflow-worker-busy && !ProductionStudio.busy;
+                clicked => { StudioBridge.refresh-workflows(); }
+            }
+            Rectangle { horizontal-stretch: 1; }
+        }
+        Text { text: StudioBridge.workflow-status(StudioBridge.workflows-state); color: Floword.muted; wrap: word-wrap; }
+        StudioProduction { }
+    }
+    if root.route == StudioRoute.opentalking: StudioOpenTalkingPage {
+        navigate-to-live => { root.navigate(StudioRoute.live); }
+    }
+    if root.route == StudioRoute.live: StudioLivePage { }
+    if root.route == StudioRoute.scripts: StudioCard {
+        StudioScripts {
+            apply-template(brief, scenes, duration) => {
+                ProductionStudio.brief = brief;
+                ProductionStudio.scenes = scenes;
+                ProductionStudio.duration = duration;
+                ProductionStudio.invalidate();
+                root.navigate(StudioRoute.production);
+            }
+        }
+    }
+    if root.route == StudioRoute.jobs || root.route == StudioRoute.history: VerticalLayout {
+        spacing: 14px;
+        Text { text: ProductionStudio.status; color: Floword.muted; wrap: word-wrap; }
+        StudioRunList { history-only: root.route == StudioRoute.history; }
+    }
+    if root.route == StudioRoute.workflows: HorizontalLayout {
+        spacing: 16px;
+
+        // Left Column: Promax Workflow Catalog
+        StudioCard {
+            horizontal-stretch: 1;
+            min-width: 360px;
+            spacing: 14px;
+
+            StudioHeading { title: "DANH MỤC WORKFLOW PROMAX"; glyph: Glyph.curves; }
+            Text {
+                text: "Workflow được quản lý và lập lịch bởi Promax Authority. ArtCraft và Concat thực thi capability khi Promax xác nhận worker phù hợp.";
+                color: Floword.muted;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                StudioButton {
+                    label: StudioBridge.workflows-loading ? "Đang tải workflow…" : "Tải lại danh sách Workflow";
+                    primary: true;
+                    enabled: !StudioBridge.workflow-worker-busy;
+                    clicked => { StudioBridge.refresh-workflows(); }
+                }
+                if StudioBridge.workflows-loading: StudioButton {
+                    label: "Hủy tải";
+                    clicked => { StudioBridge.cancel-workflows(); }
+                }
+                Rectangle { horizontal-stretch: 1; }
+            }
+
+            Text {
+                text: StudioBridge.workflow-status(StudioBridge.workflows-state);
+                color: Floword.warning;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+
+            Rectangle { height: 1px; background: Floword.line; }
+
+            // Empty state when no workflows are present
+            if StudioBridge.workflows.length == 0: Rectangle {
+                background: Floword.field;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Floword.line;
+                min-height: 180px;
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 10px;
+                    padding: 20px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Icon { glyph: Glyph.curves; size: 28px; tint: Floword.violet; }
+                    }
+                    Text {
+                        text: StudioBridge.workflows-loading ? "Đang đồng bộ danh sách workflow từ Promax..." : "Chưa có workflow nào được nạp.";
+                        color: Floword.text;
+                        font-size: 14px;
+                        font-weight: 600;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: "Bấm 'Tải lại danh sách' để nạp danh sách workflow được cấu hình trên máy chủ Promax Authority.";
+                        color: Floword.muted;
+                        font-size: 12px;
+                        horizontal-alignment: center;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+
+            // List of workflows
+            for workflow in StudioBridge.workflows: Rectangle {
+                background: Floword.field;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Floword.line;
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text { text: workflow.name; color: Floword.text; font-size: 15px; font-weight: 700; wrap: word-wrap; horizontal-stretch: 1; }
+                        Rectangle {
+                            background: Floword.violet.with-alpha(0.18);
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Floword.violet.with-alpha(0.3);
+                            HorizontalLayout {
+                                padding-left: 6px; padding-right: 6px; padding-top: 2px; padding-bottom: 2px;
+                                Text { text: "v" + workflow.version; color: Floword.violet; font-size: 11px; font-weight: 600; }
+                            }
+                        }
+                    }
+                    Text { text: workflow.id; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Text { text: workflow.nodes + " nodes · " + workflow.edges + " edges"; color: Floword.muted; font-size: 12px; vertical-alignment: center; }
+                        Rectangle { horizontal-stretch: 1; }
+                        StudioButton {
+                            label: "Chọn chạy";
+                            clicked => {
+                                ProductionStudio.brief = "Chạy workflow: " + workflow.name;
+                                ProductionStudio.invalidate();
+                                root.navigate(StudioRoute.production);
+                            }
+                        }
+                    }
+                    if workflow.description != "": Text {
+                        text: workflow.description;
+                        color: Floword.muted;
+                        font-size: 12px;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+
+        // Right Column: Preflight & Parameters Console
+        StudioCard {
+            horizontal-stretch: 1;
+            min-width: 360px;
+            spacing: 14px;
+
+            StudioHeading { title: "THAM SỐ & PREFLIGHT"; glyph: Glyph.sparkle; }
+            Text {
+                text: "Cấu hình JSON parameters và kiểm tra tính tương thích trước khi khởi chạy.";
+                color: Floword.muted;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+
+            StudioField {
+                label: "Tham số đầu vào (Inputs JSON Object):";
+                value: "{}";
+                multiline: true;
+                placeholder: "{\"prompt\": \"...\", \"ratio\": \"9:16\"}";
+            }
+
+            StudioButton {
+                label: "Kiểm tra Preflight";
+                clicked => { StudioBridge.refresh-workflows(); }
+            }
+
+            Rectangle {
+                background: Floword.field;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Floword.line;
+                HorizontalLayout {
+                    padding: 10px;
+                    spacing: 8px;
+                    Icon { glyph: Glyph.check; size: 16px; tint: Floword.success; }
+                    Text {
+                        text: "Preflight sẵn sàng · Promax Scheduler Authority";
+                        color: Floword.success;
+                        font-size: 12px;
+                        font-weight: 600;
+                        wrap: word-wrap;
+                        horizontal-stretch: 1;
+                    }
+                }
+            }
+
+            StudioButton {
+                label: "Chuyển sang Xưởng phim để dựng";
+                primary: true;
+                clicked => { root.navigate(StudioRoute.production); }
+            }
+        }
+    }
+    if root.route == StudioRoute.settings: StudioSessionPanel { }
+    if root.route == StudioRoute.channels: StudioPagesPanel { }
+    if root.route == StudioRoute.settings: StudioCard {
+        StudioHeading { title: I18n.t("nativeStudio.connections"); glyph: Glyph.settings; }
+        Text { text: I18n.t("productionStudio.migrationNotice"); color: Floword.muted; wrap: word-wrap; }
+        Text {
+            text: I18n.t("productionStudio.connectionScope");
+            color: Floword.muted;
+            font-size: 12px;
+            wrap: word-wrap;
+        }
+        HorizontalLayout {
+            spacing: 20px;
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "Promax (43100):"; color: Floword.muted; font-size: 13px; }
+                Text {
+                    text: StudioBridge.status-label(StudioBridge.promax-state);
+                    color: StudioBridge.promax-state == 1 ? Floword.success : Floword.warning;
+                    font-size: 13px; font-weight: 600;
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "ArtCraft (30000):"; color: Floword.muted; font-size: 13px; }
+                Text {
+                    text: StudioBridge.status-label(StudioBridge.artcraft-state);
+                    color: StudioBridge.artcraft-state == 1 ? Floword.success : Floword.warning;
+                    font-size: 13px; font-weight: 600;
+                }
+            }
+        }
+        HorizontalLayout {
+            StudioButton {
+                label: StudioBridge.checking ? I18n.t("productionStudio.checking") : I18n.t("productionStudio.checkServices");
+                enabled: !StudioBridge.checking;
+                primary: true;
+                clicked => { StudioBridge.check-services(); }
+            }
+            Rectangle { horizontal-stretch: 1; }
+        }
+    }
+    if root.route == StudioRoute.keys: StudioAiPage { account => { root.navigate(StudioRoute.settings); } }
+    if root.route == StudioRoute.bulk: StudioBulkPanel { }
+    if root.route == StudioRoute.publish: StudioPublishPanel { }
+}

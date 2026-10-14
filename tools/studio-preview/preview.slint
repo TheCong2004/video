@@ -1,0 +1,16 @@
+import { StudioPage, StudioRoute, StudioBridge } from "../../src/crates/concat/ui/workspace/studio-pane.slint";
+import { I18n } from "../../src/crates/concat/ui/i18n.slint";
+import { ProductionStudio } from "../../src/crates/concat/ui/workspace/studio-production.slint";
+import { Floword } from "../../src/crates/concat/ui/theme/floword.slint";
+import { StudioAi, StudioProviderRow } from "../../src/crates/concat/ui/workspace/studio-ai.slint";
+export { StudioRoute, I18n, StudioBridge, ProductionStudio, StudioAi, StudioProviderRow }
+export component Preview inherits Window {
+    in property <StudioRoute> route;
+    in property <int> viewport-width: 1440;
+    in property <int> viewport-height: 1000;
+    width: root.viewport-width * 1px;
+    height: root.viewport-height * 1px;
+    default-font-family: "Segoe UI";
+    background: Floword.ground;
+    StudioPage { route: root.route; }
+}

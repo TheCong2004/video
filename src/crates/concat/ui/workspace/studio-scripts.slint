@@ -1,0 +1,513 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Theme, Button } from "../primitives/primitives.slint";
+import { I18n } from "../i18n.slint";
+import { Floword } from "../theme/floword.slint";
+import { Glyph, Icon } from "../icons.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+
+export struct StudioPromptRow {
+    id: string,
+    name: string,
+    image-prompt: string,
+    expand-prompt: string,
+    video-prompt: string,
+    revision: string,
+}
+
+export struct MarketScriptCard {
+    id: string,
+    title: string,
+    tags: string,
+    summary: string,
+    scenes: int,
+    duration: int,
+    voice: string,
+    brief: string,
+    image-prompt: string,
+    video-prompt: string,
+}
+
+export global ScriptLibrary {
+    in-out property <[StudioPromptRow]> rows;
+    in-out property <StudioPromptRow> draft;
+    in-out property <bool> busy;
+    in-out property <bool> loaded;
+    in-out property <bool> dirty;
+    in-out property <bool> confirming-delete;
+    in-out property <string> status;
+    in-out property <int> active-tab: 0; // 0: Market Templates, 1: Custom Prompts
+    in-out property <string> selected-market-id;
+    callback refresh();
+    callback save-script(row: StudioPromptRow);
+    callback delete-script(row: StudioPromptRow);
+    public function edit(row: StudioPromptRow) {
+        self.draft = row;
+        self.dirty = false;
+        self.confirming-delete = false;
+        self.active-tab = 1;
+    }
+    public function new-script() {
+        self.edit({ id: "", name: "", image-prompt: "", expand-prompt: "", video-prompt: "", revision: "" });
+    }
+}
+
+export component StudioScripts inherits VerticalLayout {
+    callback apply-template(brief: string, scenes: float, duration: float);
+    spacing: 16px;
+
+    // Header intro
+    HorizontalLayout {
+        alignment: space-between;
+        VerticalLayout {
+            spacing: 4px;
+            Text {
+                text: ScriptLibrary.active-tab == 0 ? "CHỢ MẪU KỊCH BẢN ĐIỆN ẢNH" : "THƯ VIỆN PROMPT TÙY CHỈNH";
+                color: Floword.violet;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            Text {
+                text: ScriptLibrary.active-tab == 0
+                    ? "Mẫu kịch bản phân cảnh triệu view từ ArtCraft · Sẵn sàng áp dụng ngay vào Xưởng phim AI"
+                    : I18n.t("studioScripts.intro");
+                color: Floword.muted;
+                font-size: 14px;
+                wrap: word-wrap;
+            }
+        }
+
+        // Tab switch buttons
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: end;
+            Rectangle {
+                background: ScriptLibrary.active-tab == 0 ? Floword.raised : Floword.field;
+                border-radius: 9px;
+                border-width: 1px;
+                border-color: ScriptLibrary.active-tab == 0 ? Floword.violet : Floword.line;
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 8px;
+                    padding-bottom: 8px;
+                    spacing: 6px;
+                    Icon { glyph: Glyph.sparkle; size: 14px; tint: ScriptLibrary.active-tab == 0 ? Floword.violet : Floword.muted; }
+                    Text {
+                        text: "Mẫu kịch bản ArtCraft";
+                        color: ScriptLibrary.active-tab == 0 ? Floword.text : Floword.muted;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                }
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { ScriptLibrary.active-tab = 0; }
+                }
+            }
+
+            Rectangle {
+                background: ScriptLibrary.active-tab == 1 ? Floword.raised : Floword.field;
+                border-radius: 9px;
+                border-width: 1px;
+                border-color: ScriptLibrary.active-tab == 1 ? Floword.violet : Floword.line;
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 8px;
+                    padding-bottom: 8px;
+                    spacing: 6px;
+                    Icon { glyph: Glyph.text-mark; size: 14px; tint: ScriptLibrary.active-tab == 1 ? Floword.violet : Floword.muted; }
+                    Text {
+                        text: "Prompt tùy chỉnh (" + ScriptLibrary.rows.length + ")";
+                        color: ScriptLibrary.active-tab == 1 ? Floword.text : Floword.muted;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                }
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { ScriptLibrary.active-tab = 1; }
+                }
+            }
+        }
+    }
+
+    Rectangle { height: 1px; background: Floword.line; }
+
+    // =========================================================================
+    // TAB 0: CHỢ MẪU KỊCH BẢN (SCRIPT MARKET TEMPLATES)
+    // =========================================================================
+    if ScriptLibrary.active-tab == 0: VerticalLayout {
+        spacing: 16px;
+
+        // CARD 1: Người giữ đèn ở phố cổ
+        Rectangle {
+            background: Floword.surface;
+            border-radius: 14px;
+            border-width: 1px;
+            border-color: Floword.line;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 12px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Text { text: "Người giữ đèn ở phố cổ"; color: Floword.text; font-size: 17px; font-weight: 700; }
+                        Rectangle {
+                            background: Floword.violet.with-alpha(0.18);
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Floword.violet.with-alpha(0.3);
+                            HorizontalLayout {
+                                padding-left: 8px; padding-right: 8px; padding-top: 2px; padding-bottom: 2px;
+                                Text { text: "Kể chuyện · Cảm xúc · Phố cổ Hội An"; color: Floword.violet; font-size: 11px; font-weight: 600; }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text { text: "6 cảnh · 60s · Giọng kể truyền cảm"; color: Floword.muted; font-size: 12px; vertical-alignment: center; }
+                        StudioButton {
+                            label: "Áp dụng vào Xưởng phim AI";
+                            primary: true;
+                            clicked => {
+                                root.apply-template(
+                                    "Tạo phim dọc 60 giây, 6 cảnh liên tục về Người Giữ Đèn ở Phố Cổ. Nhân vật chính xuất hiện xuyên suốt: người phụ nữ khoảng 35 tuổi, áo dài xanh thẫm, tóc búi thấp, luôn cầm đèn lồng giấy màu hổ phách. Cảnh 1: Phố cổ Hội An lúc chạng vạng; Cảnh 2: Mở cửa tiệm đèn cổ; Cảnh 3: Thắp từng chiếc đèn lồng giấy; Cảnh 4: Du khách dừng bước chiêm ngưỡng; Cảnh 5: Cơn mưa nhẹ phản chiếu ánh vàng trên phố đá; Cảnh 6: Toàn cảnh góc phố lung linh ấm áp. Giọng kể tiếng Việt tự nhiên, truyền cảm, kết bằng một câu ngắn lắng đọng.",
+                                    6, 60
+                                );
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "Phim dọc 60 giây về người thắp đèn lồng ở Hội An; nhịp ấm áp, kết bằng thông điệp giữ gìn ký ức đô thị.";
+                    color: Floword.muted; font-size: 13px; wrap: word-wrap;
+                }
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line;
+                    HorizontalLayout {
+                        padding: 10px; spacing: 8px;
+                        Text { text: "Prompt hình ảnh:"; color: Floword.violet; font-size: 12px; font-weight: 600; }
+                        Text {
+                            text: "Vertical 9:16 cinematic film still. A graceful 35-year-old Vietnamese woman with low bun hair, wearing a traditional dark navy blue silk Ao Dai. She stands in an ancient Hoi An street at dusk, holding a glowing amber paper lantern. Ancient weathered wooden houses and yellow walls in the background, soft golden lantern bokeh, subtle rain reflection on stone pavement. Masterpiece, photorealistic, 8k resolution, cinematic lighting, 35mm film photograph, highly detailed, no text, no split screen.";
+                            color: Floword.text; font-size: 12px; wrap: word-wrap; horizontal-stretch: 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // CARD 2: Cà phê vợt Sài Gòn xưa
+        Rectangle {
+            background: Floword.surface;
+            border-radius: 14px;
+            border-width: 1px;
+            border-color: Floword.line;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 12px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Text { text: "Cà phê vợt Sài Gòn xưa"; color: Floword.text; font-size: 17px; font-weight: 700; }
+                        Rectangle {
+                            background: Floword.warning.with-alpha(0.18);
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Floword.warning.with-alpha(0.3);
+                            HorizontalLayout {
+                                padding-left: 8px; padding-right: 8px; padding-top: 2px; padding-bottom: 2px;
+                                Text { text: "Đời sống · Hoài niệm · Retro 1980s"; color: Floword.warning; font-size: 11px; font-weight: 600; }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text { text: "4 cảnh · 45s · Giọng kể miền Nam"; color: Floword.muted; font-size: 12px; vertical-alignment: center; }
+                        StudioButton {
+                            label: "Áp dụng vào Xưởng phim AI";
+                            primary: true;
+                            clicked => {
+                                root.apply-template(
+                                    "Tạo phim dọc 45 giây, 4 cảnh liên tục về Quán Cà Phê Vợt Sài Gòn Xưa. Nhân vật chính xuất hiện xuyên suốt: Bác Ba - cụ ông 65 tuổi, hiền hậu, tóc bạc hoa râm, đeo kính tròn cổ điển, mặc áo sơ mi đũi màu kem. Cảnh 1: Hẻm nhỏ Sài Gòn mờ sương sớm 5 giờ sáng; Cảnh 2: Bác Ba nhấc vợt vải pha cà phê khói nghi ngút bên bếp than hồng; Cảnh 3: Những vị khách lớn tuổi ngồi ghế gỗ đọc báo giấy nhấp cà phê; Cảnh 4: Nắng sớm rọi qua tán me, nụ cười bình dị đón ngày mới. Giọng kể miền Nam trầm ấm, gợi nhớ hương vị thời gian.",
+                                    4, 45
+                                );
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "Mẫu tài liệu đời sống 45 giây đậm chất hoài niệm về quán cà phê vợt sáng sớm ở hẻm nhỏ Sài Gòn.";
+                    color: Floword.muted; font-size: 13px; wrap: word-wrap;
+                }
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line;
+                    HorizontalLayout {
+                        padding: 10px; spacing: 8px;
+                        Text { text: "Prompt hình ảnh:"; color: Floword.warning; font-size: 12px; font-weight: 600; }
+                        Text {
+                            text: "Vertical 9:16 cinematic documentary still. A kind 65-year-old Vietnamese man with silver hair and vintage round glasses, wearing a cream linen shirt. He is brewing traditional net-drip coffee over a glowing charcoal stove in a nostalgic 1980s Saigon alleyway at dawn. Soft steam rising, vintage aluminum kettle, retro wooden stools, cinematic warm morning sunlight cutting through mist, Kodak Portra film grain, photorealistic, 8k resolution, ultra-detailed, no text, single frame.";
+                            color: Floword.text; font-size: 12px; wrap: word-wrap; horizontal-stretch: 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // CARD 3: Chuyến tàu đêm qua miền núi
+        Rectangle {
+            background: Floword.surface;
+            border-radius: 14px;
+            border-width: 1px;
+            border-color: Floword.line;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 12px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Text { text: "Chuyến tàu đêm qua miền núi"; color: Floword.text; font-size: 17px; font-weight: 700; }
+                        Rectangle {
+                            background: Floword.accent.with-alpha(0.18);
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Floword.accent.with-alpha(0.3);
+                            HorizontalLayout {
+                                padding-left: 8px; padding-right: 8px; padding-top: 2px; padding-bottom: 2px;
+                                Text { text: "Điện ảnh · Du hành · Tây Bắc"; color: Floword.accent; font-size: 11px; font-weight: 600; }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text { text: "6 cảnh · 60s · Nam trầm điện ảnh"; color: Floword.muted; font-size: 12px; vertical-alignment: center; }
+                        StudioButton {
+                            label: "Áp dụng vào Xưởng phim AI";
+                            primary: true;
+                            clicked => {
+                                root.apply-template(
+                                    "Tạo phim dọc 60 giây, 6 cảnh liên tục về Chuyến Tàu Đêm Lên Tây Bắc. Nhân vật chính xuất hiện xuyên suốt: chàng trai 27 tuổi, áo khoác dạ xám tro, quàng khăn len xanh rêu, ba lô da cũ, ánh mắt trầm tư. Cảnh 1: Sân ga đêm mờ sương; Cảnh 2: Ngồi bên cửa sổ toa tàu với cốc trà nóng; Cảnh 3: Gương mặt phản chiếu qua ô kính cùng bóng núi xa xôi; Cảnh 4: Đoàn tàu uốn lượn qua vách đèo mù sương; Cảnh 5: Bình minh ló rạng sau dãy núi mây ngút ngàn; Cảnh 6: Bước xuống ga nhỏ đón ngày mới trên cao nguyên. Giọng đọc nam trầm điện ảnh, triết lý nhẹ nhàng.",
+                                    6, 60
+                                );
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "Mẫu điện ảnh 60 giây với nhân vật lữ khách trên chuyến tàu đêm Tây Bắc, ánh sáng xanh đêm và nhịp điệu giàu cảm xúc.";
+                    color: Floword.muted; font-size: 13px; wrap: word-wrap;
+                }
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line;
+                    HorizontalLayout {
+                        padding: 10px; spacing: 8px;
+                        Text { text: "Prompt hình ảnh:"; color: Floword.accent; font-size: 12px; font-weight: 600; }
+                        Text {
+                            text: "Vertical 9:16 moody cinematic movie still. A contemplative 27-year-old Asian man wearing a charcoal grey wool coat and moss green scarf, sitting next to a vintage train cabin window at night. A steaming cup of tea on the table, warm interior lamp light contrasting with deep blue misty mountain landscapes outside the glass window. Cinematic color grading, 35mm Arri Alexa look, photorealistic, 8k, emotional storytelling frame, no text, single scene.";
+                            color: Floword.text; font-size: 12px; wrap: word-wrap; horizontal-stretch: 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // CARD 4: Người nặn đất làng gốm
+        Rectangle {
+            background: Floword.surface;
+            border-radius: 14px;
+            border-width: 1px;
+            border-color: Floword.line;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 12px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Text { text: "Người nặn đất làng gốm"; color: Floword.text; font-size: 17px; font-weight: 700; }
+                        Rectangle {
+                            background: Floword.success.with-alpha(0.18);
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Floword.success.with-alpha(0.3);
+                            HorizontalLayout {
+                                padding-left: 8px; padding-right: 8px; padding-top: 2px; padding-bottom: 2px;
+                                Text { text: "Thủ công · Nghệ thuật · Làng nghề"; color: Floword.success; font-size: 11px; font-weight: 600; }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text { text: "4 cảnh · 45s · Sâu lắng"; color: Floword.muted; font-size: 12px; vertical-alignment: center; }
+                        StudioButton {
+                            label: "Áp dụng vào Xưởng phim AI";
+                            primary: true;
+                            clicked => {
+                                root.apply-template(
+                                    "Tạo phim dọc 45 giây, 4 cảnh liên tục về Nghệ Nhân Gốm Bát Tràng. Nhân vật chính xuất hiện xuyên suốt: nghệ nhân nam 40 tuổi, mặc áo chàm nâu mộc, gương mặt tập trung cao độ, đôi bàn tay dính đất sét khéo léo bên bàn xoay. Cảnh 1: Xưởng gốm cổ tràn ngập ánh sáng tự nhiên qua giếng trời; Cảnh 2: Đôi bàn tay uyển chuyển nắn vuốt khối đất sét xoay tròn thành chiếc bình duyên dáng; Cảnh 3: Khắc từng họa tiết hoa sen tinh xảo lên thân gốm mộc; Cảnh 4: Chiếc bình gốm hoàn thiện đặt dưới nắng chiều, nụ cười mãn nguyện của nghệ nhân. Giọng kể truyền cảm, sâu lắng.",
+                                    4, 45
+                                );
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "Mẫu tôn vinh nghề thủ công truyền thống 45 giây; tập trung vào đôi bàn tay tài hoa và vẻ đẹp mộc mạc của đất sét.";
+                    color: Floword.muted; font-size: 13px; wrap: word-wrap;
+                }
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line;
+                    HorizontalLayout {
+                        padding: 10px; spacing: 8px;
+                        Text { text: "Prompt hình ảnh:"; color: Floword.success; font-size: 12px; font-weight: 600; }
+                        Text {
+                            text: "Vertical 9:16 cinematic documentary still. A focused 40-year-old Vietnamese craftsman in rustic brown linen clothes, shaping wet clay on a spinning pottery wheel inside a traditional ceramic studio. Natural sunlight beam streaming from a skylight, dust particles dancing in the air, clay textures on skilled hands, rows of dried ceramic vases in background, warm earthy tones, photorealistic, 8k resolution, cinematic lighting, no text, single frame.";
+                            color: Floword.text; font-size: 12px; wrap: word-wrap; horizontal-stretch: 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // TAB 1: KHO KỊCH BẢN TÙY CHỈNH (CUSTOM PROMPTS LIBRARY)
+    // =========================================================================
+    if ScriptLibrary.active-tab == 1: VerticalLayout {
+        spacing: 12px;
+        HorizontalLayout {
+            spacing: 8px;
+            StudioButton {
+                label: I18n.t("studioScripts.load");
+                enabled: !ScriptLibrary.busy && !ScriptLibrary.dirty;
+                clicked => { ScriptLibrary.refresh(); }
+            }
+            StudioButton {
+                label: I18n.t("studioScripts.new");
+                primary: true;
+                enabled: !ScriptLibrary.busy && !ScriptLibrary.dirty;
+                clicked => { ScriptLibrary.new-script(); }
+            }
+            Rectangle { horizontal-stretch: 1; }
+        }
+
+        if ScriptLibrary.status != "": Text {
+            text: ScriptLibrary.status;
+            color: Floword.warning; wrap: word-wrap;
+        }
+
+        if ScriptLibrary.loaded && ScriptLibrary.rows.length == 0: Text {
+            text: I18n.t("studioScripts.empty");
+            color: Floword.muted; wrap: word-wrap;
+        }
+
+        for row in ScriptLibrary.rows: Rectangle {
+            background: Floword.field;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: Floword.line;
+            HorizontalLayout {
+                padding: 12px;
+                spacing: 10px;
+                alignment: space-between;
+                VerticalLayout {
+                    spacing: 4px;
+                    horizontal-stretch: 1;
+                    Text { text: row.name; color: Floword.text; font-size: 15px; font-weight: 600; wrap: word-wrap; }
+                    Text { text: row.image-prompt != "" ? row.image-prompt : "Chưa có prompt hình ảnh"; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+                }
+                StudioButton {
+                    label: I18n.t("studioScripts.edit");
+                    enabled: !ScriptLibrary.busy && !ScriptLibrary.dirty;
+                    clicked => { ScriptLibrary.edit(row); }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Floword.line; }
+
+        StudioField {
+            label: I18n.t("common.name");
+            placeholder: "Tên kịch bản hoặc tên nhân vật...";
+            value: ScriptLibrary.draft.name;
+            enabled: !ScriptLibrary.busy;
+            edited(text) => { ScriptLibrary.draft.name = text; ScriptLibrary.dirty = true; ScriptLibrary.confirming-delete = false; }
+        }
+
+        StudioField {
+            label: I18n.t("studioScripts.image");
+            placeholder: "Prompt hình ảnh chính (Midjourney / Grok / SD)...";
+            multiline: true;
+            value: ScriptLibrary.draft.image-prompt;
+            enabled: !ScriptLibrary.busy;
+            edited(text) => { ScriptLibrary.draft.image-prompt = text; ScriptLibrary.dirty = true; ScriptLibrary.confirming-delete = false; }
+        }
+
+        StudioField {
+            label: I18n.t("studioScripts.expand");
+            placeholder: "Prompt mở rộng bối cảnh hoặc chi tiết bổ sung...";
+            multiline: true;
+            value: ScriptLibrary.draft.expand-prompt;
+            enabled: !ScriptLibrary.busy;
+            edited(text) => { ScriptLibrary.draft.expand-prompt = text; ScriptLibrary.dirty = true; ScriptLibrary.confirming-delete = false; }
+        }
+
+        StudioField {
+            label: I18n.t("studioScripts.video");
+            placeholder: "Prompt chuyển động video và lời thoại kịch bản...";
+            multiline: true;
+            value: ScriptLibrary.draft.video-prompt;
+            enabled: !ScriptLibrary.busy;
+            edited(text) => { ScriptLibrary.draft.video-prompt = text; ScriptLibrary.dirty = true; ScriptLibrary.confirming-delete = false; }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            StudioButton {
+                label: ScriptLibrary.busy ? I18n.t("studioScripts.working") : I18n.t("studioScripts.save");
+                primary: true;
+                enabled: !ScriptLibrary.busy && ScriptLibrary.draft.name != "";
+                clicked => { ScriptLibrary.save-script(ScriptLibrary.draft); }
+            }
+            StudioButton {
+                label: I18n.t("studioScripts.discard");
+                enabled: !ScriptLibrary.busy && ScriptLibrary.dirty;
+                clicked => { ScriptLibrary.new-script(); }
+            }
+            if ScriptLibrary.draft.id != "": StudioButton {
+                label: I18n.t("common.delete");
+                enabled: !ScriptLibrary.busy && !ScriptLibrary.dirty;
+                clicked => { ScriptLibrary.confirming-delete = true; }
+            }
+            Rectangle { horizontal-stretch: 1; }
+        }
+
+        if ScriptLibrary.dirty: Text {
+            text: I18n.t("studioScripts.dirty");
+            color: Floword.warning; wrap: word-wrap;
+        }
+
+        if ScriptLibrary.confirming-delete: VerticalLayout {
+            spacing: 8px;
+            Text {
+                text: I18n.t1("studioScripts.confirm", ScriptLibrary.draft.name);
+                color: Floword.warning; wrap: word-wrap;
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                StudioButton {
+                    label: I18n.t("studioScripts.delete"); enabled: !ScriptLibrary.busy;
+                    clicked => { ScriptLibrary.delete-script(ScriptLibrary.draft); }
+                }
+                StudioButton {
+                    label: I18n.t("common.cancel"); enabled: !ScriptLibrary.busy;
+                    clicked => { ScriptLibrary.confirming-delete = false; }
+                }
+                Rectangle { horizontal-stretch: 1; }
+            }
+        }
+    }
+}

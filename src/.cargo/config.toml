@@ -1,0 +1,15 @@
+# Where the FFmpeg development build lives is machine configuration, not
+# repository configuration: concat-media links FFmpeg through
+# ffmpeg-the-third, which finds it by pkg-config or by FFMPEG_DIR pointing
+# at an unpacked shared build. Set those in your own environment, never
+# here - a machine path committed to this file breaks every other checkout.
+
+# Incremental caching is selected per profile/package in Cargo.toml: the
+# standard dev profile retains it for the frequently edited window crate,
+# and quick retains it workspace-wide. Do not override build.incremental
+# here: that would defeat the package-specific choice.
+
+# `cargo dev`: the window, built to try a change in. See `[profile.quick]`
+# in Cargo.toml for what it is and why it is quick.
+[alias]
+dev = "run --bin concat --profile quick"

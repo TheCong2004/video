@@ -1,0 +1,266 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { I18n } from "../i18n.slint";
+import { Floword } from "../theme/floword.slint";
+import { StudioCard, StudioHeading, StudioButton } from "studio-chrome.slint";
+
+export struct StudioPublishRowItem {
+    id: string,
+    title: string,
+    page-name: string,
+    platform: string,
+    status: string,
+    scheduled-time: string,
+    error-message: string,
+}
+
+export global StudioPublish {
+    in-out property <string> platform-filter: "all";
+    in-out property <string> status-filter: "all";
+    in-out property <bool> busy;
+    in-out property <string> status;
+    in-out property <int> pending-count;
+    in-out property <[StudioPublishRowItem]> items;
+    callback refresh();
+    callback approve(string);
+    callback post-now(string);
+    callback reject(string);
+    callback retry(string);
+}
+
+export component StudioPublishPanel inherits VerticalLayout {
+    spacing: 16px;
+
+    StudioCard {
+        StudioHeading { title: I18n.t("studioPublish.title"); }
+        Text {
+            text: I18n.t("studioPublish.intro");
+            color: Floword.muted;
+            font-size: 13px;
+            wrap: word-wrap;
+        }
+
+        // Action Toolbar & Filters
+        HorizontalLayout {
+            spacing: 10px;
+
+            StudioButton {
+                label: "🔄 " + I18n.t("studioPublish.refresh");
+                enabled: !StudioPublish.busy;
+                clicked => { StudioPublish.refresh(); }
+            }
+
+            // Platform Filter: All
+            Rectangle {
+                border-radius: 8px;
+                background: StudioPublish.platform-filter == "all" ? #3b82f622 : Floword.field;
+                border-width: 1px;
+                border-color: StudioPublish.platform-filter == "all" ? #3b82f688 : Floword.line;
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 6px;
+                    padding-bottom: 6px;
+                    Text { text: "Tất cả"; color: StudioPublish.platform-filter == "all" ? #60a5fa : Floword.text; font-size: 12px; font-weight: 600; }
+                }
+                TouchArea { mouse-cursor: pointer; clicked => { StudioPublish.platform-filter = "all"; StudioPublish.refresh(); } }
+            }
+
+            // Platform Filter: TikTok
+            Rectangle {
+                border-radius: 8px;
+                background: StudioPublish.platform-filter == "tiktok" ? #ec489922 : Floword.field;
+                border-width: 1px;
+                border-color: StudioPublish.platform-filter == "tiktok" ? #ec489988 : Floword.line;
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 6px;
+                    padding-bottom: 6px;
+                    Text { text: "TikTok"; color: StudioPublish.platform-filter == "tiktok" ? #f472b6 : Floword.text; font-size: 12px; font-weight: 600; }
+                }
+                TouchArea { mouse-cursor: pointer; clicked => { StudioPublish.platform-filter = "tiktok"; StudioPublish.refresh(); } }
+            }
+
+            // Platform Filter: Facebook
+            Rectangle {
+                border-radius: 8px;
+                background: StudioPublish.platform-filter == "facebook" ? #2563eb22 : Floword.field;
+                border-width: 1px;
+                border-color: StudioPublish.platform-filter == "facebook" ? #2563eb88 : Floword.line;
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 6px;
+                    padding-bottom: 6px;
+                    Text { text: "Facebook"; color: StudioPublish.platform-filter == "facebook" ? #60a5fa : Floword.text; font-size: 12px; font-weight: 600; }
+                }
+                TouchArea { mouse-cursor: pointer; clicked => { StudioPublish.platform-filter = "facebook"; StudioPublish.refresh(); } }
+            }
+
+            // Platform Filter: YouTube
+            Rectangle {
+                border-radius: 8px;
+                background: StudioPublish.platform-filter == "youtube" ? #ef444422 : Floword.field;
+                border-width: 1px;
+                border-color: StudioPublish.platform-filter == "youtube" ? #ef444488 : Floword.line;
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 6px;
+                    padding-bottom: 6px;
+                    Text { text: "YouTube"; color: StudioPublish.platform-filter == "youtube" ? #f87171 : Floword.text; font-size: 12px; font-weight: 600; }
+                }
+                TouchArea { mouse-cursor: pointer; clicked => { StudioPublish.platform-filter = "youtube"; StudioPublish.refresh(); } }
+            }
+
+            Rectangle { horizontal-stretch: 1; }
+        }
+
+        if StudioPublish.status != "": Rectangle {
+            border-radius: 8px;
+            background: Floword.field;
+            border-width: 1px;
+            border-color: Floword.line;
+
+            HorizontalLayout {
+                padding: 10px;
+                Text { text: StudioPublish.status; color: Floword.text; font-size: 12px; }
+            }
+        }
+    }
+
+    // Publish Items List
+    StudioCard {
+        HorizontalLayout {
+            alignment: space-between;
+            Text {
+                text: "Danh Sách Hàng Đợi (" + StudioPublish.items.length + ")";
+                color: Floword.text;
+                font-size: 15px;
+                font-weight: 700;
+            }
+        }
+
+        if StudioPublish.items.length == 0: Rectangle {
+            border-radius: 12px;
+            background: Floword.field;
+            border-width: 1px;
+            border-color: Floword.line;
+
+            HorizontalLayout {
+                padding: 36px;
+                alignment: center;
+                Text { text: I18n.t("studioPublish.empty"); color: Floword.muted; font-size: 13px; }
+            }
+        }
+
+        for item in StudioPublish.items: Rectangle {
+            border-radius: 10px;
+            background: Floword.field;
+            border-width: 1px;
+            border-color: Floword.line;
+
+            HorizontalLayout {
+                padding: 12px;
+                spacing: 14px;
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    // Platform Icon
+                    Rectangle {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 8px;
+                        background: #3b82f615;
+                        border-width: 1px;
+                        border-color: #3b82f633;
+
+                        Text {
+                            text: item.platform == "tiktok" ? "🎵" : item.platform == "youtube" ? "▶️" : "📘";
+                            font-size: 18px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 3px;
+                        alignment: center;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text { text: item.title; color: Floword.text; font-size: 14px; font-weight: 700; }
+
+                            // Status badge
+                            Rectangle {
+                                border-radius: 4px;
+                                background: item.status == "published" ? #10b98122 : item.status == "scheduled" ? #3b82f622 : item.status == "failed" ? #ef444422 : #f59e0b22;
+                                border-width: 1px;
+                                border-color: item.status == "published" ? #10b98155 : item.status == "scheduled" ? #3b82f655 : item.status == "failed" ? #ef444455 : #f59e0b55;
+
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    padding-right: 6px;
+                                    padding-top: 1px;
+                                    padding-bottom: 1px;
+                                    Text {
+                                        text: item.status;
+                                        color: item.status == "published" ? #34d399 : item.status == "scheduled" ? #60a5fa : item.status == "failed" ? #f87171 : #fbbf24;
+                                        font-size: 10px;
+                                        font-weight: 700;
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: "Kênh: " + item.page-name + " · Lên lịch: " + item.scheduled-time;
+                            color: Floword.muted;
+                            font-size: 12px;
+                        }
+
+                        if item.error-message != "": Text {
+                            text: "Lỗi: " + item.error-message;
+                            color: #f87171;
+                            font-size: 11px;
+                        }
+                    }
+                }
+
+                // Actions
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+
+                    if item.status == "pending" || item.status == "ready": StudioButton {
+                        label: "✓ Duyệt";
+                        primary: true;
+                        enabled: !StudioPublish.busy;
+                        clicked => { StudioPublish.approve(item.id); }
+                    }
+
+                    if item.status == "scheduled" || item.status == "approved" || item.status == "ready": StudioButton {
+                        label: "🚀 Đăng ngay";
+                        enabled: !StudioPublish.busy;
+                        clicked => { StudioPublish.post-now(item.id); }
+                    }
+
+                    if item.status == "failed": StudioButton {
+                        label: "Thử lại";
+                        enabled: !StudioPublish.busy;
+                        clicked => { StudioPublish.retry(item.id); }
+                    }
+
+                    if item.status == "pending" || item.status == "scheduled": StudioButton {
+                        label: "✕ Từ chối";
+                        enabled: !StudioPublish.busy;
+                        clicked => { StudioPublish.reject(item.id); }
+                    }
+                }
+            }
+        }
+    }
+}

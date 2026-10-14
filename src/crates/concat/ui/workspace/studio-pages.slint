@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { I18n } from "../i18n.slint";
+import { Floword } from "../theme/floword.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+
+export struct StudioPageRow {
+    id: string,
+    name: string,
+    slug: string,
+    output-root: string,
+    target-platform: string,
+    default-model-id: string,
+    default-workflow-id: string,
+    default-language: string,
+    default-tone: string,
+    default-aspect-ratio: string,
+    browser-profile-id: string,
+    worker-pool-id: string,
+    default-image-prompt: string,
+    default-expand-prompt: string,
+    default-video-prompt: string,
+    is-archived: bool,
+    revision: int,
+}
+
+export global StudioChannels {
+    in-out property <[StudioPageRow]> rows;
+    in-out property <bool> loaded;
+    in-out property <bool> busy;
+    in-out property <bool> include-archived;
+    in-out property <bool> editing;
+    in-out property <string> id;
+    in-out property <int> revision;
+    in-out property <string> name;
+    in-out property <string> slug;
+    in-out property <string> output-root;
+    in-out property <string> target-platform;
+    in-out property <string> default-model-id;
+    in-out property <string> default-workflow-id;
+    in-out property <string> default-language;
+    in-out property <string> default-tone;
+    in-out property <string> default-aspect-ratio;
+    in-out property <string> browser-profile-id;
+    in-out property <string> worker-pool-id;
+    in-out property <string> default-image-prompt;
+    in-out property <string> default-expand-prompt;
+    in-out property <string> default-video-prompt;
+    in-out property <string> status;
+    in-out property <string> confirm-archive-id;
+    in-out property <int> confirm-archive-revision;
+    in-out property <bool> confirm-archive-value;
+    callback load-pages();
+    callback new-page();
+    callback save-page();
+    callback select-page(id: string);
+    callback archive-page(id: string, revision: int, archived: bool);
+}
+
+export component StudioPagesPanel inherits VerticalLayout {
+    spacing: 16px;
+    StudioCard {
+        HorizontalLayout {
+            StudioHeading { title: I18n.t("studioPages.title"); }
+            Rectangle { horizontal-stretch: 1; }
+            StudioButton { label: I18n.t("studioPages.refresh"); enabled: !StudioChannels.busy; clicked => { StudioChannels.load-pages(); } }
+            StudioButton { label: I18n.t("studioPages.new"); enabled: !StudioChannels.busy; primary: true; clicked => { StudioChannels.new-page(); } }
+        }
+        Text { text: I18n.t("studioPages.scope"); color: Floword.muted; wrap: word-wrap; }
+        Text { text: StudioChannels.busy ? I18n.t("studioPages.working") : StudioChannels.status; color: Floword.warning; wrap: word-wrap; }
+        HorizontalLayout {
+            StudioButton { label: StudioChannels.include-archived ? I18n.t("studioPages.hideArchived") : I18n.t("studioPages.showArchived"); enabled: !StudioChannels.busy; clicked => { StudioChannels.include-archived = !StudioChannels.include-archived; StudioChannels.load-pages(); } }
+            Rectangle { horizontal-stretch: 1; }
+        }
+        if StudioChannels.loaded && StudioChannels.rows.length == 0: Text {
+            text: StudioChannels.include-archived ? I18n.t("studioPages.emptyAll") : I18n.t("studioPages.empty");
+            color: Floword.muted; wrap: word-wrap;
+        }
+        for page in StudioChannels.rows: StudioCard {
+            VerticalLayout {
+                spacing: 8px;
+                HorizontalLayout {
+                    Text { text: page.name; color: Floword.text; font-size: 18px; font-weight: 700; wrap: word-wrap; horizontal-stretch: 1; }
+                    if page.is-archived: Text { text: I18n.t("studioPages.archived"); color: Floword.warning; }
+                }
+                Text { text: page.id + " · " + page.slug; color: Floword.muted; wrap: word-wrap; }
+                Text { text: I18n.t1("studioPages.destination", page.output-root); color: Floword.muted; wrap: word-wrap; }
+                Text { text: page.target-platform == "" ? I18n.t("studioPages.noPlatform") : page.target-platform; color: Floword.muted; }
+                HorizontalLayout {
+                    StudioButton { label: I18n.t("studioPages.edit"); enabled: !StudioChannels.busy; clicked => { StudioChannels.select-page(page.id); } }
+                    StudioButton {
+                        label: page.is-archived ? I18n.t("studioPages.restore") : I18n.t("studioPages.archive");
+                        enabled: !StudioChannels.busy;
+                        clicked => {
+                            StudioChannels.confirm-archive-id = page.id;
+                            StudioChannels.confirm-archive-revision = page.revision;
+                            StudioChannels.confirm-archive-value = !page.is-archived;
+                        }
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                }
+            }
+        }
+    }
+
+    if StudioChannels.confirm-archive-id != "": StudioCard {
+        Text { text: StudioChannels.confirm-archive-value ? I18n.t("studioPages.confirmArchive") : I18n.t("studioPages.confirmRestore"); color: Floword.warning; wrap: word-wrap; }
+        HorizontalLayout {
+            StudioButton {
+                label: I18n.t("studioPages.confirm"); primary: true; enabled: !StudioChannels.busy;
+                clicked => { StudioChannels.archive-page(StudioChannels.confirm-archive-id, StudioChannels.confirm-archive-revision, StudioChannels.confirm-archive-value); }
+            }
+            StudioButton { label: I18n.t("common.cancel"); enabled: !StudioChannels.busy; clicked => { StudioChannels.confirm-archive-id = ""; } }
+        }
+    }
+
+    if StudioChannels.editing: StudioCard {
+        StudioHeading { title: StudioChannels.id == "" ? I18n.t("studioPages.createTitle") : I18n.t("studioPages.editTitle"); }
+        HorizontalLayout {
+            spacing: 14px;
+            StudioField { label: I18n.t("studioPages.name"); value: StudioChannels.name; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.name = text; } }
+            StudioField { label: I18n.t("studioPages.slug"); value: StudioChannels.slug; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.slug = text; } }
+        }
+        StudioField { label: I18n.t("studioPages.outputRoot"); value: StudioChannels.output-root; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.output-root = text; } }
+        HorizontalLayout {
+            spacing: 14px;
+            StudioField { label: I18n.t("studioPages.platform"); value: StudioChannels.target-platform; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.target-platform = text; } }
+            StudioField { label: I18n.t("studioPages.defaultLanguage"); value: StudioChannels.default-language; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.default-language = text; } }
+        }
+        HorizontalLayout {
+            spacing: 14px;
+            StudioField { label: I18n.t("studioPages.defaultModel"); value: StudioChannels.default-model-id; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.default-model-id = text; } }
+            StudioField { label: I18n.t("studioPages.defaultWorkflow"); value: StudioChannels.default-workflow-id; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.default-workflow-id = text; } }
+        }
+        HorizontalLayout {
+            spacing: 14px;
+            StudioField { label: I18n.t("studioPages.defaultTone"); value: StudioChannels.default-tone; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.default-tone = text; } }
+            StudioField { label: I18n.t("studioPages.aspectRatio"); value: StudioChannels.default-aspect-ratio; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.default-aspect-ratio = text; } }
+        }
+        HorizontalLayout {
+            spacing: 14px;
+            StudioField { label: I18n.t("studioPages.browserProfile"); value: StudioChannels.browser-profile-id; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.browser-profile-id = text; } }
+            StudioField { label: I18n.t("studioPages.workerPool"); value: StudioChannels.worker-pool-id; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.worker-pool-id = text; } }
+        }
+        StudioField { label: I18n.t("studioPages.imagePrompt"); value: StudioChannels.default-image-prompt; multiline: true; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.default-image-prompt = text; } }
+        StudioField { label: I18n.t("studioPages.expandPrompt"); value: StudioChannels.default-expand-prompt; multiline: true; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.default-expand-prompt = text; } }
+        StudioField { label: I18n.t("studioPages.videoPrompt"); value: StudioChannels.default-video-prompt; multiline: true; enabled: !StudioChannels.busy; edited(text) => { StudioChannels.default-video-prompt = text; } }
+        HorizontalLayout {
+            StudioButton { label: StudioChannels.busy ? I18n.t("studioPages.working") : I18n.t("studioPages.save"); primary: true; enabled: !StudioChannels.busy; clicked => { StudioChannels.save-page(); } }
+            StudioButton { label: I18n.t("common.cancel"); enabled: !StudioChannels.busy; clicked => { StudioChannels.editing = false; } }
+        }
+    }
+}

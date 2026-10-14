@@ -1,0 +1,315 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Native form translated from FlowordStudio/ProductionPipelineView.tsx.
+import { I18n } from "../i18n.slint";
+import { Select, NumberField } from "../primitives/primitives.slint";
+import { Floword } from "../theme/floword.slint";
+import { Glyph, Icon } from "../icons.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField, StudioMetric } from "studio-chrome.slint";
+import { StudioBrowserPanel } from "studio-browser.slint";
+
+export struct StudioRunRow {
+    id: string,
+    workflow: string,
+    status: string,
+    node: string,
+    created: string,
+    completed: int,
+    total: int,
+}
+
+export global ProductionStudio {
+    in-out property <[string]> workflow-ids;
+    in-out property <[string]> workflow-names;
+    in-out property <int> workflow-index;
+    in-out property <string> brief;
+    in-out property <string> sources;
+    in-out property <float> scenes: 6;
+    in-out property <float> duration: 60;
+    in-out property <string> character-anchor;
+    in-out property <string> visual-style;
+    in-out property <string> motion-prompt;
+    in-out property <int> visual-engine-index: 0;
+    in-out property <[string]> visual-engine-options: ["OmniRoute Video (AI Native)", "Grok Web Automation", "FAL Fast Generation"];
+    in-out property <int> current-phase: 1;
+    in-out property <string> extra-inputs: "{}";
+    in-out property <bool> busy;
+    in-out property <bool> ready;
+    in-out property <bool> uncertain;
+    in-out property <bool> confirm-start;
+    in-out property <string> status;
+    in-out property <string> active-run;
+    in-out property <[StudioRunRow]> runs;
+    in-out property <[StudioRunRow]> history-runs;
+    in-out property <bool> runs-loaded;
+    in-out property <string> cancel-id;
+    in-out property <string> resume-id;
+    callback load-runs();
+    callback check-plan();
+    callback start-run();
+    callback cancel-run(id: string);
+    callback resume-run(id: string);
+    public function invalidate() { self.ready = false; self.confirm-start = false; }
+}
+
+export component StudioRunList inherits VerticalLayout {
+    in property <bool> history-only;
+    spacing: 12px;
+    HorizontalLayout {
+        StudioHeading { title: root.history-only ? I18n.t("nativeStudio.history") : I18n.t("nativeStudio.jobs"); }
+        StudioButton { label: I18n.t("nativeStudio.refresh"); enabled: !ProductionStudio.busy; clicked => { ProductionStudio.load-runs(); } }
+    }
+    if ProductionStudio.runs-loaded && (root.history-only ? ProductionStudio.history-runs.length : ProductionStudio.runs.length) == 0: StudioCard {
+        Text { text: I18n.t("nativeStudio.noRuns"); color: Floword.muted; wrap: word-wrap; }
+    }
+    if !ProductionStudio.runs-loaded: StudioCard {
+        Text { text: I18n.t("nativeStudio.loadRunsHint"); color: Floword.muted; wrap: word-wrap; }
+    }
+    for run in (root.history-only ? ProductionStudio.history-runs : ProductionStudio.runs): StudioCard {
+        VerticalLayout {
+            spacing: 10px;
+            HorizontalLayout {
+                Text { text: run.workflow; color: Floword.text; font-size: 18px; font-weight: 600; wrap: word-wrap; horizontal-stretch: 1; }
+                Rectangle {
+                    background: run.status == "completed" ? Floword.success.with-alpha(0.18)
+                        : run.status == "failed" ? Floword.danger.with-alpha(0.18)
+                        : Floword.warning.with-alpha(0.18);
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: run.status == "completed" ? Floword.success.with-alpha(0.3)
+                        : run.status == "failed" ? Floword.danger.with-alpha(0.3)
+                        : Floword.warning.with-alpha(0.3);
+                    HorizontalLayout {
+                        padding-left: 8px; padding-right: 8px; padding-top: 2px; padding-bottom: 2px;
+                        Text {
+                            text: run.status == "completed" ? "Hoàn thành"
+                                : run.status == "running" ? "Đang chạy"
+                                : run.status == "failed" ? "Thất bại"
+                                : run.status;
+                            color: run.status == "completed" ? Floword.success : run.status == "failed" ? Floword.danger : Floword.warning;
+                            font-size: 12px;
+                            font-weight: 600;
+                        }
+                    }
+                }
+            }
+            Text { text: run.id + " · " + run.created; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+            Text { text: I18n.t2("nativeStudio.stepCount", "\{run.completed}", "\{run.total}") + " · Node: " + run.node; color: Floword.text; font-size: 13px; wrap: word-wrap; }
+            if !root.history-only && (run.status == "running" || run.status == "queued" || run.status == "waiting" || run.status == "pending"): HorizontalLayout {
+                if run.status == "waiting": StudioButton { label: I18n.t("nativeStudio.resumeJob"); enabled: !ProductionStudio.busy && !ProductionStudio.uncertain; clicked => { ProductionStudio.cancel-id = ""; ProductionStudio.resume-id = run.id; } }
+                StudioButton { label: I18n.t("nativeStudio.cancelJob"); enabled: !ProductionStudio.busy; clicked => { ProductionStudio.resume-id = ""; ProductionStudio.cancel-id = run.id; } }
+                Rectangle { horizontal-stretch: 1; }
+            }
+        }
+    }
+    if ProductionStudio.cancel-id != "": StudioCard {
+        Text { text: I18n.t1("nativeStudio.cancelConfirm", ProductionStudio.cancel-id); color: Floword.warning; wrap: word-wrap; }
+        HorizontalLayout {
+            StudioButton { label: I18n.t("nativeStudio.confirm"); enabled: !ProductionStudio.busy && !ProductionStudio.uncertain; clicked => { ProductionStudio.cancel-run(ProductionStudio.cancel-id); } }
+            StudioButton { label: I18n.t("common.cancel"); enabled: !ProductionStudio.busy; clicked => { ProductionStudio.cancel-id = ""; } }
+            Rectangle { horizontal-stretch: 1; }
+        }
+    }
+    if ProductionStudio.resume-id != "": StudioCard {
+        Text { text: I18n.t1("nativeStudio.resumeConfirm", ProductionStudio.resume-id); color: Floword.warning; wrap: word-wrap; }
+        HorizontalLayout {
+            StudioButton { label: I18n.t("nativeStudio.confirm"); primary: true; enabled: !ProductionStudio.busy && !ProductionStudio.uncertain; clicked => { ProductionStudio.resume-run(ProductionStudio.resume-id); } }
+            StudioButton { label: I18n.t("common.cancel"); enabled: !ProductionStudio.busy; clicked => { ProductionStudio.resume-id = ""; } }
+            Rectangle { horizontal-stretch: 1; }
+        }
+    }
+}
+
+export component StudioProduction inherits VerticalLayout {
+    spacing: 18px;
+
+    // 1. PIPELINE 7-PHASE VISUALIZER RIBBON (Matching ArtCraft ProductionPipelineView)
+    Rectangle {
+        background: Floword.surface;
+        border-radius: 14px;
+        border-width: 1px;
+        border-color: Floword.line;
+        VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+            HorizontalLayout {
+                alignment: space-between;
+                HorizontalLayout {
+                    spacing: 8px;
+                    Icon { glyph: Glyph.film; size: 18px; tint: Floword.violet; }
+                    Text { text: "QUY TRÌNH SẢN XUẤT 7 BƯỚC (AI PIPELINE)"; color: Floword.violet; font-size: 13px; font-weight: 700; }
+                }
+                Text { text: "Promax Scheduler Engine · CapCut Sync Ready"; color: Floword.muted; font-size: 12px; }
+            }
+
+            // Stepper pills
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: space-between;
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
+                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
+                        Text { text: "1"; color: Floword.violet; font-size: 12px; font-weight: 700; }
+                        Text { text: "Nguồn & Ý tưởng"; color: Floword.text; font-size: 12px; }
+                    }
+                }
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
+                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
+                        Text { text: "2"; color: Floword.violet; font-size: 12px; font-weight: 700; }
+                        Text { text: "Kịch bản"; color: Floword.text; font-size: 12px; }
+                    }
+                }
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
+                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
+                        Text { text: "3"; color: Floword.violet; font-size: 12px; font-weight: 700; }
+                        Text { text: "Tư liệu"; color: Floword.text; font-size: 12px; }
+                    }
+                }
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
+                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
+                        Text { text: "4"; color: Floword.violet; font-size: 12px; font-weight: 700; }
+                        Text { text: "Nhân vật"; color: Floword.text; font-size: 12px; }
+                    }
+                }
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
+                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
+                        Text { text: "5"; color: Floword.violet; font-size: 12px; font-weight: 700; }
+                        Text { text: "Sinh hình AI"; color: Floword.text; font-size: 12px; }
+                    }
+                }
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
+                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
+                        Text { text: "6"; color: Floword.violet; font-size: 12px; font-weight: 700; }
+                        Text { text: "Lồng tiếng"; color: Floword.text; font-size: 12px; }
+                    }
+                }
+                Rectangle {
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
+                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
+                        Text { text: "7"; color: Floword.violet; font-size: 12px; font-weight: 700; }
+                        Text { text: "Dựng & Xuất"; color: Floword.text; font-size: 12px; }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. MAIN PRODUCTION WORKSPACE
+    HorizontalLayout {
+        spacing: 18px;
+        min-width: 0px;
+
+        // LEFT COLUMN: Brief, Character Anchor & Prompts
+        StudioCard {
+            min-width: 360px;
+            horizontal-stretch: 2;
+            StudioHeading { title: I18n.t("nativeStudio.briefSection"); glyph: Glyph.text-mark; }
+            StudioField {
+                label: I18n.t("nativeStudio.brief"); placeholder: I18n.t("nativeStudio.briefExample"); multiline: true;
+                value: ProductionStudio.brief; enabled: !ProductionStudio.busy;
+                edited(text) => { ProductionStudio.brief = text; ProductionStudio.invalidate(); }
+            }
+            StudioField {
+                label: "Nhân vật chính & Anchor Prompt (Giữ khuôn mặt đồng nhất)";
+                placeholder: "Ví dụ: Người phụ nữ 35 tuổi, áo dài xanh thẫm, tóc búi thấp, khuôn mặt thanh tú...";
+                value: ProductionStudio.character-anchor; enabled: !ProductionStudio.busy;
+                edited(text) => { ProductionStudio.character-anchor = text; }
+            }
+            StudioField {
+                label: "Phong cách hình ảnh & Không gian (Visual Style)";
+                placeholder: "Ví dụ: Cinematic 35mm film still, warm golden lantern lighting, photorealistic 8k...";
+                value: ProductionStudio.visual-style; enabled: !ProductionStudio.busy;
+                edited(text) => { ProductionStudio.visual-style = text; }
+            }
+            StudioField {
+                label: I18n.t("nativeStudio.sources"); multiline: false; value: ProductionStudio.sources; enabled: !ProductionStudio.busy;
+                placeholder: "https://... (URL bài viết, liên kết tham khảo)";
+                edited(text) => { ProductionStudio.sources = text; ProductionStudio.invalidate(); }
+            }
+            HorizontalLayout {
+                spacing: 18px;
+                VerticalLayout {
+                    spacing: 8px;
+                    Text { text: I18n.t("nativeStudio.scenes"); color: Floword.text; font-size: 13px; font-weight: 600; }
+                    NumberField { value <=> ProductionStudio.scenes; minimum: 1; maximum: 30; height: 38px; background: Floword.field; border-color: Floword.line; enabled: !ProductionStudio.busy; changed(v) => { ProductionStudio.invalidate(); } }
+                }
+                VerticalLayout {
+                    spacing: 8px;
+                    Text { text: I18n.t("nativeStudio.duration"); color: Floword.text; font-size: 13px; font-weight: 600; }
+                    NumberField { value <=> ProductionStudio.duration; minimum: 10; maximum: 7200; height: 38px; background: Floword.field; border-color: Floword.line; enabled: !ProductionStudio.busy; changed(v) => { ProductionStudio.invalidate(); } }
+                }
+            }
+        }
+
+        // RIGHT COLUMN: Visual Engine, Workflow & Execution Controls
+        StudioCard {
+            min-width: 320px;
+            horizontal-stretch: 1;
+            StudioHeading { title: I18n.t("nativeStudio.executionSection"); glyph: Glyph.sparkle; }
+
+            // Visual engine selection
+            VerticalLayout {
+                spacing: 6px;
+                Text { text: "Công nghệ sinh hình (Visual Engine):"; color: Floword.text; font-size: 13px; font-weight: 600; }
+                Select {
+                    height: 38px;
+                    background: Floword.field; border-color: Floword.line;
+                    options: ProductionStudio.visual-engine-options; current <=> ProductionStudio.visual-engine-index;
+                    placeholder: "Chọn Visual Engine"; enabled: !ProductionStudio.busy;
+                }
+            }
+
+            // Workflow definition selection
+            VerticalLayout {
+                spacing: 6px;
+                Text { text: I18n.t("nativeStudio.workflow"); color: Floword.text; font-size: 13px; font-weight: 600; }
+                Select {
+                    height: 38px;
+                    background: Floword.field; border-color: Floword.line;
+                    options: ProductionStudio.workflow-names; current <=> ProductionStudio.workflow-index;
+                    placeholder: I18n.t("nativeStudio.selectWorkflow"); enabled: !ProductionStudio.busy;
+                    changed(index) => { ProductionStudio.invalidate(); }
+                }
+            }
+
+            Text { text: I18n.t("nativeStudio.workflowHint"); color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+
+            StudioField {
+                label: I18n.t("nativeStudio.inputs"); multiline: true; value: ProductionStudio.extra-inputs; enabled: !ProductionStudio.busy;
+                edited(text) => { ProductionStudio.extra-inputs = text; ProductionStudio.invalidate(); }
+            }
+
+            VerticalLayout {
+                spacing: 8px;
+                StudioButton {
+                    label: ProductionStudio.busy ? I18n.t("nativeStudio.working") : I18n.t("nativeStudio.preflight");
+                    enabled: !ProductionStudio.busy && ProductionStudio.workflow-ids.length > 0 && !ProductionStudio.uncertain;
+                    clicked => { ProductionStudio.check-plan(); }
+                }
+                StudioButton {
+                    label: I18n.t("nativeStudio.create"); primary: true;
+                    enabled: !ProductionStudio.busy && ProductionStudio.ready && !ProductionStudio.uncertain;
+                    clicked => { ProductionStudio.confirm-start = true; }
+                }
+            }
+        }
+    }
+
+    StudioBrowserPanel { }
+
+    if ProductionStudio.confirm-start: StudioCard {
+        Text { text: I18n.t("nativeStudio.startConfirm"); color: Floword.warning; wrap: word-wrap; }
+        HorizontalLayout {
+            StudioButton { label: I18n.t("nativeStudio.confirm"); primary: true; enabled: !ProductionStudio.busy; clicked => { ProductionStudio.start-run(); } }
+            StudioButton { label: I18n.t("common.cancel"); enabled: !ProductionStudio.busy; clicked => { ProductionStudio.confirm-start = false; } }
+            Rectangle { horizontal-stretch: 1; }
+        }
+    }
+    if ProductionStudio.status != "": StudioCard {
+        Text { text: ProductionStudio.status; color: ProductionStudio.uncertain ? Floword.warning : Floword.muted; wrap: word-wrap; }
+    }
+}

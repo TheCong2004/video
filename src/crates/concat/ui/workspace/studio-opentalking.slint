@@ -1,0 +1,689 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { I18n } from "../i18n.slint";
+import { Floword } from "../theme/floword.slint";
+import { Select } from "../primitives/primitives.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+
+export struct StudioAvatarRow { id: string, label: string, model-type: string }
+export struct StudioVoiceRow { id: string, label: string }
+export struct StudioSceneRow { id: string, label: string }
+export struct StudioVideoModelRow { id: string, label: string }
+export struct StudioVideoJobRow {
+    id: string, title: string, status: string, avatar: string,
+    driver: string, created: string, duration: string,
+}
+
+export global StudioOpenTalking {
+    in-out property <int> active-tab: 0; // 0: Create, 1: Avatars, 2: Voices, 3: Interactive/Live, 4: History
+    in-out property <string> engine-status: "OFFLINE";
+    in-out property <[StudioAvatarRow]> avatars;
+    in-out property <[StudioVoiceRow]> voices;
+    in-out property <[StudioSceneRow]> scenes;
+    in-out property <[StudioVideoModelRow]> models;
+    in-out property <[StudioVideoJobRow]> jobs;
+    in-out property <[string]> avatar-options;
+    in-out property <[string]> voice-options;
+    in-out property <[string]> scene-options;
+    in-out property <[string]> model-options;
+    in-out property <int> avatar-index;
+    in-out property <int> voice-index;
+    in-out property <int> scene-index;
+    in-out property <int> model-index;
+    in-out property <string> title;
+    in-out property <string> script;
+    in-out property <bool> busy;
+    in-out property <bool> catalogs-loaded;
+    in-out property <string> status;
+    in-out property <bool> confirm-create;
+    in-out property <string> stop-id;
+    in-out property <string> delete-id;
+    callback refresh();
+    callback create();
+    callback stop(id: string);
+    callback delete(id: string);
+    callback import-video(id: string);
+    callback select-avatar(int);
+    callback select-voice(int);
+    callback test-voice(int);
+    callback set-tab(int);
+}
+
+export component StudioOpenTalkingPage inherits VerticalLayout {
+    in-out property <bool> is-live-route: false;
+    callback navigate-to-live();
+    spacing: 16px;
+
+    // TOP HEADER CARD (Matches ArtCraft OpenTalking Studio Hub)
+    Rectangle {
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: Floword.line;
+        background: Floword.surface;
+        min-height: header-layout.preferred-height;
+
+        header-layout := VerticalLayout {
+            padding: 16px;
+            spacing: 14px;
+
+            // Row 1: Brand title, Engine status badge & Refresh button
+            HorizontalLayout {
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 12px;
+
+                    // Avatar Robot Icon
+                    Rectangle {
+                        width: 44px;
+                        height: 44px;
+                        border-radius: 12px;
+                        background: #10b98126;
+                        border-width: 1px;
+                        border-color: #10b98155;
+
+                        Text {
+                            text: "🤖";
+                            font-size: 20px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 2px;
+                        alignment: center;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: "OPENTALKING STUDIO";
+                                color: Floword.text;
+                                font-size: 17px;
+                                font-weight: 800;
+                            }
+
+                            // Engine Status Pill
+                            Rectangle {
+                                border-radius: 10px;
+                                background: StudioOpenTalking.catalogs-loaded ? #10b98126 : #ef444426;
+                                border-width: 1px;
+                                border-color: StudioOpenTalking.catalogs-loaded ? #10b98166 : #ef444466;
+
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    padding-top: 3px;
+                                    padding-bottom: 3px;
+
+                                    Text {
+                                        text: StudioOpenTalking.catalogs-loaded ? I18n.t("studioOpenTalking.engineOnline") : I18n.t("studioOpenTalking.engineOffline");
+                                        color: StudioOpenTalking.catalogs-loaded ? #34d399 : #f87171;
+                                        font-size: 10px;
+                                        font-weight: 700;
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: I18n.t("studioOpenTalking.subtitle");
+                            color: Floword.muted;
+                            font-size: 12px;
+                        }
+                    }
+                }
+
+                // Refresh Button
+                HorizontalLayout {
+                    alignment: end;
+                    Rectangle {
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 10px;
+                        border-width: 1px;
+                        border-color: Floword.line;
+                        background: refresh-touch.has-hover ? Floword.raised : Floword.field;
+
+                        Text {
+                            text: "🔄";
+                            font-size: 15px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        refresh-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { StudioOpenTalking.refresh(); }
+                        }
+                    }
+                }
+            }
+
+            // Row 2: Navigation Tabs (5 Tabs: Create, Avatars, Voices, Interactive, History)
+            HorizontalLayout {
+                spacing: 8px;
+
+                // Tab 0: Tạo Video Người Ảo
+                Rectangle {
+                    border-radius: 10px;
+                    background: StudioOpenTalking.active-tab == 0 ? #10b98122 : tab0-touch.has-hover ? Floword.raised : Floword.field;
+                    border-width: 1px;
+                    border-color: StudioOpenTalking.active-tab == 0 ? #10b98188 : Floword.line;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        padding-top: 8px;
+                        padding-bottom: 8px;
+                        spacing: 6px;
+
+                        Text {
+                            text: "📹 " + I18n.t("studioOpenTalking.tabCreate");
+                            color: StudioOpenTalking.active-tab == 0 ? #34d399 : Floword.text;
+                            font-size: 13px;
+                            font-weight: StudioOpenTalking.active-tab == 0 ? 700 : 500;
+                        }
+                    }
+
+                    tab0-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { StudioOpenTalking.active-tab = 0; }
+                    }
+                }
+
+                // Tab 1: Kho Nhân Vật
+                Rectangle {
+                    border-radius: 10px;
+                    background: StudioOpenTalking.active-tab == 1 ? #10b98122 : tab1-touch.has-hover ? Floword.raised : Floword.field;
+                    border-width: 1px;
+                    border-color: StudioOpenTalking.active-tab == 1 ? #10b98188 : Floword.line;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        padding-top: 8px;
+                        padding-bottom: 8px;
+                        spacing: 6px;
+
+                        Text {
+                            text: "👤 " + I18n.t("studioOpenTalking.tabAvatars") + " (" + StudioOpenTalking.avatars.length + ")";
+                            color: StudioOpenTalking.active-tab == 1 ? #34d399 : Floword.text;
+                            font-size: 13px;
+                            font-weight: StudioOpenTalking.active-tab == 1 ? 700 : 500;
+                        }
+                    }
+
+                    tab1-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { StudioOpenTalking.active-tab = 1; }
+                    }
+                }
+
+                // Tab 2: Giọng Nói & Lồng Tiếng
+                Rectangle {
+                    border-radius: 10px;
+                    background: StudioOpenTalking.active-tab == 2 ? #10b98122 : tab2-touch.has-hover ? Floword.raised : Floword.field;
+                    border-width: 1px;
+                    border-color: StudioOpenTalking.active-tab == 2 ? #10b98188 : Floword.line;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        padding-top: 8px;
+                        padding-bottom: 8px;
+                        spacing: 6px;
+
+                        Text {
+                            text: "🎙️ " + I18n.t("studioOpenTalking.tabVoices") + " (" + StudioOpenTalking.voices.length + ")";
+                            color: StudioOpenTalking.active-tab == 2 ? #34d399 : Floword.text;
+                            font-size: 13px;
+                            font-weight: StudioOpenTalking.active-tab == 2 ? 700 : 500;
+                        }
+                    }
+
+                    tab2-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { StudioOpenTalking.active-tab = 2; }
+                    }
+                }
+
+                // Tab 3: Hội Thoại Trực Tiếp (Active Pill with LIVE badge)
+                Rectangle {
+                    border-radius: 10px;
+                    background: StudioOpenTalking.active-tab == 3 ? #059669 : tab3-touch.has-hover ? Floword.raised : Floword.field;
+                    border-width: 1px;
+                    border-color: StudioOpenTalking.active-tab == 3 ? #10b981 : Floword.line;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        padding-top: 8px;
+                        padding-bottom: 8px;
+                        spacing: 6px;
+
+                        Text {
+                            text: "📡 " + I18n.t("studioOpenTalking.tabInteractive");
+                            color: StudioOpenTalking.active-tab == 3 ? #ffffff : Floword.text;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+
+                        // LIVE tag
+                        Rectangle {
+                            border-radius: 4px;
+                            background: StudioOpenTalking.active-tab == 3 ? #ffffff33 : #ef4444;
+
+                            HorizontalLayout {
+                                padding-left: 5px;
+                                padding-right: 5px;
+                                padding-top: 1px;
+                                padding-bottom: 1px;
+                                Text {
+                                    text: "LIVE";
+                                    color: #ffffff;
+                                    font-size: 9px;
+                                    font-weight: 800;
+                                }
+                            }
+                        }
+                    }
+
+                    tab3-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            StudioOpenTalking.active-tab = 3;
+                            root.navigate-to-live();
+                        }
+                    }
+                }
+
+                // Tab 4: Lịch Sử Video
+                Rectangle {
+                    border-radius: 10px;
+                    background: StudioOpenTalking.active-tab == 4 ? #10b98122 : tab4-touch.has-hover ? Floword.raised : Floword.field;
+                    border-width: 1px;
+                    border-color: StudioOpenTalking.active-tab == 4 ? #10b98188 : Floword.line;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        padding-top: 8px;
+                        padding-bottom: 8px;
+                        spacing: 6px;
+
+                        Text {
+                            text: "🎞️ " + I18n.t("studioOpenTalking.tabHistory") + " (" + StudioOpenTalking.jobs.length + ")";
+                            color: StudioOpenTalking.active-tab == 4 ? #34d399 : Floword.text;
+                            font-size: 13px;
+                            font-weight: StudioOpenTalking.active-tab == 4 ? 700 : 500;
+                        }
+                    }
+
+                    tab4-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { StudioOpenTalking.active-tab = 4; }
+                    }
+                }
+
+                Rectangle { horizontal-stretch: 1; }
+            }
+
+            if StudioOpenTalking.status != "": Rectangle {
+                border-radius: 8px;
+                background: Floword.field;
+                border-width: 1px;
+                border-color: Floword.line;
+
+                HorizontalLayout {
+                    padding: 8px;
+                    Text { text: StudioOpenTalking.status; color: Floword.muted; font-size: 12px; }
+                }
+            }
+        }
+    }
+
+    // TAB 0: TẠO VIDEO NGƯỜI ẢO
+    if StudioOpenTalking.active-tab == 0: VerticalLayout {
+        spacing: 16px;
+
+        HorizontalLayout {
+            spacing: 16px;
+
+            StudioCard {
+                horizontal-stretch: 1;
+                StudioHeading { title: I18n.t("studioOpenTalking.generate"); }
+                Text { text: I18n.t("studioOpenTalking.motionNote"); color: Floword.warning; wrap: word-wrap; font-size: 12px; }
+
+                Text { text: I18n.t("studioOpenTalking.avatar"); color: Floword.text; font-size: 13px; font-weight: 600; }
+                Select { options: StudioOpenTalking.avatar-options; current <=> StudioOpenTalking.avatar-index; placeholder: I18n.t("studioOpenTalking.chooseAvatar"); height: 40px; background: Floword.field; border-color: Floword.line; enabled: !StudioOpenTalking.busy; }
+
+                Text { text: I18n.t("studioOpenTalking.voice"); color: Floword.text; font-size: 13px; font-weight: 600; }
+                Select { options: StudioOpenTalking.voice-options; current <=> StudioOpenTalking.voice-index; placeholder: I18n.t("studioOpenTalking.chooseVoice"); height: 40px; background: Floword.field; border-color: Floword.line; enabled: !StudioOpenTalking.busy; }
+
+                Text { text: I18n.t("studioOpenTalking.driver"); color: Floword.text; font-size: 13px; font-weight: 600; }
+                Select { options: StudioOpenTalking.model-options; current <=> StudioOpenTalking.model-index; placeholder: I18n.t("studioOpenTalking.noDriver"); height: 40px; background: Floword.field; border-color: Floword.line; enabled: !StudioOpenTalking.busy; }
+
+                Text { text: I18n.t("studioOpenTalking.scene"); color: Floword.text; font-size: 13px; font-weight: 600; }
+                Select { options: StudioOpenTalking.scene-options; current <=> StudioOpenTalking.scene-index; placeholder: I18n.t("studioOpenTalking.noScene"); height: 40px; background: Floword.field; border-color: Floword.line; enabled: !StudioOpenTalking.busy; }
+
+                StudioField { label: I18n.t("studioOpenTalking.videoTitle"); value: StudioOpenTalking.title; enabled: !StudioOpenTalking.busy; edited(text) => { StudioOpenTalking.title = text; } }
+                StudioField { label: I18n.t("studioOpenTalking.script"); placeholder: I18n.t("studioOpenTalking.scriptHint"); multiline: true; value: StudioOpenTalking.script; enabled: !StudioOpenTalking.busy; edited(text) => { StudioOpenTalking.script = text; } }
+
+                StudioButton {
+                    label: I18n.t("studioOpenTalking.create"); primary: true;
+                    enabled: !StudioOpenTalking.busy && StudioOpenTalking.catalogs-loaded
+                        && StudioOpenTalking.avatar-options.length > 0 && StudioOpenTalking.voice-options.length > 0
+                        && StudioOpenTalking.model-options.length > 0 && StudioOpenTalking.script != "";
+                    clicked => { StudioOpenTalking.confirm-create = true; }
+                }
+            }
+        }
+
+        if StudioOpenTalking.confirm-create || StudioOpenTalking.stop-id != "" || StudioOpenTalking.delete-id != "": StudioCard {
+            Text {
+                text: StudioOpenTalking.confirm-create ? I18n.t("studioOpenTalking.confirmCreate")
+                    : StudioOpenTalking.stop-id != "" ? I18n.t1("studioOpenTalking.confirmStop", StudioOpenTalking.stop-id)
+                    : I18n.t1("studioOpenTalking.confirmDelete", StudioOpenTalking.delete-id);
+                color: Floword.warning; wrap: word-wrap;
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                StudioButton {
+                    label: I18n.t("studioOpenTalking.confirm"); primary: true; enabled: !StudioOpenTalking.busy;
+                    clicked => {
+                        if StudioOpenTalking.confirm-create { StudioOpenTalking.create(); }
+                        else if StudioOpenTalking.stop-id != "" { StudioOpenTalking.stop(StudioOpenTalking.stop-id); }
+                        else { StudioOpenTalking.delete(StudioOpenTalking.delete-id); }
+                    }
+                }
+                StudioButton {
+                    label: I18n.t("common.cancel"); enabled: !StudioOpenTalking.busy;
+                    clicked => { StudioOpenTalking.confirm-create = false; StudioOpenTalking.stop-id = ""; StudioOpenTalking.delete-id = ""; }
+                }
+            }
+        }
+    }
+
+    // TAB 1: KHO NHÂN VẬT (Avatars Catalog)
+    if StudioOpenTalking.active-tab == 1: VerticalLayout {
+        spacing: 16px;
+
+        StudioCard {
+            StudioHeading { title: I18n.t("studioOpenTalking.tabAvatars") + " (" + StudioOpenTalking.avatars.length + ")"; }
+            Text { text: "Danh sách các nhân vật ảo đã cấu hình trên máy. Bạn có thể chọn nhân vật để tạo video hoặc phát Livestream."; color: Floword.muted; font-size: 13px; }
+
+            if StudioOpenTalking.avatars.length == 0: Rectangle {
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Floword.line;
+                background: Floword.field;
+
+                HorizontalLayout {
+                    padding: 30px;
+                    alignment: center;
+                    Text { text: I18n.t("studioOpenTalking.emptyAvatars"); color: Floword.muted; font-size: 14px; }
+                }
+            }
+
+            for avatar[index] in StudioOpenTalking.avatars: Rectangle {
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Floword.line;
+                background: Floword.field;
+
+                HorizontalLayout {
+                    padding: 14px;
+                    spacing: 16px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 14px;
+
+                        // Avatar Thumbnail Box
+                        Rectangle {
+                            width: 48px;
+                            height: 48px;
+                            border-radius: 10px;
+                            background: #6366f122;
+                            border-width: 1px;
+                            border-color: #6366f144;
+
+                            Text {
+                                text: "👤";
+                                font-size: 22px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            alignment: center;
+
+                            Text {
+                                text: avatar.label;
+                                color: Floword.text;
+                                font-size: 15px;
+                                font-weight: 700;
+                            }
+
+                            Text {
+                                text: "Model: " + avatar.model-type + " · ID: " + avatar.id;
+                                color: Floword.muted;
+                                font-size: 12px;
+                            }
+                        }
+                    }
+
+                    // Actions
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: end;
+
+                        StudioButton {
+                            label: "Chọn tạo video";
+                            clicked => {
+                                StudioOpenTalking.avatar-index = index;
+                                StudioOpenTalking.active-tab = 0;
+                            }
+                        }
+
+                        StudioButton {
+                            label: "Dùng cho LIVE";
+                            primary: true;
+                            clicked => {
+                                StudioOpenTalking.avatar-index = index;
+                                StudioOpenTalking.active-tab = 3;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // TAB 2: GIỌNG NÓI & LỒNG TIẾNG (Voices)
+    if StudioOpenTalking.active-tab == 2: VerticalLayout {
+        spacing: 16px;
+
+        StudioCard {
+            StudioHeading { title: I18n.t("studioOpenTalking.tabVoices") + " (" + StudioOpenTalking.voices.length + ")"; }
+            Text { text: "Các giọng đọc TTS sẵn sàng cho lồng tiếng video và tương tác livestream."; color: Floword.muted; font-size: 13px; }
+
+            if StudioOpenTalking.voices.length == 0: Rectangle {
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Floword.line;
+                background: Floword.field;
+
+                HorizontalLayout {
+                    padding: 30px;
+                    alignment: center;
+                    Text { text: I18n.t("studioOpenTalking.emptyVoices"); color: Floword.muted; font-size: 14px; }
+                }
+            }
+
+            for voice[index] in StudioOpenTalking.voices: Rectangle {
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Floword.line;
+                background: Floword.field;
+
+                HorizontalLayout {
+                    padding: 14px;
+                    spacing: 16px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 14px;
+
+                        // Mic Icon Box
+                        Rectangle {
+                            width: 44px;
+                            height: 44px;
+                            border-radius: 10px;
+                            background: #ec489922;
+                            border-width: 1px;
+                            border-color: #ec489944;
+
+                            Text {
+                                text: "🎙️";
+                                font-size: 20px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            alignment: center;
+
+                            Text {
+                                text: voice.label;
+                                color: Floword.text;
+                                font-size: 15px;
+                                font-weight: 700;
+                            }
+
+                            Text {
+                                text: "Mã giọng: " + voice.id;
+                                color: Floword.muted;
+                                font-size: 12px;
+                            }
+                        }
+                    }
+
+                    // Actions
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: end;
+
+                        StudioButton {
+                            label: "🔊 Nghe thử";
+                            clicked => {
+                                StudioOpenTalking.test-voice(index);
+                            }
+                        }
+
+                        StudioButton {
+                            label: "Chọn giọng này";
+                            primary: true;
+                            clicked => {
+                                StudioOpenTalking.voice-index = index;
+                                StudioOpenTalking.active-tab = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // TAB 3: HỘI THOẠI TRỰC TIẾP
+    if StudioOpenTalking.active-tab == 3: StudioCard {
+        StudioHeading { title: "Hội Thoại Trực Tiếp (TikTok LIVE Studio)"; }
+        Text {
+            text: "Mở màn hình TikTok LIVE Studio 3 cột đầy đủ (Màn hình Live, sóng âm, ghim sản phẩm & sự kiện). Bấm nút bên dưới để vào phiên Live:";
+            color: Floword.muted;
+            font-size: 13px;
+        }
+        HorizontalLayout {
+            StudioButton {
+                label: "Mở TikTok LIVE Studio";
+                primary: true;
+                clicked => { root.navigate-to-live(); }
+            }
+            Rectangle { horizontal-stretch: 1; }
+        }
+    }
+
+    // TAB 4: LỊCH SỬ VIDEO (Video Jobs)
+    if StudioOpenTalking.active-tab == 4: VerticalLayout {
+        spacing: 16px;
+
+        StudioCard {
+            StudioHeading { title: I18n.t("studioOpenTalking.history") + " (" + StudioOpenTalking.jobs.length + ")"; }
+
+            if StudioOpenTalking.catalogs-loaded && StudioOpenTalking.jobs.length == 0:
+                Text { text: I18n.t("studioOpenTalking.empty"); color: Floword.muted; wrap: word-wrap; font-size: 13px; }
+
+            for job in StudioOpenTalking.jobs: VerticalLayout {
+                spacing: 8px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    Text {
+                        text: job.title;
+                        color: Floword.text;
+                        font-size: 15px;
+                        font-weight: 700;
+                        wrap: word-wrap;
+                    }
+
+                    // Status Badge
+                    Rectangle {
+                        border-radius: 6px;
+                        background: job.status == "completed" ? #10b98122 : job.status == "processing" ? #3b82f622 : #ef444422;
+                        border-width: 1px;
+                        border-color: job.status == "completed" ? #10b98155 : job.status == "processing" ? #3b82f655 : #ef444455;
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            padding-top: 3px;
+                            padding-bottom: 3px;
+
+                            Text {
+                                text: job.status;
+                                color: job.status == "completed" ? #34d399 : job.status == "processing" ? #60a5fa : #f87171;
+                                font-size: 11px;
+                                font-weight: 700;
+                            }
+                        }
+                    }
+                }
+
+                Text { text: "ID: " + job.id + " · Driver: " + job.driver + " · Thời lượng: " + job.duration + " · Ngày tạo: " + job.created; color: Floword.muted; font-size: 12px; }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    if job.status == "queued" || job.status == "processing": StudioButton {
+                        label: I18n.t("studioOpenTalking.stop"); enabled: !StudioOpenTalking.busy;
+                        clicked => { StudioOpenTalking.stop-id = job.id; }
+                    }
+                    if job.status == "completed" || job.status == "failed" || job.status == "cancelled": StudioButton {
+                        label: I18n.t("studioOpenTalking.delete"); enabled: !StudioOpenTalking.busy;
+                        clicked => { StudioOpenTalking.delete-id = job.id; }
+                    }
+                    if job.status == "completed": StudioButton {
+                        label: I18n.t("studioOpenTalking.importVideo"); primary: true; enabled: !StudioOpenTalking.busy;
+                        clicked => { StudioOpenTalking.import-video(job.id); }
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                }
+                Rectangle { height: 1px; background: Floword.line; }
+            }
+        }
+    }
+}

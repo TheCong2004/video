@@ -1,0 +1,153 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { I18n } from "../i18n.slint";
+import { Floword } from "../theme/floword.slint";
+import { Select } from "../primitives/primitives.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+
+export struct StudioProviderRow {
+    id: string, name: string, provider: string, active: bool, model: string,
+}
+export global StudioAi {
+    in-out property <[StudioProviderRow]> providers;
+    in-out property <[string]> models;
+    in-out property <int> model-index;
+    in-out property <bool> busy;
+    in-out property <bool> providers-loaded;
+    in-out property <bool> models-loaded;
+    in-out property <string> status;
+    in-out property <string> prompt: "Hello";
+    in-out property <string> answer;
+    in-out property <string> answered-model;
+    in-out property <string> test-id;
+    in-out property <string> test-model;
+    in-out property <bool> confirm-ask;
+    in-out property <bool> new-open;
+    in-out property <string> new-provider;
+    in-out property <string> new-name;
+    in-out property <string> new-key;
+    in-out property <string> new-model;
+    in-out property <string> delete-id;
+    in-out property <string> change-id;
+    in-out property <bool> change-active;
+    callback load-providers();
+    callback load-models();
+    callback test-connection();
+    callback ask();
+    callback add-provider();
+    callback change-provider();
+    callback delete-provider();
+}
+
+export component StudioAiPage inherits VerticalLayout {
+    callback account();
+    spacing: 18px;
+    StudioCard {
+        StudioHeading { title: I18n.t("studioAi.title"); }
+        Text { text: I18n.t("studioAi.scope"); color: Floword.muted; wrap: word-wrap; }
+        HorizontalLayout {
+            spacing: 12px;
+            StudioButton { label: I18n.t("studioAi.loadProviders"); enabled: !StudioAi.busy; clicked => { StudioAi.load-providers(); } }
+            StudioButton { label: I18n.t("studioAi.loadModels"); enabled: !StudioAi.busy; clicked => { StudioAi.load-models(); } }
+            StudioButton { label: I18n.t("studioAi.addProvider"); enabled: !StudioAi.busy; clicked => { StudioAi.new-open = true; } }
+            StudioButton { label: I18n.t("studioSession.title"); clicked => { root.account(); } }
+            Rectangle { horizontal-stretch: 1; }
+        }
+        Text { text: StudioAi.busy ? I18n.t("studioAi.waiting") : StudioAi.status; color: Floword.warning; wrap: word-wrap; }
+    }
+    if StudioAi.new-open: StudioCard {
+        StudioHeading { title: I18n.t("studioAi.addProvider"); }
+        Text { text: I18n.t("studioAi.addNotice"); color: Floword.warning; wrap: word-wrap; }
+        HorizontalLayout {
+            spacing: 16px;
+            StudioField { label: I18n.t("studioAi.providerId"); placeholder: "groq / openai / gemini"; value: StudioAi.new-provider; enabled: !StudioAi.busy; edited(text) => { StudioAi.new-provider = text; } }
+            StudioField { label: I18n.t("studioAi.connectionName"); value: StudioAi.new-name; enabled: !StudioAi.busy; edited(text) => { StudioAi.new-name = text; } }
+        }
+        StudioField { label: "API Key"; secret: true; value: StudioAi.new-key; enabled: !StudioAi.busy; edited(text) => { StudioAi.new-key = text; } }
+        StudioField { label: I18n.t("studioAi.defaultModel"); value: StudioAi.new-model; enabled: !StudioAi.busy; edited(text) => { StudioAi.new-model = text; } }
+        HorizontalLayout {
+            spacing: 12px;
+            StudioButton { label: I18n.t("studioAi.saveProvider"); primary: true; enabled: !StudioAi.busy && StudioAi.new-key != "" && StudioAi.new-provider != "" && StudioAi.new-name != ""; clicked => { StudioAi.add-provider(); } }
+            StudioButton { label: I18n.t("studioAi.keep"); enabled: !StudioAi.busy; clicked => { StudioAi.new-key = ""; StudioAi.new-open = false; } }
+            Rectangle { horizontal-stretch: 1; }
+        }
+    }
+    HorizontalLayout {
+        spacing: 18px;
+        VerticalLayout {
+            min-width: 0px; preferred-width: 620px; horizontal-stretch: 2; spacing: 12px;
+            if !StudioAi.providers-loaded: StudioCard {
+                Text { text: I18n.t("studioAi.providersHint"); color: Floword.muted; wrap: word-wrap; }
+            }
+            if StudioAi.providers-loaded && StudioAi.providers.length == 0: StudioCard {
+                Text { text: I18n.t("studioAi.noProviders"); color: Floword.muted; wrap: word-wrap; }
+            }
+            for provider in StudioAi.providers: StudioCard {
+                StudioHeading { title: provider.name == "" ? provider.provider : provider.name; }
+                Text { text: provider.provider + " · " + provider.id; color: Floword.muted; wrap: word-wrap; }
+                Text { text: provider.active ? I18n.t("studioAi.enabled") : I18n.t("studioAi.disabled"); color: provider.active ? Floword.success : Floword.warning; }
+                Text { text: I18n.t("studioAi.keyHidden"); color: Floword.muted; wrap: word-wrap; }
+                StudioButton {
+                    label: I18n.t("studioAi.testConnection"); enabled: !StudioAi.busy;
+                    clicked => { StudioAi.test-id = provider.id; StudioAi.test-model = provider.model; }
+                }
+                HorizontalLayout {
+                    spacing: 12px;
+                    StudioButton { label: provider.active ? I18n.t("studioAi.disable") : I18n.t("studioAi.enable"); enabled: !StudioAi.busy; clicked => { StudioAi.change-id = provider.id; StudioAi.change-active = !provider.active; } }
+                    StudioButton { label: I18n.t("studioAi.delete"); enabled: !StudioAi.busy; clicked => { StudioAi.delete-id = provider.id; } }
+                    Rectangle { horizontal-stretch: 1; }
+                }
+            }
+        }
+        StudioCard {
+            min-width: 0px; preferred-width: 440px; horizontal-stretch: 1;
+            StudioHeading { title: I18n.t("studioAi.askTitle"); }
+            Text { text: I18n.t("studioAi.routeNotice"); color: Floword.muted; wrap: word-wrap; }
+            Select {
+                options: StudioAi.models; current <=> StudioAi.model-index; enabled: !StudioAi.busy;
+                height: 40px; background: Floword.field; border-color: Floword.line;
+                changed(index) => { StudioAi.confirm-ask = false; }
+            }
+            if StudioAi.models-loaded && StudioAi.models.length == 0: Text { text: I18n.t("studioAi.noModels"); color: Floword.warning; wrap: word-wrap; }
+            StudioField { label: I18n.t("studioAi.prompt"); value: StudioAi.prompt; multiline: true; enabled: !StudioAi.busy; edited(text) => { StudioAi.prompt = text; StudioAi.confirm-ask = false; } }
+            Text { text: I18n.t("studioAi.quotaNotice"); color: Floword.warning; wrap: word-wrap; }
+            StudioButton { label: I18n.t("studioAi.ask"); primary: true; enabled: !StudioAi.busy && StudioAi.models.length > 0 && StudioAi.prompt != ""; clicked => { StudioAi.confirm-ask = true; } }
+            if StudioAi.confirm-ask: VerticalLayout {
+                spacing: 10px;
+                Text { text: I18n.t("studioAi.confirmAsk"); color: Floword.warning; wrap: word-wrap; }
+                StudioButton { label: I18n.t("studioAi.send"); enabled: !StudioAi.busy; clicked => { StudioAi.ask(); } }
+                StudioButton { label: I18n.t("studioAi.keep"); enabled: !StudioAi.busy; clicked => { StudioAi.confirm-ask = false; } }
+            }
+            if StudioAi.answer != "": VerticalLayout {
+                spacing: 10px;
+                Text { text: StudioAi.answered-model; color: Floword.violet; wrap: word-wrap; }
+                Text { text: StudioAi.answer; color: Floword.text; wrap: word-wrap; }
+            }
+        }
+    }
+    if StudioAi.test-id != "": StudioCard {
+        StudioHeading { title: I18n.t("studioAi.testConnection"); }
+        Text { text: StudioAi.test-id; color: Floword.text; wrap: word-wrap; }
+        StudioField { label: I18n.t("studioAi.validationModel"); value: StudioAi.test-model; enabled: !StudioAi.busy; edited(text) => { StudioAi.test-model = text; } }
+        Text { text: I18n.t("studioAi.testNotice"); color: Floword.warning; wrap: word-wrap; }
+        HorizontalLayout {
+            spacing: 12px;
+            StudioButton { label: I18n.t("studioAi.send"); primary: true; enabled: !StudioAi.busy; clicked => { StudioAi.test-connection(); } }
+            StudioButton { label: I18n.t("studioAi.keep"); enabled: !StudioAi.busy; clicked => { StudioAi.test-id = ""; } }
+            Rectangle { horizontal-stretch: 1; }
+        }
+    }
+    if StudioAi.change-id != "": StudioCard {
+        StudioHeading { title: StudioAi.change-active ? I18n.t("studioAi.enable") : I18n.t("studioAi.disable"); }
+        Text { text: StudioAi.change-id; color: Floword.text; wrap: word-wrap; }
+        Text { text: I18n.t("studioAi.changeNotice"); color: Floword.warning; wrap: word-wrap; }
+        StudioButton { label: I18n.t("studioAi.send"); enabled: !StudioAi.busy; clicked => { StudioAi.change-provider(); } }
+        StudioButton { label: I18n.t("studioAi.keep"); enabled: !StudioAi.busy; clicked => { StudioAi.change-id = ""; } }
+    }
+    if StudioAi.delete-id != "": StudioCard {
+        StudioHeading { title: I18n.t("studioAi.delete"); }
+        Text { text: StudioAi.delete-id; color: Floword.text; wrap: word-wrap; }
+        Text { text: I18n.t("studioAi.deleteNotice"); color: Floword.warning; wrap: word-wrap; }
+        StudioButton { label: I18n.t("studioAi.deleteConfirm"); enabled: !StudioAi.busy; clicked => { StudioAi.delete-provider(); } }
+        StudioButton { label: I18n.t("studioAi.keep"); enabled: !StudioAi.busy; clicked => { StudioAi.delete-id = ""; } }
+    }
+}

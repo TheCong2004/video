@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { I18n } from "../i18n.slint";
+import { Floword } from "../theme/floword.slint";
+import { Select } from "../primitives/primitives.slint";
+import { StudioCard, StudioHeading, StudioButton } from "studio-chrome.slint";
+
+export global StudioBrowser {
+    in-out property <[string]> ids;
+    in-out property <[string]> names;
+    in-out property <int> index;
+    in-out property <bool> busy;
+    in-out property <bool> loaded;
+    in-out property <string> status;
+    in-out property <bool> confirm-open;
+    in-out property <bool> confirm-stop;
+    callback refresh();
+    callback open-grok();
+    callback stop-profile();
+}
+
+export component StudioBrowserPanel inherits StudioCard {
+    StudioHeading { title: I18n.t("studioBrowser.title"); }
+    Text { text: I18n.t("studioBrowser.scope"); color: Floword.muted; wrap: word-wrap; }
+    StudioButton { label: I18n.t("studioBrowser.refresh"); enabled: !StudioBrowser.busy; clicked => { StudioBrowser.refresh(); } }
+    Select {
+        options: StudioBrowser.names; current <=> StudioBrowser.index;
+        placeholder: I18n.t("studioBrowser.choose"); height: 40px;
+        background: Floword.field; border-color: Floword.line; enabled: !StudioBrowser.busy;
+        changed(index) => { StudioBrowser.confirm-open = false; StudioBrowser.confirm-stop = false; }
+    }
+    if StudioBrowser.loaded && StudioBrowser.names.length == 0: Text { text: I18n.t("studioBrowser.empty"); color: Floword.warning; wrap: word-wrap; }
+    Text { text: StudioBrowser.busy ? I18n.t("studioBrowser.waiting") : StudioBrowser.status; color: Floword.warning; wrap: word-wrap; }
+    Text { text: I18n.t("studioBrowser.noReadiness"); color: Floword.muted; wrap: word-wrap; }
+    HorizontalLayout {
+        spacing: 12px;
+        StudioButton { label: I18n.t("studioBrowser.open"); primary: true; enabled: !StudioBrowser.busy && StudioBrowser.names.length > 0; clicked => { StudioBrowser.confirm-open = true; StudioBrowser.confirm-stop = false; } }
+        StudioButton { label: I18n.t("studioBrowser.stop"); enabled: !StudioBrowser.busy && StudioBrowser.names.length > 0; clicked => { StudioBrowser.confirm-stop = true; StudioBrowser.confirm-open = false; } }
+        Rectangle { horizontal-stretch: 1; }
+    }
+    if StudioBrowser.confirm-open || StudioBrowser.confirm-stop: VerticalLayout {
+        spacing: 10px;
+        Text { text: StudioBrowser.confirm-stop ? I18n.t("studioBrowser.confirmStop") : I18n.t("studioBrowser.confirmOpen"); color: Floword.warning; wrap: word-wrap; }
+        StudioButton { label: I18n.t("studioBrowser.confirm"); enabled: !StudioBrowser.busy; clicked => { if StudioBrowser.confirm-stop { StudioBrowser.stop-profile(); } else { StudioBrowser.open-grok(); } } }
+        StudioButton { label: I18n.t("common.cancel"); enabled: !StudioBrowser.busy; clicked => { StudioBrowser.confirm-open = false; StudioBrowser.confirm-stop = false; } }
+    }
+}

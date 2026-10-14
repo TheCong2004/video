@@ -1,0 +1,158 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { I18n } from "../i18n.slint";
+import { Floword } from "../theme/floword.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+
+export struct StudioBulkRowItem {
+    row-index: int,
+    page-id: string,
+    title: string,
+    prompt: string,
+    platforms: string,
+    valid: bool,
+    error: string,
+}
+
+export global StudioBulk {
+    in-out property <string> csv-content: "page_id,source_image,image_prompt,expand_916_prompt,video_prompt,title,caption,hashtags,platforms,post_mode\npage_demo,,Cinematic portrait in neon rain,,Hyper realistic camera zoom into neon reflection,Cyberpunk 2099,Amazing futuristic world #cyberpunk #neon,cyberpunk neon ai,facebook|tiktok,auto\n";
+    in-out property <bool> busy;
+    in-out property <string> status;
+    in-out property <int> total-rows;
+    in-out property <int> valid-count;
+    in-out property <int> error-count;
+    in-out property <[StudioBulkRowItem]> rows;
+    callback load-sample();
+    callback validate();
+    callback commit();
+}
+
+export component StudioBulkPanel inherits VerticalLayout {
+    spacing: 16px;
+
+    StudioCard {
+        StudioHeading { title: I18n.t("studioBulk.title"); }
+        Text {
+            text: I18n.t("studioBulk.intro");
+            color: Floword.muted;
+            font-size: 13px;
+            wrap: word-wrap;
+        }
+
+        // Action Toolbar
+        HorizontalLayout {
+            spacing: 10px;
+
+            StudioButton {
+                label: "📄 " + I18n.t("studioBulk.sampleBtn");
+                enabled: !StudioBulk.busy;
+                clicked => { StudioBulk.load-sample(); }
+            }
+
+            StudioButton {
+                label: "🔍 " + I18n.t("studioBulk.validateBtn");
+                enabled: !StudioBulk.busy && StudioBulk.csv-content != "";
+                clicked => { StudioBulk.validate(); }
+            }
+
+            StudioButton {
+                label: "🚀 " + I18n.t1("studioBulk.commitBtn", "" + StudioBulk.valid-count);
+                primary: true;
+                enabled: !StudioBulk.busy && StudioBulk.valid-count > 0;
+                clicked => { StudioBulk.commit(); }
+            }
+
+            Rectangle { horizontal-stretch: 1; }
+        }
+
+        if StudioBulk.status != "": Rectangle {
+            border-radius: 8px;
+            background: Floword.field;
+            border-width: 1px;
+            border-color: Floword.line;
+
+            HorizontalLayout {
+                padding: 10px;
+                Text { text: StudioBulk.status; color: Floword.text; font-size: 12px; }
+            }
+        }
+    }
+
+    // CSV Input Card
+    StudioCard {
+        Text {
+            text: I18n.t("studioBulk.csvLabel");
+            color: Floword.text;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        StudioField {
+            label: "CSV Content";
+            multiline: true;
+            placeholder: I18n.t("studioBulk.csvPlaceholder");
+            value: StudioBulk.csv-content;
+            enabled: !StudioBulk.busy;
+            edited(text) => { StudioBulk.csv-content = text; }
+        }
+    }
+
+    // Validation Results
+    if StudioBulk.total-rows > 0: StudioCard {
+        HorizontalLayout {
+            alignment: space-between;
+            Text {
+                text: I18n.t("studioBulk.resultsTitle");
+                color: Floword.text;
+                font-size: 15px;
+                font-weight: 700;
+            }
+
+            // Summary pill
+            Rectangle {
+                border-radius: 6px;
+                background: StudioBulk.error-count == 0 ? #10b98122 : #f59e0b22;
+                border-width: 1px;
+                border-color: StudioBulk.error-count == 0 ? #10b98155 : #f59e0b55;
+
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    padding-top: 3px;
+                    padding-bottom: 3px;
+                    Text {
+                        text: "" + StudioBulk.valid-count + " hợp lệ · " + StudioBulk.error-count + " lỗi";
+                        color: StudioBulk.error-count == 0 ? #34d399 : #fbbf24;
+                        font-size: 11px;
+                        font-weight: 700;
+                    }
+                }
+            }
+        }
+
+        for row in StudioBulk.rows: Rectangle {
+            border-radius: 8px;
+            background: row.valid ? Floword.field : #ef444415;
+            border-width: 1px;
+            border-color: row.valid ? Floword.line : #ef444455;
+
+            HorizontalLayout {
+                padding: 10px;
+                spacing: 12px;
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    Text { text: "#" + row.row-index; color: Floword.muted; font-size: 12px; font-weight: 700; }
+                    Text { text: row.title != "" ? row.title : "(Không có tiêu đề)"; color: Floword.text; font-size: 13px; font-weight: 600; }
+                    Text { text: "Kênh: " + row.page-id; color: Floword.muted; font-size: 12px; }
+                    Text { text: "Nền tảng: " + row.platforms; color: Floword.violet; font-size: 12px; }
+                }
+
+                HorizontalLayout {
+                    if row.valid: Text { text: "✓ Hợp lệ"; color: #34d399; font-size: 12px; font-weight: 700; }
+                    if !row.valid: Text { text: "✕ " + row.error; color: #f87171; font-size: 12px; font-weight: 600; }
+                }
+            }
+        }
+    }
+}

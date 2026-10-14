@@ -1,0 +1,23 @@
+[package]
+name = "concat-studio"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Studio application services without a desktop shell or media engines."
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+ureq = "2"
+url = "2"
+base64 = "0.22"
+sha2 = "0.10"
+rand = "0.9"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Security_Cryptography", "Win32_Foundation"] }
+
+[lints]
+workspace = true

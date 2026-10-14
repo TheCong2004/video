@@ -1,0 +1,22 @@
+{
+  "contract": "Native Slint Studio content panel, not the whole Concat window. Reference: ArtCraft FlowordStudio/src/index.css and ProductionPipelineView.tsx plus user screenshots. Keep dark blue surfaces, thin borders, a wider brief column, a narrower execution column and pink/violet actions. No WebView, fake readiness, fabricated jobs or auto-submission.",
+  "targetViewports": ["1440x1000", "1920x1080"],
+  "accessibility": {"status": "untested", "evidence": "Native controls expose labels and keyboard activation/focus styling, but keyboard navigation and screen-reader interaction have not been exercised."},
+  "responsive": {"status": "untested", "evidence": "Offscreen software rendering only; full-window DPI, sidebar and narrow-screen interaction still require native runtime review."},
+  "contentStates": {
+    "loading": {"status": "untested", "evidence": "Busy disables edits and mutations; no interactive capture yet."},
+    "empty": {"status": "untested", "evidence": "Disconnected, unloaded content captured; loaded-empty list is not yet captured."},
+    "error": {"status": "untested", "evidence": "Typed HTTP and unknown-outcome fixture tests exist; full error UI not yet exercised."},
+    "partial": {"status": "untested", "evidence": "Unported modules explicitly remain unavailable; not visually tested."},
+    "success": {"status": "untested", "evidence": "Synthetic HTTP fixture verifies preflight/start response; no real account or paid generation tested."},
+    "permission": {"status": "untested", "evidence": "Missing token and 401/403 fixture tests exist; native sign-in is not implemented."}
+  },
+  "renderedEvidence": [
+    {"viewport":"1440x1000", "artifact":"production-1440.png", "observation":"Real StudioPage Slint component, software-rendered in the disconnected state. Not a browser, not the running full application."},
+    {"viewport":"1920x1080", "artifact":"production-1920.png", "observation":"Second desktop content-panel size, disconnected state. Native runtime/DPI/accessibility checks remain pending."},
+    {"viewport":"1440x1000", "artifact":"keys-1440.png", "observation":"Actual native AI Keys component, unloaded/disconnected state only. Provider account, mouse/keyboard and hidden secret-input interaction untested."},
+    {"viewport":"1920x1080", "artifact":"keys-1920.png", "observation":"AI Keys component at second desktop viewport. No real provider or credential call."},
+    {"viewport":"1440x1000", "artifact":"keys-sample-1440.png", "observation":"Explicit synthetic connection and answer data rendered in the actual Slint UI. Text and controls fit; this is not a successful provider request or native interaction test."},
+    {"viewport":"1440x1800", "artifact":"production-browser-1440.png", "observation":"Extended actual production content panel includes the native Nexora lifecycle section. Unloaded state; not proof of worker readiness or full-window scrolling."}
+  ]
+}
