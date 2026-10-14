@@ -148,6 +148,7 @@ export component TitleBar inherits Rectangle {
     /// A view was picked from the add-panel list.
     callback add-pane(kind: PaneKind);
     callback export-clicked();
+    callback home-clicked();
 
     height: 32px;
     // The window's ground, not a panel's: the strip is the frame the panes
@@ -197,7 +198,46 @@ export component TitleBar inherits Rectangle {
         // No right padding when the strip ends in its own buttons: the close
         // button belongs in the corner, not eight pixels shy of it.
         padding-right: root.own-buttons ? 0px : 8px;
-        spacing: 2px;
+        spacing: 4px;
+
+        if !root.minimal: Rectangle {
+            width: home-layout.preferred-width + 14px;
+            height: 22px;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.r-sm;
+            background: home-touch.has-hover ? #1e293b : #111827;
+            border-width: 1px;
+            border-color: home-touch.has-hover ? #38bdf8 : #334155;
+            animate background, border-color { duration: 120ms; }
+
+            home-layout := HorizontalLayout {
+                padding-left: 6px;
+                padding-right: 6px;
+                spacing: 4px;
+                alignment: center;
+
+                Icon {
+                    y: (parent.height - self.height) / 2;
+                    glyph: Glyph.chevron-left;
+                    size: 11px;
+                    weight: 2.0;
+                    tint: home-touch.has-hover ? #38bdf8 : #94a3b8;
+                }
+
+                Text {
+                    y: (parent.height - self.height) / 2;
+                    text: "Trang chủ";
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: home-touch.has-hover ? #ffffff : #cbd5e1;
+                }
+            }
+
+            home-touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.home-clicked(); }
+            }
+        }
 
         // No mark and no wordmark: the strip opens on the menus. A window
         // does not need to say whose it is on every frame, and the launch
@@ -208,6 +248,7 @@ export component TitleBar inherits Rectangle {
         // long "File" and "Edit" are.
         if !root.minimal: file := MenuLabel {
             label: I18n.t("titleBar.file");
+
             current: root.menu == 0;
             clicked => {
                 root.menu-opened(0, file.absolute-position.x - root.absolute-position.x, false);

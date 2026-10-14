@@ -649,7 +649,9 @@ export component App inherits Window {
                 open-settings => { root.open-settings(); }
                 add-pane(kind) => { Editor.dock-add(kind); }
                 export-clicked => { root.export-clicked(); }
+                home-clicked => { root.app-menu-selected("close-project"); }
             }
+
 
             if root.on-start: StartScreen {
                 vertical-stretch: 1;
