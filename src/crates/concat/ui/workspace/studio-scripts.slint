@@ -61,14 +61,14 @@ export component StudioScripts inherits VerticalLayout {
         VerticalLayout {
             spacing: 4px;
             Text {
-                text: ScriptLibrary.active-tab == 0 ? "CHỢ MẪU KỊCH BẢN ĐIỆN ẢNH" : "THƯ VIỆN PROMPT TÙY CHỈNH";
+                text: ScriptLibrary.active-tab == 0 ? "MẪU KỊCH BẢN CÓ SẴN" : "KỊCH BẢN & CÂU LỆNH CỦA BẠN";
                 color: Floword.violet;
                 font-size: 12px;
                 font-weight: 700;
             }
             Text {
                 text: ScriptLibrary.active-tab == 0
-                    ? "Mẫu kịch bản phân cảnh triệu view từ ArtCraft · Sẵn sàng áp dụng ngay vào Xưởng phim AI"
+                    ? "Chọn câu chuyện bạn thích và đưa ngay vào Xưởng phim AI để tạo video."
                     : I18n.t("studioScripts.intro");
                 color: Floword.muted;
                 font-size: 14px;
