@@ -5,7 +5,7 @@ import { Glyph, Icon } from "../icons.slint";
 
 export component StudioCard inherits Rectangle {
     in property <length> spacing: 14px;
-    border-radius: 16px;
+    border-radius: 18px;
     border-width: 1px;
     border-color: Floword.line;
     background: Floword.surface;
@@ -13,7 +13,7 @@ export component StudioCard inherits Rectangle {
     min-height: body.preferred-height;
     vertical-stretch: 0;
     body := VerticalLayout {
-        padding: 18px;
+        padding: 20px;
         spacing: root.spacing;
         min-width: 0px;
         @children
@@ -33,13 +33,14 @@ export component StudioButton inherits Rectangle {
     in property <bool> primary;
     in property <bool> enabled: true;
     callback clicked();
-    min-height: 38px;
-    max-height: 38px;
+    min-height: 42px;
+    max-height: 42px;
     min-width: caption.preferred-width + 24px;
-    border-radius: 9px;
+    border-radius: 11px;
     border-width: 1px;
     border-color: focus.has-focus ? Floword.violet : (root.primary ? Floword.button : Floword.line);
-    background: root.primary ? Floword.button : touch.has-hover ? Floword.raised : Floword.field;
+    background: root.primary ? (touch.has-hover ? Floword.button-hover : Floword.button) : touch.has-hover ? Floword.raised : Floword.field;
+    animate background { duration: 160ms; easing: ease-in-out; }
     opacity: root.enabled ? 1 : 0.4;
     accessible-role: button;
     accessible-label: root.label;
@@ -47,7 +48,7 @@ export component StudioButton inherits Rectangle {
     caption := Text {
         text: root.label;
         color: root.primary ? Floword.on-accent : Floword.text;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;

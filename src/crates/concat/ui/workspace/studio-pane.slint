@@ -104,13 +104,23 @@ export component StudioPage inherits VerticalLayout {
     }
     if root.route == StudioRoute.overview: VerticalLayout {
         spacing: 20px;
+        StudioCard {
+            StudioHeading { title: "Bắt đầu sáng tạo video"; glyph: Glyph.sparkle; }
+            Text { text: "Chưa từng dựng video? Hãy mở Xưởng phim AI, viết ý tưởng của bạn và làm theo 3 bước hướng dẫn. Mọi cài đặt chuyên sâu vẫn có sẵn khi cần."; color: Floword.muted; font-size: 14px; wrap: word-wrap; }
+            HorizontalLayout {
+                spacing: 12px;
+                StudioButton { label: "Tạo video đầu tiên"; primary: true; clicked => { root.navigate(StudioRoute.production); } }
+                StudioButton { label: "Xem mẫu kịch bản"; clicked => { root.navigate(StudioRoute.scripts); } }
+                Rectangle { horizontal-stretch: 1; }
+            }
+        }
 
         // Metric Counters Row
         HorizontalLayout {
             spacing: 16px;
             StudioMetric { label: I18n.t("nativeStudio.jobs"); value: ProductionStudio.runs-loaded ? "\{ProductionStudio.runs.length}" : "—"; }
             StudioMetric { label: I18n.t("nativeStudio.workflow"); value: StudioBridge.workflows-state == 1 && !StudioBridge.workflows-loading ? "\{StudioBridge.workflows.length}" : "—"; }
-            StudioMetric { label: I18n.t("productionStudio.scripts"); value: ScriptLibrary.loaded ? "\{ScriptLibrary.rows.length}" : "4 Mẫu"; }
+            StudioMetric { label: I18n.t("productionStudio.scripts"); value: ScriptLibrary.loaded ? "\{ScriptLibrary.rows.length}" : "—"; }
             StudioMetric { label: "Kênh Hoạt Động"; value: "\{StudioChannels.rows.length}"; }
         }
 

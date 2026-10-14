@@ -121,6 +121,13 @@ export component StudioRunList inherits VerticalLayout {
 
 export component StudioProduction inherits VerticalLayout {
     spacing: 18px;
+    property <bool> advanced-open: false;
+
+    StudioCard {
+        StudioHeading { title: "Tạo video của bạn"; glyph: Glyph.film; }
+        Text { text: "Mô tả ý tưởng, chọn cách tạo, kiểm tra rồi bắt đầu. Các thiết lập khó nằm trong Tùy chọn nâng cao."; color: Floword.muted; font-size: 14px; wrap: word-wrap; }
+        Text { text: "1. Viết ý tưởng   →   2. Kiểm tra   →   3. Tạo video"; color: Floword.violet; font-size: 14px; font-weight: 600; }
+    }
 
     // 1. PIPELINE 7-PHASE VISUALIZER RIBBON (Matching ArtCraft ProductionPipelineView)
     Rectangle {
@@ -136,9 +143,9 @@ export component StudioProduction inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 8px;
                     Icon { glyph: Glyph.film; size: 18px; tint: Floword.violet; }
-                    Text { text: "QUY TRÌNH SẢN XUẤT 7 BƯỚC (AI PIPELINE)"; color: Floword.violet; font-size: 13px; font-weight: 700; }
+                    Text { text: "7 CÔNG ĐOẠN TẠO VIDEO"; color: Floword.violet; font-size: 13px; font-weight: 700; }
                 }
-                Text { text: "Promax Scheduler Engine · CapCut Sync Ready"; color: Floword.muted; font-size: 12px; }
+                Text { text: "Từ ý tưởng đến video hoàn chỉnh"; color: Floword.muted; font-size: 12px; }
             }
 
             // Stepper pills
@@ -214,13 +221,13 @@ export component StudioProduction inherits VerticalLayout {
                 edited(text) => { ProductionStudio.brief = text; ProductionStudio.invalidate(); }
             }
             StudioField {
-                label: "Nhân vật chính & Anchor Prompt (Giữ khuôn mặt đồng nhất)";
+                label: "Nhân vật chính (giữ ngoại hình nhất quán)";
                 placeholder: "Ví dụ: Người phụ nữ 35 tuổi, áo dài xanh thẫm, tóc búi thấp, khuôn mặt thanh tú...";
                 value: ProductionStudio.character-anchor; enabled: !ProductionStudio.busy;
                 edited(text) => { ProductionStudio.character-anchor = text; }
             }
             StudioField {
-                label: "Phong cách hình ảnh & Không gian (Visual Style)";
+                label: "Phong cách hình ảnh";
                 placeholder: "Ví dụ: Cinematic 35mm film still, warm golden lantern lighting, photorealistic 8k...";
                 value: ProductionStudio.visual-style; enabled: !ProductionStudio.busy;
                 edited(text) => { ProductionStudio.visual-style = text; }
@@ -254,12 +261,12 @@ export component StudioProduction inherits VerticalLayout {
             // Visual engine selection
             VerticalLayout {
                 spacing: 6px;
-                Text { text: "Công nghệ sinh hình (Visual Engine):"; color: Floword.text; font-size: 13px; font-weight: 600; }
+                Text { text: "Công cụ AI tạo hình ảnh/video:"; color: Floword.text; font-size: 13px; font-weight: 600; }
                 Select {
                     height: 38px;
                     background: Floword.field; border-color: Floword.line;
                     options: ProductionStudio.visual-engine-options; current <=> ProductionStudio.visual-engine-index;
-                    placeholder: "Chọn Visual Engine"; enabled: !ProductionStudio.busy;
+                    placeholder: "Chọn công cụ AI"; enabled: !ProductionStudio.busy;
                 }
             }
 
@@ -278,20 +285,24 @@ export component StudioProduction inherits VerticalLayout {
 
             Text { text: I18n.t("nativeStudio.workflowHint"); color: Floword.muted; font-size: 12px; wrap: word-wrap; }
 
-            StudioField {
-                label: I18n.t("nativeStudio.inputs"); multiline: true; value: ProductionStudio.extra-inputs; enabled: !ProductionStudio.busy;
+            StudioButton {
+                label: root.advanced-open ? "Ẩn tùy chọn nâng cao" : "Hiện tùy chọn nâng cao";
+                clicked => { root.advanced-open = !root.advanced-open; }
+            }
+            if root.advanced-open: StudioField {
+                label: "Cấu hình nâng cao (JSON)"; multiline: true; value: ProductionStudio.extra-inputs; enabled: !ProductionStudio.busy;
                 edited(text) => { ProductionStudio.extra-inputs = text; ProductionStudio.invalidate(); }
             }
 
             VerticalLayout {
                 spacing: 8px;
                 StudioButton {
-                    label: ProductionStudio.busy ? I18n.t("nativeStudio.working") : I18n.t("nativeStudio.preflight");
+                    label: ProductionStudio.busy ? "Đang kiểm tra..." : "Bước 2 · Kiểm tra trước khi tạo";
                     enabled: !ProductionStudio.busy && ProductionStudio.workflow-ids.length > 0 && !ProductionStudio.uncertain;
                     clicked => { ProductionStudio.check-plan(); }
                 }
                 StudioButton {
-                    label: I18n.t("nativeStudio.create"); primary: true;
+                    label: "Bước 3 · Bắt đầu tạo video"; primary: true;
                     enabled: !ProductionStudio.busy && ProductionStudio.ready && !ProductionStudio.uncertain;
                     clicked => { ProductionStudio.confirm-start = true; }
                 }

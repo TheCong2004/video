@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Native translation of FlowordStudio/src/index.css. Studio is deliberately
-// distinct from the editing workspace; its source design is not the lime theme.
+// Obsidian Motion Studio: a calm, layered production workspace.
+// Palette changes affect the Studio only; the Concat editor remains unchanged.
 import { Theme } from "theme.slint";
 export global Floword {
-    out property <color> ground: Theme.dark ? #0e1118 : #f1f3f8;
-    out property <color> surface: Theme.dark ? #161c28 : #ffffff;
-    out property <color> field: Theme.dark ? #1e2638 : #f5f6fa;
-    out property <color> raised: Theme.dark ? #263248 : #e9edf5;
-    out property <color> line: Theme.dark ? #2e3a50 : #15244022;
-    out property <color> text: Theme.dark ? #ffffff : #172033;
-    out property <color> muted: Theme.dark ? #94a3b8 : #525c70;
-    out property <color> accent: Theme.dark ? #6366f1 : #4f46e5;
-    out property <color> button: #10b981;
-    out property <color> violet: Theme.dark ? #818cf8 : #6151bd;
-    out property <color> success: Theme.dark ? #10b981 : #18764a;
-    out property <color> warning: Theme.dark ? #fbbf24 : #885b00;
-    out property <color> danger: Theme.dark ? #f43f5e : #b32929;
+    out property <color> ground: Theme.dark ? #0d111b : #f1f3f8;
+    out property <color> surface: Theme.dark ? #171e2c : #ffffff;
+    out property <color> field: Theme.dark ? #202a3c : #f5f6fa;
+    out property <color> raised: Theme.dark ? #2b3650 : #e9edf5;
+    out property <color> line: Theme.dark ? #394763 : #15244022;
+    out property <color> text: Theme.dark ? #f3f6ff : #172033;
+    out property <color> muted: Theme.dark ? #acbad2 : #525c70;
+    out property <color> accent: Theme.dark ? #5268ff : #4f46e5;
+    out property <color> button: Theme.dark ? #5268ff : #4f46e5;
+    out property <color> button-hover: Theme.dark ? #6b7dff : #6154f0;
+    out property <color> violet: Theme.dark ? #a5b2ff : #6151bd;
+    out property <color> success: Theme.dark ? #37d6a0 : #18764a;
+    out property <color> warning: Theme.dark ? #f1ba61 : #885b00;
+    out property <color> danger: Theme.dark ? #ff667d : #b32929;
     out property <color> on-accent: #ffffff;
 }
 
