@@ -4,6 +4,10 @@
 //! Compilation uses the existing native editor, never another timeline engine.
 mod plan;
 pub use plan::{CompiledPlan, EditPlan, PlanError};
+pub mod runtime;
+
+#[cfg(test)]
+mod extended_tests;
 
 #[cfg(test)]
 mod tests {
@@ -109,7 +113,7 @@ mod tests {
     fn reference_and_value_limits_refuse_without_clamping() {
         let (editor, clip) = fixture();
         for operation in [
-            json!({"op":"trim","clipId":clip,"edge":"end","delta":2.0,"ripple":false}),
+            json!({"op":"trim","clipId":clip,"edge":"end","delta":-20.0,"ripple":false}),
             json!({"op":"trim","clipId":clip,"edge":"start","delta":11.0,"ripple":false}),
             json!({"op":"move","clipId":clip,"start":-1.0,"trackId":"missing"}),
             json!({"op":"move","clipId":clip,"start":5.0,"trackId":"missing"}),

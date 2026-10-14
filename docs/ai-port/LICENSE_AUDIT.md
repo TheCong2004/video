@@ -26,6 +26,14 @@ to identify required behavior, not copied verbatim. Existing Concat notices
 remain; new files carry AGPL-3.0-or-later and Concat contributor attribution.
 No upstream UI/assets/models/workflow JSON/packages have been copied yet.
 
+Follow-up 2026-10-15: `concat-agent/{plan,runtime,extended_tests,runtime_tests}`,
+native contact-sheet service/Monitor strict inspection and native UI bindings
+are original Rust/Slint adapters for inspected OpenChatCut/Cartcut behavior,
+under the existing Concat AGPL contributor notices. They reuse native commands,
+the existing Promax service and renderer, not copied upstream expression or
+third-party assets. This does not certify full source dependency/license closure;
+full skill/style/workflow translation still requires retained upstream notices.
+
 Before translating more upstream implementation, record source path/commit,
 retained attribution, derivative target paths and dependency licenses here.
 Model weights, reference assets, fonts and provider terms need separate review;

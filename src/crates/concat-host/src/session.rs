@@ -537,6 +537,57 @@ mod tests {
             &before,
             "rendering a draft cannot mutate live state"
         );
+        let times = [0.05, 0.3, 0.8];
+        let sheet = crate::contact_sheet::render_sheet(
+            &monitor,
+            Arc::new(clips.clone()),
+            &settings,
+            &times,
+            Default::default(),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert_eq!(sheet.times, times);
+        let mut missing_layer = clips.clone();
+        missing_layer[0].path = root
+            .join("missing-footage.mp4")
+            .to_string_lossy()
+            .into_owned();
+        assert!(
+            crate::contact_sheet::render_sheet(
+                &monitor,
+                Arc::new(missing_layer),
+                &settings,
+                &[0.3],
+                Default::default(),
+                &AtomicBool::new(false)
+            )
+            .is_err(),
+            "a visible title must not hide a missing footage layer from approval inspection"
+        );
+        assert_eq!((sheet.width, sheet.height), (384, 128));
+        for (index, time) in times.iter().enumerate() {
+            let actual = frame(*time);
+            for row in 0..128usize {
+                assert_eq!(
+                    &sheet.pixels
+                        [(row * 384 + index * 128) * 4..(row * 384 + index * 128 + 128) * 4],
+                    &actual[row * 128 * 4..(row + 1) * 128 * 4],
+                    "contact sheet must equal native compositor pixels"
+                );
+            }
+        }
+        assert!(
+            crate::contact_sheet::render_sheet(
+                &monitor,
+                Arc::new(clips.clone()),
+                &settings,
+                &times,
+                Default::default(),
+                &AtomicBool::new(true)
+            )
+            .is_err()
+        );
         session.commit_draft(draft).unwrap();
         session.save(None).unwrap();
         assert_eq!(

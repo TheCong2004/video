@@ -16,8 +16,11 @@ function Find-SingleDirectory([string]$Pattern, [string]$Description) {
 
 try {
     if (([int]$CheckOnly.IsPresent + [int]$TestAdapters.IsPresent + [int]$TestAI.IsPresent + [int]$RunBuilt.IsPresent) -gt 1) { throw 'Choose only one of -CheckOnly, -TestAdapters, -TestAI, or -RunBuilt.' }
+    # Also prune before starting: a previous interrupted build may have left D full.
+    try { & (Join-Path $PSScriptRoot 'cleanup-build.ps1') -Apply }
+    catch { Write-Warning "Pre-build cleanup was not completed: $($_.Exception.Message)" }
     # Native compiler/test scratch files belong beside the existing D: target,
-    # not on the system drive. Keep this cache; restore the caller's variables.
+    # not on the system drive. Keep current caches; prune expired own artifacts.
     $nativeTemp = Join-Path $concatRoot '.runtime\native-temp'
     New-Item -ItemType Directory -Path $nativeTemp -Force | Out-Null
     $env:TEMP = $nativeTemp
@@ -57,6 +60,8 @@ try {
             & cargo test -p concat-agent -p concat-project --profile quick
             if ($LASTEXITCODE -ne 0) { throw "AI/project tests failed with exit code $LASTEXITCODE." }
             & cargo test -p concat-host --lib session::tests
+            if ($LASTEXITCODE -ne 0) { throw "Native Session tests failed with exit code $LASTEXITCODE." }
+            & cargo test -p concat-host --lib contact_sheet::tests
         }
         elseif ($CheckOnly) { & cargo check -p concat }
         elseif ($RunBuilt) {
@@ -69,4 +74,8 @@ try {
     } finally { Pop-Location }
 } finally {
     foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') }
+    # Run on success OR failure. Cleanup never hides the original build result,
+    # removes third-party libraries, or races another Cargo/test process.
+    try { & (Join-Path $PSScriptRoot 'cleanup-build.ps1') -Apply }
+    catch { Write-Warning "Build cleanup was not completed: $($_.Exception.Message)" }
 }

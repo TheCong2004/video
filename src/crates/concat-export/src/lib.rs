@@ -1765,11 +1765,17 @@ pub fn preview_frame(
 /// it where it is shown.
 pub struct PreviewSources {
     plan: FramePlan,
+    failed_sources: usize,
     treatments: Vec<Treatment>,
     transitions: Vec<TransitionSpan>,
 }
 
 impl PreviewSources {
+    /// Whether every planned source decoded. Normal playback may tolerate a
+    /// missing layer; approval inspection must not silently certify that frame.
+    pub fn complete(&self) -> bool {
+        self.failed_sources == 0
+    }
     /// The frame's description, with every treatment that is shaders
     /// alone already in it; a compositor draws this and nothing else. A
     /// treatment that needs FFmpeg is not in it: see
@@ -1981,6 +1987,7 @@ pub fn preview_sources_of(
         .sort_by_key(|treatment| treatment.track);
     Ok(PreviewSources {
         plan: frame_plan,
+        failed_sources: failures.len(),
         treatments: treatments.clone(),
         transitions: transitions.clone(),
     })

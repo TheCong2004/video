@@ -9,6 +9,8 @@ import { PaneKind, PaneSwitcher } from "pane-switcher.slint";
 
 export global AiEditing {
     in-out property <string> prompt;
+    in-out property <bool> agent-mode: false;
+    in-out property <float> max-turns: 6;
     in-out property <string> status: "Open a project, load models, then request a draft";
     in-out property <[string]> changes;
     in-out property <bool> busy;
@@ -47,11 +49,16 @@ export component AiEditingPane inherits Rectangle {
             VerticalLayout {
                 spacing: 10px;
                 alignment: start;
-                Text { text: "AI proposes split, trim, move, remove and titles against this whole active timeline (up to 256 clips). It receives clip IDs and timing, not media paths. Your timeline is unchanged until Approve. Sending a request may use your provider quota."; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
+                Text { text: "AI uses native media, cuts, ranges, speed, audio, transform, keys, text and track operations. Your timeline is unchanged until Approve. Model data uses IDs/timing, not local media paths."; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
                 Button { label: "Load configured models"; enabled: !StudioAi.busy && !AiEditing.busy; clicked => { StudioAi.load-models(); } }
                 Select { options: StudioAi.models; current <=> StudioAi.model-index; enabled: !AiEditing.busy; }
                 Text { text: StudioAi.status; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
                 StudioField { label: "Editing instruction"; placeholder: "Describe changes to this timeline"; multiline: true; value <=> AiEditing.prompt; enabled: !AiEditing.busy; }
+                Button { label: AiEditing.agent-mode ? "Agent mode: ON · quota per turn" : "Agent mode: OFF · one structured request"; enabled: !AiEditing.busy; clicked => { AiEditing.agent-mode = !AiEditing.agent-mode; } }
+                if AiEditing.agent-mode: VerticalLayout {
+                    Text { text: "Maximum turns (actual token budget: 32768; missing usage stops the run)"; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
+                    NumberField { value <=> AiEditing.max-turns; minimum: 1; maximum: 12; step: 1; }
+                }
                 Button { label: "Request AI draft"; primary: true; enabled: !AiEditing.busy && StudioAi.models.length > 0; clicked => { AiEditing.generate(); } }
                 if AiEditing.busy: Button { label: "Cancel / ignore response"; clicked => { AiEditing.cancel(); } }
                 Text { text: AiEditing.status; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
@@ -60,12 +67,12 @@ export component AiEditingPane inherits Rectangle {
                     spacing: 8px;
                     Text { text: "Preview time (seconds)"; color: Theme.fg-muted; font-size: Theme.fs; }
                     NumberField { value <=> AiEditing.time; minimum: 0; maximum: 360000; step: 1; }
-                    Button { label: "Render before / draft"; enabled: !AiEditing.busy; clicked => { AiEditing.preview(); } }
+                    Button { label: "Inspect before / draft contact sheets"; enabled: !AiEditing.busy; clicked => { AiEditing.preview(); } }
                     if AiEditing.preview-ready: VerticalLayout {
                         Text { text: "Current timeline"; color: Theme.fg; font-size: Theme.fs; }
-                        Image { source: AiEditing.before; height: 180px; image-fit: contain; }
+                        Image { source: AiEditing.before; height: 320px; image-fit: contain; }
                         Text { text: "Isolated draft · not applied"; color: Theme.fg; font-size: Theme.fs; }
-                        Image { source: AiEditing.after; height: 180px; image-fit: contain; }
+                        Image { source: AiEditing.after; height: 320px; image-fit: contain; }
                     }
                     Button { label: "Approve · apply as one undo"; primary: true; enabled: !AiEditing.busy && AiEditing.preview-ready; clicked => { AiEditing.approve(); } }
                     Button { label: "Reject draft"; enabled: !AiEditing.busy; clicked => { AiEditing.reject(); } }

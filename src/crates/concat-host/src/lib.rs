@@ -20,6 +20,7 @@
 
 pub mod brush;
 pub mod cards;
+pub mod contact_sheet;
 pub mod cutout;
 pub mod dirs;
 pub mod enhance;

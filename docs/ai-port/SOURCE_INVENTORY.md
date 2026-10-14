@@ -5,7 +5,7 @@ model downloads or source test suites were executed. Target baseline was clean.
 
 | Repository | Local path | Inspected revision | License |
 |---|---|---|---|
-| Concat target | `D:/capcutpolot/concat` | `484e73401058819c9ec5345b90b4ddccbee0f1f4` | AGPL-3.0-or-later + existing plugin exception |
+| Concat target | `D:/capcutpolot/concat` | `067f1e268e59c34e507d808e40349ccc3cb76b81` follow-up baseline | AGPL-3.0-or-later + existing plugin exception |
 | OpenChatCut | `D:/capcutpolot/OpenChatCut` | `2e6f4a29b784200cfb32b859b16f2561592bc3e8` | AGPL-3.0-or-later |
 | WeftCut | `D:/capcutpolot/WeftCut` | `a542d6d241897c1a8a230e332948e337039dc322` | MIT |
 | Cartcut | `D:/capcutpolot/cartcut` | `6dd7591899d13da090c4588d2d27f50a25fbc19b` | Root MIT; package does not declare it |

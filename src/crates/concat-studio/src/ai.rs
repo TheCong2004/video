@@ -117,6 +117,64 @@ fn submitted(error: WorkflowError) -> AiError {
 }
 
 impl WorkflowClient {
+    /// Read actual advertised tool capability; catalogue membership is not enough.
+    pub fn ai_supports_tools(&self, model: &str) -> Result<bool, WorkflowError> {
+        let catalogue = self.get("/api/v1/artcraft/ai/models")?;
+        Ok(catalogue
+            .get("data")
+            .and_then(Value::as_array)
+            .and_then(|models| {
+                models
+                    .iter()
+                    .find(|entry| entry.get("id").and_then(Value::as_str) == Some(model))
+            })
+            .and_then(|entry| entry.get("supported_parameters"))
+            .and_then(Value::as_array)
+            .is_some_and(|values| values.iter().any(|value| value.as_str() == Some("tools"))))
+    }
+
+    /// One bounded tool-calling turn through the existing AI provider service.
+    /// No mutation happens here and uncertain dispatches are never retried.
+    pub fn ai_agent_turn(
+        &self,
+        model: &str,
+        messages: &[Value],
+        tools: &[Value],
+        max_tokens: u32,
+        timeout: std::time::Duration,
+    ) -> Result<Value, AiError> {
+        if model.is_empty()
+            || model.len() > 500
+            || model.chars().any(char::is_control)
+            || messages.is_empty()
+            || messages.len() > 32
+            || tools.len() > 16
+            || tools.is_empty()
+            || !(1..=4096).contains(&max_tokens)
+            || timeout.is_zero()
+            || timeout.as_secs() > 80
+        {
+            return Err(AiError::Input);
+        }
+        let body = json!({"model":model,"messages":messages,"tools":tools,"stream":false,"temperature":0,"maxTokens":max_tokens});
+        if body.to_string().len() > 65536 {
+            return Err(AiError::Input);
+        }
+        let result = self
+            .write_with_timeout("POST", "/api/v1/artcraft/ai/chat", &body, timeout)
+            .map_err(submitted)?;
+        if result.to_string().len() > 70 * 1024 {
+            return Err(AiError::UnknownOutcome);
+        }
+        text(&result, "model", 500, false).map_err(|_| AiError::UnknownOutcome)?;
+        if !matches!(
+            result.get("finishReason").and_then(Value::as_str),
+            Some("stop" | "tool_calls" | "length" | "content_filter")
+        ) {
+            return Err(AiError::UnknownOutcome);
+        }
+        Ok(result)
+    }
     /// Request one structured proposal through the existing authenticated gateway.
     /// Context must be scoped read-only timeline metadata, never paths/credentials.
     /// There is no automatic retry after dispatch; an uncertain response may consume quota.
@@ -439,6 +497,48 @@ mod tests {
         assert!(req.starts_with("POST /api/v1/artcraft/ai/chat "));
         assert!(req.contains("\"stream\":false"));
         assert!(!req.contains("providerConnectionId"));
+    }
+    #[test]
+    fn tool_turn_uses_existing_authenticated_chat_and_preserves_tool_receipt() {
+        let receipt = json!({"model":"actual","finishReason":"tool_calls","content":"",
+            "toolCalls":[{"id":"t1","type":"function","function":{"name":"read_project","arguments":"{}"}}],
+            "usage":{"promptTokens":3,"completionTokens":4,"totalTokens":7}});
+        let (client, worker) = fixture(receipt.clone(), 200);
+        let messages = [json!({"role":"user","content":"inspect"})];
+        let tools = [
+            json!({"type":"function","function":{"name":"read_project","parameters":{"type":"object","properties":{}}}}),
+        ];
+        assert_eq!(
+            client
+                .ai_agent_turn(
+                    "chosen",
+                    &messages,
+                    &tools,
+                    128,
+                    std::time::Duration::from_secs(5)
+                )
+                .unwrap(),
+            receipt
+        );
+        let request = worker.join().unwrap();
+        assert!(request.starts_with("POST /api/v1/artcraft/ai/chat "));
+        assert!(request.contains("Bearer fixture-token"));
+        assert!(request.contains("\"tools\""));
+        assert!(request.contains("\"maxTokens\":128"));
+        let (client, worker) = fixture(
+            json!({"data":[{"id":"chosen","supported_parameters":["tools"]},{"id":"other"}]}),
+            200,
+        );
+        assert!(client.ai_supports_tools("chosen").unwrap());
+        assert!(
+            worker
+                .join()
+                .unwrap()
+                .starts_with("GET /api/v1/artcraft/ai/models ")
+        );
+        let (client, worker) = fixture(json!({"data":[{"id":"chosen"}]}), 200);
+        assert!(!client.ai_supports_tools("chosen").unwrap());
+        worker.join().unwrap();
     }
     #[test]
     fn structured_plan_preserves_scope_and_real_usage_without_applying() {

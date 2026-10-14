@@ -33,7 +33,8 @@ edit -> undo ABA; no document fingerprint substitution.
 
 1. Safe native draft and atomic ID/history foundation.
 2. Structured LLM -> EditPlan -> real draft preview -> approval -> GUI Session
-   -> undo/save/reopen/export. Complete this vertical slice before later phases.
+   -> undo/save/reopen/export. Real login gates only this real-provider acceptance;
+   independent later phases must continue with native/fixture tests.
 3. Safe sessions/checkpoints/permissions/activity/recovery.
 4. Complete Cartcut skills and composite contact sheets.
 5. Word-level media intelligence and derived plans.

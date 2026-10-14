@@ -90,8 +90,14 @@ impl Default for Monitor {
 impl Monitor {
     /// A monitor with the engine's default pool budget.
     pub fn new() -> Self {
+        Self::with_pool(Arc::clone(crate::scheduler().pool()))
+    }
+
+    /// An isolated inspection pool: dropping the monitor closes its readers
+    /// without evicting live playback's media or title frames.
+    pub fn with_pool(pool: Arc<concat_media::ReaderPool>) -> Self {
         Self {
-            pool: Arc::clone(crate::scheduler().pool()),
+            pool,
             plan: Arc::new(Mutex::new(None)),
             early: Arc::new(Mutex::new(Vec::new())),
             #[cfg(feature = "gpu")]
@@ -276,6 +282,22 @@ impl Monitor {
     ) -> Result<Vec<u8>, String> {
         let plan = self.plan_for(clips, settings, spec);
         let sources = concat_export::preview_sources_of(&self.pool, &plan, spec.time, spec.proxy)?;
+        sources.pixels()
+    }
+
+    /// Strict approval inspection: any missing decoded layer is a refusal,
+    /// while ordinary monitor playback keeps its existing graceful fallback.
+    pub fn frame_checked(
+        &self,
+        clips: Arc<Vec<ExportClip>>,
+        settings: &DocumentSettings,
+        spec: FrameSpec,
+    ) -> Result<Vec<u8>, String> {
+        let plan = self.plan_for(clips, settings, spec);
+        let sources = concat_export::preview_sources_of(&self.pool, &plan, spec.time, spec.proxy)?;
+        if !sources.complete() {
+            return Err("Some timeline layers failed to decode; inspection is incomplete".into());
+        }
         sources.pixels()
     }
 

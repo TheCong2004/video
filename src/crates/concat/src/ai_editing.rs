@@ -10,7 +10,8 @@ use std::sync::{
 };
 
 use concat_agent::{CompiledPlan, EditPlan};
-use concat_host::preview::{FrameSpec, Monitor};
+use concat_host::contact_sheet::{ContactSheet, inspection_times, render_sheet};
+use concat_host::preview::Monitor;
 use concat_project::{DocumentSettings, Project};
 use concat_studio::ai::EditPlanOutcome;
 use serde_json::{Value, json};
@@ -80,13 +81,14 @@ fn synchronize(app: &App) {
 /// Share only editable timeline facts, not source paths, tokens or unrelated projects.
 fn context(project: &Project) -> Result<Value, String> {
     let timeline = project.active();
-    if timeline.clips.len() > 256 {
+    if timeline.clips.len() > 256 || project.media.len() > 256 || timeline.tracks.len() > 256 {
         return Err("This first editing slice supports at most 256 timeline clips".into());
     }
     Ok(json!({
         "tracks": timeline.tracks.iter().map(|track| json!({"id":track.id})).collect::<Vec<_>>(),
+        "media": project.media.iter().map(|media| json!({"id":media.id,"kind":format!("{:?}",media.kind),"duration":media.duration})).collect::<Vec<_>>(),
         "clips": timeline.clips.iter().map(|clip| json!({
-            "id":clip.id,"trackId":clip.track_id,"start":clip.start,
+            "id":clip.id,"trackId":clip.track_id,"mediaId":clip.media_id,"start":clip.start,
             "duration":clip.duration,"kind":format!("{:?}",clip.kind)
         })).collect::<Vec<_>>()
     }))
@@ -145,6 +147,8 @@ fn generate(app: &App) {
         .map(|model| model.to_string())
         .unwrap_or_default();
     let prompt = app.global::<AiEditing>().get_prompt().to_string();
+    let agent_mode = app.global::<AiEditing>().get_agent_mode();
+    let max_turns = app.global::<AiEditing>().get_max_turns().clamp(1.0, 12.0) as u32;
     if model.is_empty() || prompt.trim().is_empty() || prompt.len() > 8000 {
         app.global::<AiEditing>().set_status(
             "Choose a configured model and enter an instruction (maximum 8000 bytes)".into(),
@@ -162,6 +166,7 @@ fn generate(app: &App) {
             return;
         };
         let snapshot = session.planning_snapshot();
+        let selection = studio.selection.clone();
         let context = match context(snapshot.project()) {
             Ok(context) => context,
             Err(error) => {
@@ -188,7 +193,7 @@ fn generate(app: &App) {
         clear_view(&app);
         let ui = app.global::<AiEditing>();
         ui.set_busy(true);
-        ui.set_status("Requesting structured edit plan. No changes are applied.".into());
+        ui.set_status(if agent_mode { format!("Agent may use up to {max_turns} provider turns. Tools are read-only until human approval.") } else { "Requesting one structured edit plan. No changes are applied.".into() }.into());
         host::spawn(
             move || -> Result<(CompiledPlan, String), String> {
                 if cancel.load(Ordering::Acquire) {
@@ -197,6 +202,29 @@ fn generate(app: &App) {
                 let client = crate::studio_session::client().map_err(|_| {
                     "Studio session is unavailable; sign in through Studio settings".to_string()
                 })?;
+                if agent_mode {
+                    use concat_agent::runtime::{GatewayProvider, RunLimits, run};
+                    let mut provider = GatewayProvider::new(client, model.clone())
+                        .map_err(|error| error.to_string())?;
+                    let result = run(
+                        &snapshot,
+                        &selection,
+                        &prompt,
+                        RunLimits {
+                            max_turns,
+                            ..Default::default()
+                        },
+                        &cancel,
+                        &mut provider,
+                    )
+                    .map_err(|error| error.to_string())?;
+                    let report = format!(
+                        "{model} · {} actual reported tokens · {}",
+                        result.tokens,
+                        result.activity.join("; ")
+                    );
+                    return Ok((result.proposal, report));
+                }
                 let answer = client.ai_edit_plan(&model, &prompt, &timeline, revision, &context)
                 .map_err(|_| "AI request failed or has an unknown outcome. No edit was applied; it will not be retried automatically.".to_string())?;
                 if cancel.load(Ordering::Acquire) {
@@ -270,11 +298,28 @@ fn render(
     settings: &DocumentSettings,
     path: &Path,
     dirs: &concat_host::AppDirs,
-    time: f64,
-    width: u32,
-    height: u32,
-) -> Result<Vec<u8>, String> {
-    let monitor = Monitor::new();
+    times: &[f64],
+    cancel: &AtomicBool,
+) -> Result<ContactSheet, String> {
+    let title_count = project
+        .active()
+        .clips
+        .iter()
+        .filter(|clip| {
+            matches!(
+                clip.kind,
+                concat_project::model::ClipKind::Text | concat_project::model::ClipKind::Shape
+            )
+        })
+        .count();
+    let frame_bytes = u64::from(settings.width) * u64::from(settings.height) * 4;
+    if frame_bytes == 0
+        || frame_bytes > 32 * 1024 * 1024
+        || frame_bytes.saturating_mul(title_count as u64) > 128 * 1024 * 1024
+    {
+        return Err("Full-geometry inspection exceeds frame/title memory budget".into());
+    }
+    let monitor = Monitor::with_pool(Arc::new(concat_media::ReaderPool::new(64 * 1024 * 1024, 4)));
     let mut clips = concat_export::flatten::flatten_timeline_in(project, None, Some(path));
     // The in-memory preview must not sweep the live monitor's title cache.
     let preview_dirs = concat_host::AppDirs {
@@ -282,7 +327,7 @@ fn render(
         data: dirs.data.join("ai-draft-preview"),
     };
     let titles = concat_host::Titles::new(&preview_dirs);
-    let painted = titles.clips_live(project, width, height);
+    let painted = titles.clips_live(project, settings.width, settings.height);
     let expected = project
         .active()
         .clips
@@ -305,17 +350,13 @@ fn render(
         }
         clips.push(title.clip);
     }
-    monitor.frame(
+    render_sheet(
+        &monitor,
         Arc::new(clips),
         settings,
-        FrameSpec {
-            time,
-            width,
-            height,
-            moving: false,
-            proxy: false,
-            color_space: project.active().video.color_space,
-        },
+        times,
+        project.active().video.color_space,
+        cancel,
     )
 }
 
@@ -346,20 +387,26 @@ fn preview(app: &App) {
         let dirs = studio.host.dirs.clone();
         let epoch = host::project_epoch();
         let time = f64::from(app.global::<AiEditing>().get_time());
-        let (width, height) = preview_size(settings.width, settings.height);
+        let cancel = Arc::new(AtomicBool::new(false));
+        STATE.with(|slot| slot.borrow_mut().cancel = Some(cancel.clone()));
         drop(studio);
         let ui = app.global::<AiEditing>();
         ui.set_busy(true);
         ui.set_preview_ready(false);
-        ui.set_status("Rendering native before/draft frames off the UI thread".into());
+        ui.set_status(
+            "Rendering full-geometry native before/draft contact sheets off the UI thread".into(),
+        );
         host::spawn(
-            move || -> Result<(Vec<u8>, Vec<u8>), String> {
-                if !time.is_finite() || time < 0.0 {
-                    return Err("Invalid preview time".into());
-                }
+            move || -> Result<(ContactSheet, ContactSheet), String> {
+                let times = inspection_times(
+                    &current,
+                    &draft,
+                    time,
+                    settings.rate_num as f64 / settings.rate_den as f64,
+                )?;
                 Ok((
-                    render(&current, &settings, &path, &dirs, time, width, height)?,
-                    render(&draft, &settings, &path, &dirs, time, width, height)?,
+                    render(&current, &settings, &path, &dirs, &times, &cancel)?,
+                    render(&draft, &settings, &path, &dirs, &times, &cancel)?,
                 ))
             },
             move |studio, app, _, result| {
@@ -369,6 +416,7 @@ fn preview(app: &App) {
                         return false;
                     }
                     state.running = None;
+                    state.cancel = None;
                     same_scope(
                         state.generation,
                         id,
@@ -391,18 +439,26 @@ fn preview(app: &App) {
                 }
                 match result {
                     Ok((before, after)) => {
-                        let image = |pixels: Vec<u8>| {
-                            slint::Image::from_rgba8(
-                                slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
-                                    &pixels, width, height,
-                                ),
-                            )
-                        };
+                        let labels = after
+                            .times
+                            .iter()
+                            .enumerate()
+                            .map(|(index, time)| format!("{}: {time:.3}s", index + 1))
+                            .collect::<Vec<_>>()
+                            .join(" · ");
+                        let image =
+                            |sheet: ContactSheet| {
+                                slint::Image::from_rgba8(slint::SharedPixelBuffer::<
+                                    slint::Rgba8Pixel,
+                                >::clone_from_slice(
+                                    &sheet.pixels, sheet.width, sheet.height
+                                ))
+                            };
                         let ui = app.global::<AiEditing>();
                         ui.set_before(image(before));
                         ui.set_after(image(after));
                         ui.set_preview_ready(true);
-                        ui.set_status("Native draft preview ready. Approval applies this draft as one undo step.".into());
+                        ui.set_status(format!("Native contact sheets ready (row-major timestamps): {labels}. Approval applies one undo step.").into());
                         STATE.with(|slot| slot.borrow_mut().previewed = true);
                     }
                     Err(error) => app.global::<AiEditing>().set_status(error.into()),
@@ -410,12 +466,6 @@ fn preview(app: &App) {
             },
         );
     });
-}
-
-fn preview_size(width: u32, height: u32) -> (u32, u32) {
-    let scale = 640.0 / f64::from(width.max(height).max(1));
-    let side = |value: u32| ((f64::from(value) * scale.min(1.0)).round() as u32).max(2) & !1;
-    (side(width), side(height))
 }
 
 pub fn bind(app: &App) {
@@ -467,13 +517,6 @@ pub(crate) fn account_changed(app: &App) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn preview_size_is_bounded_even_and_preserves_portrait() {
-        assert_eq!(preview_size(1920, 1080), (640, 360));
-        assert_eq!(preview_size(1080, 1920), (360, 640));
-        assert_eq!(preview_size(0, 0), (2, 2));
-    }
-
     #[test]
     fn proposal_delivery_rejects_cancel_replaced_project_edit_and_close() {
         assert!(same_scope(3, 3, 7, 7, 9, Some(9)));

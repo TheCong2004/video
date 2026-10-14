@@ -1168,6 +1168,7 @@ name = "concat-agent"
 version = "0.2.7"
 dependencies = [
  "concat-project",
+ "concat-studio",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
