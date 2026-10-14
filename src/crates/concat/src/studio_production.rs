@@ -9,6 +9,7 @@ use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 enum Action {
     List,
+    Source(String),
     Check(Plan),
     Start(Plan),
     Cancel(String),
@@ -16,6 +17,7 @@ enum Action {
 }
 enum Reply {
     Runs(Vec<RunSummary>),
+    Source(String, String),
     Checked(Plan),
     Started(RunSummary),
     Cancelled(RunSummary),
@@ -73,6 +75,24 @@ fn message(error: RunError) -> String {
 }
 
 pub(crate) fn bind(app: &App) {
+    let weak = app.as_weak();
+    app.global::<ProductionStudio>().on_check_source(move || {
+        let Some(app) = weak.upgrade() else { return };
+        let state = app.global::<ProductionStudio>();
+        let sources = state.get_sources().to_string();
+        if sources
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .count()
+            != 1
+        {
+            state.set_status(
+                "Nhập một URL YouTube để kiểm tra nguồn. Chưa tải file hoặc tạo job.".into(),
+            );
+            return;
+        }
+        run(&app, Action::Source(sources.trim().to_owned()), None);
+    });
     let prepared = std::sync::Arc::new(std::sync::Mutex::new(None::<Plan>));
     let weak = app.as_weak();
     app.global::<ProductionStudio>().on_load_runs(move || {
@@ -172,6 +192,10 @@ fn run(app: &App, action: Action, gate: Option<std::sync::Arc<std::sync::Mutex<O
                 let client = client()?;
                 match action {
                     Action::List => client.runs().map(Reply::Runs).map_err(RunError::Remote),
+                    Action::Source(source) => {
+                        let title = client.source_title(&source).map_err(RunError::Remote)?;
+                        Ok(Reply::Source(source, title))
+                    }
                     Action::Check(plan) => {
                         let result = client.preflight(&plan.workflow, &plan.inputs)?;
                         if !result.can_start || (result.requires_worker && !result.worker_available)
@@ -191,6 +215,11 @@ fn run(app: &App, action: Action, gate: Option<std::sync::Arc<std::sync::Mutex<O
                 let state = app.global::<ProductionStudio>();
                 state.set_busy(false);
                 match result {
+                    Ok(Reply::Source(source, title)) => {
+                        if state.get_sources().trim() == source {
+                            state.set_status(format!("Đã lấy thông tin nguồn qua Promax: {title}. Chưa tải file hoặc tạo video.").into());
+                        }
+                    }
                     Ok(Reply::Runs(runs)) => {
                         state.set_history_runs(ModelRc::new(VecModel::from(
                             runs.iter()

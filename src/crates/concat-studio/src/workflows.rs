@@ -148,6 +148,27 @@ pub struct WorkflowClient {
 }
 
 impl WorkflowClient {
+    /// Resolve a single YouTube source through Promax without downloading media.
+    pub fn source_title(&self, source: &str) -> Result<String, WorkflowError> {
+        let id = youtube_id(source).ok_or(WorkflowError::Configuration)?;
+        let data = self.write_with_timeout(
+            "POST",
+            "/api/v1/artcraft/media/source/resolve",
+            &serde_json::json!({"url":source}),
+            Duration::from_secs(95),
+        )?;
+        if data.get("id").and_then(|v| v.as_str()) != Some(id.as_str())
+            || data.get("url").and_then(|v| v.as_str())
+                != Some(format!("https://www.youtube.com/watch?v={id}").as_str())
+        {
+            return Err(WorkflowError::InvalidResponse);
+        }
+        data.get("title")
+            .and_then(|v| v.as_str())
+            .filter(|title| !title.trim().is_empty() && title.len() <= 8000)
+            .map(str::to_owned)
+            .ok_or(WorkflowError::InvalidResponse)
+    }
     /// List the latest server runs owned by the authenticated principal.
     pub fn runs(&self) -> Result<Vec<RunSummary>, WorkflowError> {
         let data = self.get("/api/v1/artcraft/workflow-runs?limit=100&offset=0")?;
@@ -252,8 +273,18 @@ impl WorkflowClient {
         route: &str,
         body: &serde_json::Value,
     ) -> Result<serde_json::Value, WorkflowError> {
+        self.write_with_timeout(method, route, body, Duration::from_secs(15))
+    }
+
+    fn write_with_timeout(
+        &self,
+        method: &str,
+        route: &str,
+        body: &serde_json::Value,
+        timeout: Duration,
+    ) -> Result<serde_json::Value, WorkflowError> {
         let agent = ureq::AgentBuilder::new()
-            .timeout(Duration::from_secs(15))
+            .timeout(timeout)
             .redirects(0)
             .build();
         let encoded = serde_json::to_vec(body).map_err(|_| WorkflowError::Configuration)?;
@@ -423,6 +454,42 @@ impl WorkflowClient {
     }
 }
 
+fn youtube_id(raw: &str) -> Option<String> {
+    if raw.len() > 2048 || raw.chars().any(char::is_control) {
+        return None;
+    }
+    let url = url::Url::parse(raw).ok()?;
+    if url.scheme() != "https"
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.port().is_some()
+    {
+        return None;
+    }
+    let id = match url.host_str()? {
+        "youtu.be" => url.path().strip_prefix('/')?.to_owned(),
+        "youtube.com" | "www.youtube.com" | "m.youtube.com" => {
+            if url.path() == "/watch" {
+                url.query_pairs()
+                    .find(|(key, _)| key == "v")?
+                    .1
+                    .into_owned()
+            } else {
+                url.path()
+                    .strip_prefix("/shorts/")
+                    .or_else(|| url.path().strip_prefix("/embed/"))?
+                    .to_owned()
+            }
+        }
+        _ => return None,
+    };
+    (id.len() == 11
+        && id
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'-'))
+    .then_some(id)
+}
+
 fn mutation_error(error: WorkflowError) -> RunError {
     match error {
         WorkflowError::Authentication | WorkflowError::Forbidden | WorkflowError::RateLimited => {
@@ -563,6 +630,44 @@ mod tests {
 
     fn client(origin: &str) -> WorkflowClient {
         WorkflowClient::new(origin, Some("synthetic-access-token".into())).expect("safe origin")
+    }
+
+    #[test]
+    fn source_metadata_uses_authenticated_promax_route() {
+        let body = serde_json::json!({"ok":true,"data":{"id":"abcdefghijk","title":"Nguồn mẫu","url":"https://www.youtube.com/watch?v=abcdefghijk"}}).to_string();
+        let (origin, server) = fixture("200 OK", &body);
+        assert_eq!(
+            client(&origin)
+                .source_title("https://youtu.be/abcdefghijk")
+                .unwrap(),
+            "Nguồn mẫu"
+        );
+        let request = server.join().unwrap();
+        assert!(request.starts_with("POST /api/v1/artcraft/media/source/resolve "));
+        assert!(request.contains("synthetic-access-token"));
+        assert!(request.contains("https://youtu.be/abcdefghijk"));
+    }
+
+    #[test]
+    fn source_metadata_rejects_unsafe_urls_without_network_and_malformed_responses() {
+        let offline = client("http://127.0.0.1:1");
+        for url in [
+            "file:///D:/private",
+            "http://127.0.0.1",
+            "https://youtube.com.attacker.test/watch?v=abcdefghijk",
+            "https://user:password@youtube.com/watch?v=abcdefghijk",
+        ] {
+            assert_eq!(offline.source_title(url), Err(WorkflowError::Configuration));
+        }
+        let (origin, server) = fixture(
+            "200 OK",
+            r#"{"ok":true,"data":{"id":"bad","title":"Wrong"}}"#,
+        );
+        assert_eq!(
+            client(&origin).source_title("https://youtu.be/abcdefghijk"),
+            Err(WorkflowError::InvalidResponse)
+        );
+        server.join().unwrap();
     }
 
     fn run_fixture() -> serde_json::Value {

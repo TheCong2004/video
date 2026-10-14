@@ -14,17 +14,19 @@ use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 enum Action {
     Refresh,
+    RefreshJobs,
     Create(String, String, String, String, String, Option<String>),
     Stop(String),
     Delete(String),
     Import(String, String),
 }
 enum Reply {
+    Jobs(Result<Vec<VideoJob>, OpenTalkingError>),
     Refreshed(
         Result<Vec<Avatar>, OpenTalkingError>,
         Result<Vec<Voice>, OpenTalkingError>,
         Result<Vec<Scene>, OpenTalkingError>,
-        Result<Vec<VideoModel>, OpenTalkingError>,
+        Result<(String, Vec<VideoModel>), OpenTalkingError>,
         Result<Vec<VideoJob>, OpenTalkingError>,
     ),
     Created(VideoJob, Result<Vec<VideoJob>, OpenTalkingError>),
@@ -48,6 +50,7 @@ fn message(error: OpenTalkingError) -> slint::SharedString {
         OpenTalkingError::Input => t("studioOpenTalking.invalidInput"),
         OpenTalkingError::InvalidResponse => t("studioOpenTalking.invalidResponse"),
         OpenTalkingError::UnknownOutcome => t("studioOpenTalking.unknownOutcome"),
+        OpenTalkingError::SpeechUnavailable => t("studioOpenTalking.previewServiceFailed"),
     };
     message.into()
 }
@@ -148,6 +151,12 @@ fn execute(app: &App, action: Action) {
         return;
     }
     state.set_busy(true);
+    let previous_avatar =
+        selected(&state.get_avatars(), state.get_avatar_index()).map(|row| row.id.to_string());
+    let previous_voice =
+        selected(&state.get_voices(), state.get_voice_index()).map(|row| row.id.to_string());
+    let previous_model =
+        selected(&state.get_models(), state.get_model_index()).map(|row| row.id.to_string());
     state.set_confirm_create(false);
     state.set_status(t("studioOpenTalking.working").into());
     let weak = app.as_weak();
@@ -157,11 +166,12 @@ fn execute(app: &App, action: Action) {
             let result = (|| {
                 let client = client()?;
                 match action {
+                    Action::RefreshJobs => Ok(Reply::Jobs(client.jobs())),
                     Action::Refresh => Ok(Reply::Refreshed(
                         client.avatars(),
                         client.voices(),
                         client.scenes(),
-                        client.models(),
+                        client.models_with_status(),
                         client.jobs(),
                     )),
                     Action::Create(avatar, voice, driver, title, script, scene) => {
@@ -196,6 +206,9 @@ fn execute(app: &App, action: Action) {
                 let state = app.global::<StudioOpenTalking>();
                 state.set_busy(false);
                 match result {
+                    Ok(Reply::Jobs(result)) => {
+                        apply_jobs(&state, result);
+                    }
                     Ok(Reply::Refreshed(
                         avatar_result,
                         voice_result,
@@ -204,23 +217,62 @@ fn execute(app: &App, action: Action) {
                         job_result,
                     )) => {
                         let mut messages = Vec::new();
+                        state.set_catalogs_loaded(
+                            avatar_result.is_ok()
+                                && voice_result.is_ok()
+                                && scene_result.is_ok()
+                                && job_result.is_ok(),
+                        );
+                        let video_ready = model_result
+                            .as_ref()
+                            .is_ok_and(|(_, rows)| !rows.is_empty());
+                        let voice_ready = voice_result.as_ref().is_ok_and(|rows| !rows.is_empty());
+                        state.set_engine_status(
+                            if video_ready && voice_ready {
+                                model_result
+                                    .as_ref()
+                                    .map(|(status, _)| status.as_str())
+                                    .unwrap_or("OFFLINE")
+                            } else if video_ready || voice_ready {
+                                "PARTIALLY READY"
+                            } else {
+                                "OFFLINE"
+                            }
+                            .into(),
+                        );
                         match avatar_result {
                             Ok(rows) => {
+                                let index =
+                                    rows.iter()
+                                        .position(|row| Some(&row.id) == previous_avatar.as_ref())
+                                        .unwrap_or(0) as i32;
                                 let (rows, options) = avatars(rows);
                                 state.set_avatars(rows);
                                 state.set_avatar_options(options);
-                                state.set_avatar_index(0);
+                                state.set_avatar_index(index);
                             }
-                            Err(error) => messages.push(message(error)),
+                            Err(error) => {
+                                state.set_avatars(ModelRc::default());
+                                state.set_avatar_options(ModelRc::default());
+                                messages.push(message(error));
+                            }
                         }
                         match voice_result {
                             Ok(rows) => {
+                                let index =
+                                    rows.iter()
+                                        .position(|row| Some(&row.id) == previous_voice.as_ref())
+                                        .unwrap_or(0) as i32;
                                 let (rows, options) = voices(rows);
                                 state.set_voices(rows);
                                 state.set_voice_options(options);
-                                state.set_voice_index(0);
+                                state.set_voice_index(index);
                             }
-                            Err(error) => messages.push(message(error)),
+                            Err(error) => {
+                                state.set_voices(ModelRc::default());
+                                state.set_voice_options(ModelRc::default());
+                                messages.push(message(error));
+                            }
                         }
                         match scene_result {
                             Ok(rows) => {
@@ -229,21 +281,32 @@ fn execute(app: &App, action: Action) {
                                 state.set_scene_options(options);
                                 state.set_scene_index(0);
                             }
-                            Err(error) => messages.push(message(error)),
+                            Err(error) => {
+                                state.set_scenes(ModelRc::default());
+                                state.set_scene_options(ModelRc::default());
+                                messages.push(message(error));
+                            }
                         }
                         match model_result {
-                            Ok(rows) => {
+                            Ok((_, rows)) => {
+                                let index =
+                                    rows.iter()
+                                        .position(|row| Some(&row.id) == previous_model.as_ref())
+                                        .unwrap_or(0) as i32;
                                 let (rows, options) = models(rows);
                                 state.set_models(rows);
                                 state.set_model_options(options);
-                                state.set_model_index(0);
+                                state.set_model_index(index);
                             }
-                            Err(error) => messages.push(message(error)),
+                            Err(error) => {
+                                state.set_models(ModelRc::default());
+                                state.set_model_options(ModelRc::default());
+                                messages.push(message(error));
+                            }
                         }
                         match job_result {
                             Ok(rows) => {
                                 state.set_jobs(jobs(rows));
-                                state.set_catalogs_loaded(true);
                             }
                             Err(error) => messages.push(message(error)),
                         }
@@ -255,6 +318,13 @@ fn execute(app: &App, action: Action) {
                                 .next()
                                 .unwrap_or_else(|| t("studioOpenTalking.notReady").into())
                         });
+                        state.set_jobs_running(
+                            state
+                                .get_jobs()
+                                .iter()
+                                .any(|row| matches!(row.status.as_str(), "queued" | "processing")),
+                        );
+                        refresh_preview(&app);
                     }
                     Ok(Reply::Created(job, job_result)) => {
                         state.set_status(
@@ -313,16 +383,65 @@ fn execute(app: &App, action: Action) {
 fn apply_jobs(state: &StudioOpenTalking, result: Result<Vec<VideoJob>, OpenTalkingError>) {
     match result {
         Ok(rows) => {
+            state.set_jobs_running(
+                rows.iter()
+                    .any(|row| matches!(row.status.as_str(), "queued" | "processing")),
+            );
             state.set_jobs(jobs(rows));
             state.set_catalogs_loaded(true);
         }
         Err(error) => {
+            state.set_jobs_running(false);
             // The mutation already succeeded. Keep the explicit success result,
             // but require an intentional refresh to reconcile history.
             state.set_catalogs_loaded(false);
             log::warn!("OpenTalking mutation succeeded but job history refresh failed: {error:?}");
         }
     }
+}
+
+fn refresh_preview(app: &App) {
+    let state = app.global::<StudioOpenTalking>();
+    let Some(avatar) = selected(&state.get_avatars(), state.get_avatar_index()) else {
+        state.set_avatar_preview(slint::Image::default());
+        return;
+    };
+    let id = avatar.id.to_string();
+    let weak = app.as_weak();
+    let _ = std::thread::Builder::new()
+        .name("studio-avatar-preview".into())
+        .spawn(move || {
+            let pixels = (|| {
+                let bytes = client().ok()?.avatar_preview(&id).ok()?;
+                let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes))
+                    .with_guessed_format()
+                    .ok()?;
+                let mut limits = image::Limits::default();
+                limits.max_image_width = Some(4096);
+                limits.max_image_height = Some(4096);
+                limits.max_alloc = Some(64 * 1024 * 1024);
+                reader.limits(limits);
+                Some(reader.decode().ok()?.to_rgba8())
+            })();
+            let _ = weak.upgrade_in_event_loop(move |app| {
+                let state = app.global::<StudioOpenTalking>();
+                if selected(&state.get_avatars(), state.get_avatar_index())
+                    .is_none_or(|row| row.id.as_str() != id)
+                {
+                    return;
+                }
+                state.set_avatar_preview(match pixels {
+                    Some(pixels) => slint::Image::from_rgba8(slint::SharedPixelBuffer::<
+                        slint::Rgba8Pixel,
+                    >::clone_from_slice(
+                        pixels.as_raw(),
+                        pixels.width(),
+                        pixels.height(),
+                    )),
+                    None => slint::Image::default(),
+                });
+            });
+        });
 }
 
 fn selected<T: Clone>(model: &ModelRc<T>, index: i32) -> Option<T> {
@@ -332,6 +451,12 @@ fn selected<T: Clone>(model: &ModelRc<T>, index: i32) -> Option<T> {
 }
 
 pub(crate) fn bind(app: &App) {
+    let weak = app.as_weak();
+    app.global::<StudioOpenTalking>().on_refresh_jobs(move || {
+        if let Some(app) = weak.upgrade() {
+            execute(&app, Action::RefreshJobs);
+        }
+    });
     let weak = app.as_weak();
     app.global::<StudioOpenTalking>().on_refresh(move || {
         if let Some(app) = weak.upgrade() {
@@ -418,36 +543,70 @@ pub(crate) fn bind(app: &App) {
         }
     });
     let weak = app.as_weak();
-    app.global::<StudioOpenTalking>().on_select_avatar(move |index| {
-        if let Some(app) = weak.upgrade() {
-            let state = app.global::<StudioOpenTalking>();
-            state.set_avatar_index(index);
-            state.set_active_tab(0);
-        }
-    });
-    let weak = app.as_weak();
-    app.global::<StudioOpenTalking>().on_select_voice(move |index| {
-        if let Some(app) = weak.upgrade() {
-            let state = app.global::<StudioOpenTalking>();
-            state.set_voice_index(index);
-            state.set_active_tab(0);
-        }
-    });
-    let weak = app.as_weak();
-    app.global::<StudioOpenTalking>().on_test_voice(move |index| {
-        let Some(app) = weak.upgrade() else { return };
-        let state = app.global::<StudioOpenTalking>();
-        let Some(voice) = selected(&state.get_voices(), index) else { return };
-        let voice_id = voice.id.to_string();
-        let weak_app = app.as_weak();
-        std::thread::spawn(move || {
-            let Ok(client) = client() else { return };
-            let sample_text = "Xin chào, đây là giọng đọc thử nghiệm trong Concat Studio.";
-            if let Ok(_audio) = client.synthesize_reply(sample_text, &voice_id) {
-                let _ = weak_app.upgrade_in_event_loop(move |app| {
-                    app.global::<StudioOpenTalking>().set_status(format!("Đã phát thử giọng ({voice_id})").into());
-                });
+    app.global::<StudioOpenTalking>()
+        .on_select_avatar(move |index| {
+            if let Some(app) = weak.upgrade() {
+                let state = app.global::<StudioOpenTalking>();
+                state.set_avatar_index(index);
+                state.set_active_tab(0);
+                refresh_preview(&app);
             }
         });
-    });
+    let weak = app.as_weak();
+    app.global::<StudioOpenTalking>()
+        .on_select_voice(move |index| {
+            if let Some(app) = weak.upgrade() {
+                let state = app.global::<StudioOpenTalking>();
+                state.set_voice_index(index);
+                state.set_active_tab(0);
+            }
+        });
+    let weak = app.as_weak();
+    app.global::<StudioOpenTalking>()
+        .on_test_voice(move |index| {
+            let Some(app) = weak.upgrade() else { return };
+            let state = app.global::<StudioOpenTalking>();
+            if state.get_busy() {
+                return;
+            }
+            let Some(voice) = selected(&state.get_voices(), index) else {
+                return;
+            };
+            let voice_id = voice.id.to_string();
+            let mut playback = None;
+            crate::host::Shell::with(|shell, _| {
+                playback = Some(std::sync::Arc::clone(&shell.studio.borrow().host.playback));
+            });
+            let Some(playback) = playback else {
+                state.set_status(t("studioOpenTalking.previewFailed").into());
+                return;
+            };
+            state.set_busy(true);
+            state.set_status(t("studioOpenTalking.working").into());
+            let weak_app = app.as_weak();
+            let worker = std::thread::Builder::new()
+                .name("studio-voice-preview".into())
+                .spawn(move || {
+                    let sample_text = "Xin chào, đây là giọng đọc thử nghiệm trong Concat Studio.";
+                    let result = client()
+                        .and_then(|client| client.synthesize_reply(sample_text, &voice_id))
+                        .map_err(message)
+                        .and_then(|audio| {
+                            crate::studio_live::play_tts(&playback, audio)
+                                .map_err(|_| t("studioOpenTalking.previewFailed").into())
+                        });
+                    let _ = weak_app.upgrade_in_event_loop(move |app| {
+                        let state = app.global::<StudioOpenTalking>();
+                        state.set_busy(false);
+                        state.set_status(match result {
+                            Ok(()) => t("studioOpenTalking.previewPlayed").into(),
+                            Err(error) => error,
+                        });
+                    });
+                });
+            if worker.is_err() {
+                state.set_busy(false);
+                state.set_status(t("studioOpenTalking.previewFailed").into());
+            }
+        });
 }

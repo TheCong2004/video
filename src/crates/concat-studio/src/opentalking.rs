@@ -30,6 +30,8 @@ pub enum OpenTalkingError {
     InvalidResponse,
     /// A mutation may have reached the server, but its result was not confirmed.
     UnknownOutcome,
+    /// The local backend answered, but its speech provider failed the request.
+    SpeechUnavailable,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -153,6 +155,41 @@ impl OpenTalkingClient {
         Ok(result)
     }
 
+    /// Fetch the selected character's preview from the local asset endpoint.
+    pub fn avatar_preview(&self, id: &str) -> Result<Vec<u8>, OpenTalkingError> {
+        if id.is_empty() || id.len() > 160 || id.chars().any(char::is_control) {
+            return Err(OpenTalkingError::Input);
+        }
+        let mut url = url::Url::parse(&format!("{}{PREFIX}/avatars/", self.origin))
+            .map_err(|_| OpenTalkingError::Configuration)?;
+        url.path_segments_mut()
+            .map_err(|_| OpenTalkingError::Configuration)?
+            .pop_if_empty()
+            .push(id)
+            .push("preview");
+        let response = self
+            .agent
+            .get(url.as_str())
+            .call()
+            .map_err(|_| OpenTalkingError::Unavailable)?;
+        if !response
+            .header("Content-Type")
+            .is_some_and(|value| value.starts_with("image/"))
+        {
+            return Err(OpenTalkingError::InvalidResponse);
+        }
+        let mut bytes = Vec::new();
+        response
+            .into_reader()
+            .take(8 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|_| OpenTalkingError::InvalidResponse)?;
+        if bytes.is_empty() || bytes.len() > 8 * 1024 * 1024 {
+            return Err(OpenTalkingError::InvalidResponse);
+        }
+        Ok(bytes)
+    }
+
     /// Lists voices the runtime currently reports as configured.
     pub fn voices(&self) -> Result<Vec<Voice>, OpenTalkingError> {
         let rows = self.list("/voices")?;
@@ -202,14 +239,13 @@ impl OpenTalkingClient {
         let response = match self
             .agent
             .post(&format!("{}{PREFIX}/tts/preview", self.origin))
+            .timeout(Duration::from_secs(50))
             .set("Content-Type", "application/json")
             .set("Accept", "audio/*")
             .send_string(&body.to_string())
         {
             Ok(response) => response,
-            Err(ureq::Error::Status(code, _)) if (400..500).contains(&code) => {
-                return Err(OpenTalkingError::NotReady);
-            }
+            Err(ureq::Error::Status(_, _)) => return Err(OpenTalkingError::SpeechUnavailable),
             Err(_) => return Err(OpenTalkingError::Unavailable),
         };
         let media_type = response
@@ -254,6 +290,11 @@ impl OpenTalkingClient {
 
     /// Returns only model IDs reported connected by the local runtime.
     pub fn models(&self) -> Result<Vec<VideoModel>, OpenTalkingError> {
+        self.models_with_status().map(|(_, models)| models)
+    }
+
+    /// Read video drivers and engine readiness from the same backend snapshot.
+    pub fn models_with_status(&self) -> Result<(String, Vec<VideoModel>), OpenTalkingError> {
         let root = self.get_raw_json("/api/services")?;
         let rows = root
             .get("services")
@@ -285,7 +326,12 @@ impl OpenTalkingClient {
         if result.is_empty() {
             return Err(OpenTalkingError::NotReady);
         }
-        Ok(result)
+        let status = match service.get("status").and_then(Value::as_str) {
+            Some("ready") => "READY",
+            Some("degraded") => "PARTIALLY READY",
+            _ => return Err(OpenTalkingError::InvalidResponse),
+        };
+        Ok((status.into(), result))
     }
 
     /// Lists video jobs, bounded to the newest 100 returned by the service.
@@ -442,8 +488,7 @@ impl OpenTalkingClient {
 
     fn list(&self, suffix: &str) -> Result<Vec<Value>, OpenTalkingError> {
         self.get_json(&format!("{PREFIX}{suffix}"))?
-            .get("data")
-            .and_then(Value::as_array)
+            .as_array()
             .filter(|rows| rows.len() <= 500)
             .cloned()
             .ok_or(OpenTalkingError::InvalidResponse)
@@ -475,6 +520,7 @@ impl OpenTalkingClient {
         let result = self
             .agent
             .post(&format!("{}{PREFIX}{route}", self.origin))
+            .timeout(Duration::from_secs(35))
             .set("Content-Type", "application/json")
             .send_string(&body.to_string());
         match result {
@@ -571,6 +617,149 @@ fn valid_job_id(id: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{OpenTalkingClient, OpenTalkingError};
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+    };
+
+    #[test]
+    fn list_endpoints_unwrap_the_backend_envelope_exactly_once() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            for (route, data) in [
+                (
+                    "avatars",
+                    serde_json::json!([{"id":"anchor","name":"Anchor","model_type":"flashhead"}]),
+                ),
+                (
+                    "voices",
+                    serde_json::json!([{"id":"edge:vi-VN-HoaiMyNeural","display_label":"HoaiMy"}]),
+                ),
+                (
+                    "scene-assets",
+                    serde_json::json!([{"id":"bg-default","name":"Studio"}]),
+                ),
+                ("video-creation/jobs", serde_json::json!([])),
+            ] {
+                let (mut socket, _) = listener.accept().unwrap();
+                socket
+                    .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                    .unwrap();
+                let mut request = Vec::new();
+                loop {
+                    let mut bytes = [0; 1024];
+                    let count = socket.read(&mut bytes).unwrap();
+                    request.extend_from_slice(&bytes[..count]);
+                    if count == 0 || request.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
+                        break;
+                    }
+                }
+                assert!(
+                    String::from_utf8_lossy(&request)
+                        .starts_with(&format!("GET /api/v1/artcraft/opentalking/{route} "))
+                );
+                let body = serde_json::json!({"ok":true,"data":data}).to_string();
+                write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            }
+        });
+        let client = OpenTalkingClient::new(&origin).unwrap();
+        assert_eq!(client.avatars().unwrap()[0].id, "anchor");
+        assert_eq!(client.voices().unwrap()[0].id, "edge:vi-VN-HoaiMyNeural");
+        assert_eq!(client.scenes().unwrap()[0].id, "bg-default");
+        assert!(client.jobs().unwrap().is_empty());
+        server.join().unwrap();
+    }
+
+    #[test]
+    #[ignore = "requires explicitly configured running local OpenTalking backend"]
+    fn running_backend_catalogue_smoke() {
+        let origin =
+            std::env::var("CONCAT_OPEN_TALKING_SMOKE_ORIGIN").expect("explicit smoke origin");
+        let client = OpenTalkingClient::new(&origin).unwrap();
+        let avatars = client.avatars().expect("configured avatars");
+        let voices = client.voices().expect("configured voices");
+        let scenes = client.scenes().expect("scene catalogue");
+        let (status, models) = client.models_with_status().expect("connected video models");
+        assert!(matches!(status.as_str(), "READY" | "PARTIALLY READY"));
+        let jobs = client.jobs().expect("video job history");
+        assert!(!avatars.is_empty());
+        assert!(!voices.is_empty());
+        assert!(!models.is_empty());
+        assert!(
+            !client
+                .avatar_preview(&avatars[0].id)
+                .expect("selected avatar preview")
+                .is_empty()
+        );
+        println!(
+            "OpenTalking native adapter: {} avatars, {} voices, {} backgrounds, {} drivers, {} jobs",
+            avatars.len(),
+            voices.len(),
+            scenes.len(),
+            models.len(),
+            jobs.len()
+        );
+    }
+
+    #[test]
+    fn create_job_sends_native_form_and_accepts_backend_receipt() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                .unwrap();
+            let mut request = Vec::new();
+            loop {
+                let mut bytes = [0; 1024];
+                let count = socket.read(&mut bytes).unwrap();
+                request.extend_from_slice(&bytes[..count]);
+                let text = String::from_utf8_lossy(&request);
+                if let Some(end) = text.find("\r\n\r\n") {
+                    let length = text[..end]
+                        .lines()
+                        .find_map(|line| {
+                            line.to_ascii_lowercase()
+                                .strip_prefix("content-length:")
+                                .and_then(|value| value.trim().parse::<usize>().ok())
+                        })
+                        .unwrap_or(0);
+                    if request.len() >= end + 4 + length {
+                        break;
+                    }
+                }
+                if count == 0 {
+                    break;
+                }
+            }
+            let request = String::from_utf8(request).unwrap();
+            assert!(request.starts_with("POST /api/v1/artcraft/opentalking/video-creation/jobs "));
+            let body: serde_json::Value =
+                serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap();
+            assert_eq!(body["avatar_id"], "anchor");
+            assert_eq!(body["voice_id"], "edge:vi-VN-HoaiMyNeural");
+            assert_eq!(body["driver"], "sadtalker");
+            assert_eq!(body["script_text"], "Xin chào");
+            let body = serde_json::json!({"ok":true,"data":{"id":"job_0123456789abcdef","status":"queued","title":"Native video","avatar_id":"anchor","driver":"sadtalker"}}).to_string();
+            write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+        });
+        let client = OpenTalkingClient::new(&origin).unwrap();
+        let job = client
+            .create_job(
+                "anchor",
+                "edge:vi-VN-HoaiMyNeural",
+                "sadtalker",
+                "Native video",
+                "Xin chào",
+                None,
+            )
+            .unwrap();
+        assert_eq!(job.id, "job_0123456789abcdef");
+        assert_eq!(job.status, "queued");
+        server.join().unwrap();
+    }
 
     #[test]
     fn tts_rejects_missing_voice_provider_and_oversize_reply_before_network() {

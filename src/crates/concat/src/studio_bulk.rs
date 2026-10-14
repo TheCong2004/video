@@ -29,7 +29,8 @@ pub(crate) fn bind(app: &App) {
             Ok(matrix) => {
                 let rows = map_rows(&matrix);
                 let errors = validate_rows(&rows);
-                let error_map: std::collections::HashMap<usize, &str> = errors.into_iter().collect();
+                let error_map: std::collections::HashMap<usize, &str> =
+                    errors.into_iter().collect();
 
                 let mut row_items = Vec::new();
                 let mut valid_cnt = 0;
@@ -48,7 +49,12 @@ pub(crate) fn bind(app: &App) {
                         row_index: row.row_index as i32,
                         page_id: row.page_id.clone().into(),
                         title: row.title.clone().unwrap_or_default().into(),
-                        prompt: row.video_prompt.clone().or_else(|| row.image_prompt.clone()).unwrap_or_default().into(),
+                        prompt: row
+                            .video_prompt
+                            .clone()
+                            .or_else(|| row.image_prompt.clone())
+                            .unwrap_or_default()
+                            .into(),
                         platforms: row.platforms.join(", ").into(),
                         valid: is_valid,
                         error: err.into(),
@@ -59,10 +65,20 @@ pub(crate) fn bind(app: &App) {
                 bulk.set_valid_count(valid_cnt);
                 bulk.set_error_count(err_cnt);
                 bulk.set_rows(ModelRc::new(VecModel::from(row_items)));
-                bulk.set_status(format!("Đã kiểm tra {} dòng: {} hợp lệ, {} lỗi.", rows.len(), valid_cnt, err_cnt).into());
+                bulk.set_status(
+                    format!(
+                        "Đã kiểm tra {} dòng: {} hợp lệ, {} lỗi.",
+                        rows.len(),
+                        valid_cnt,
+                        err_cnt
+                    )
+                    .into(),
+                );
             }
             Err(e) => {
-                bulk.set_status(format!("Lỗi cú pháp CSV tại bản ghi {}: {}", e.record, e.message).into());
+                bulk.set_status(
+                    format!("Lỗi cú pháp CSV tại bản ghi {}: {}", e.record, e.message).into(),
+                );
             }
         }
     });
@@ -72,6 +88,6 @@ pub(crate) fn bind(app: &App) {
         let Some(app) = weak.upgrade() else { return };
         let bulk = app.global::<StudioBulk>();
         let count = bulk.get_valid_count();
-        bulk.set_status(format!("Đã tạo thành công {} jobs vào hàng đợi xử lý!", count).into());
+        bulk.set_status(format!("{} dòng đã kiểm tra. Chưa tạo job: chức năng gửi hàng loạt lên Promax chưa được nối; dùng Xưởng phim AI để tạo từng job.", count).into());
     });
 }

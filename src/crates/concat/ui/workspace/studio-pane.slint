@@ -85,6 +85,7 @@ export global StudioBridge {
 }
 
 export component StudioPage inherits VerticalLayout {
+    in property <length> viewport-height: 720px;
     in property <StudioRoute> route;
     callback choose-project();
     callback back();
@@ -409,6 +410,7 @@ export component StudioPage inherits VerticalLayout {
         StudioProduction { }
     }
     if root.route == StudioRoute.opentalking: StudioOpenTalkingPage {
+        viewport-height: root.viewport-height;
         navigate-to-live => { root.navigate(StudioRoute.live); }
     }
     if root.route == StudioRoute.live: StudioLivePage { }

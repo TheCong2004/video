@@ -11,6 +11,31 @@ const app = read("ui/app.slint");
 const rail = start.slice(start.indexOf("component Rail inherits"), start.indexOf("component NewProjectCard"));
 const launcher = start.slice(start.indexOf("export component StartScreen"), start.indexOf("export component NewProjectDialog"));
 
+test("production source check calls Promax and bulk import cannot invent queued jobs", () => {
+  const production = read("ui/workspace/studio-production.slint");
+  const binding = read("src/studio_production.rs");
+  const adapter = read("../concat-studio/src/workflows.rs");
+  const bulk = read("src/studio_bulk.rs");
+  assert.match(production, /ProductionStudio\.check-source\(\)/);
+  assert.match(binding, /on_check_source/);
+  assert.match(binding, /client\.source_title\(&source\)/);
+  assert.match(adapter, /api\/v1\/artcraft\/media\/source\/resolve/);
+  assert.doesNotMatch(bulk, /Đã tạo thành công/);
+  assert.match(bulk, /Chưa tạo job/);
+});
+
+test("OpenTalking adapts columns and tabs without using image intrinsic height", () => {
+  const talking = read("ui/workspace/studio-opentalking.slint");
+  assert.match(talking, /stacked: root\.width < 840px/);
+  assert.match(talking, /row: root\.stacked \? 1 : 0/);
+  assert.match(talking, /tab-columns: root\.width < 660px/);
+  assert.match(talking, /root\.viewport-height \* 0\.52/);
+  assert.match(talking, /image-fit: contain/);
+  assert.match(talking, /max-height: self\.min-height/);
+  assert.match(launcher, /viewport-height: root\.height/);
+  assert.match(studio, /viewport-height: root\.viewport-height/);
+});
+
 test("all twelve Studio routes live in the launcher rail below New project", () => {
   const firstRoute = rail.indexOf("StudioRoute.overview");
   assert.ok(firstRoute > rail.indexOf('I18n.t("start.newProject")'));

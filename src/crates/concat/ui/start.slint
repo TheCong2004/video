@@ -1224,6 +1224,7 @@ export component StartScreen inherits Rectangle {
             height: 100%;
             background: transparent;
             StudioPage {
+                viewport-height: root.height;
                 route: root.studio-route;
                 choose-project => { root.studio-open = false; }
                 back => { root.studio-open = false; }

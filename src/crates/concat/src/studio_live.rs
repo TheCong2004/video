@@ -44,7 +44,7 @@ fn current_time_str() -> String {
     format!("{hours:02}:{minutes:02}:{seconds:02}")
 }
 
-fn play_tts(
+pub(crate) fn play_tts(
     playback: &concat_host::playback::Playback,
     audio: concat_host::studio_opentalking::TtsAudio,
 ) -> Result<(), &'static str> {

@@ -45,6 +45,7 @@ export global ProductionStudio {
     in-out property <string> resume-id;
     callback load-runs();
     callback check-plan();
+    callback check-source();
     callback start-run();
     callback cancel-run(id: string);
     callback resume-run(id: string);
@@ -327,6 +328,12 @@ export component StudioProduction inherits VerticalLayout {
                 label: I18n.t("nativeStudio.sources"); multiline: false; value: ProductionStudio.sources; enabled: !ProductionStudio.busy;
                 placeholder: "https://... (URL bài viết, liên kết tham khảo)";
                 edited(text) => { ProductionStudio.sources = text; ProductionStudio.invalidate(); }
+            }
+            StudioButton {
+                compact: true;
+                label: "Kiểm tra URL YouTube qua Promax";
+                enabled: !ProductionStudio.busy && ProductionStudio.sources != "";
+                clicked => { ProductionStudio.check-source(); }
             }
             HorizontalLayout {
                 spacing: 18px;

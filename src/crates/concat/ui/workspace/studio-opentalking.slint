@@ -17,6 +17,8 @@ export struct StudioVideoJobRow {
 export global StudioOpenTalking {
     in-out property <int> active-tab: 0; // 0: Create, 1: Avatars, 2: Voices, 3: Interactive/Live, 4: History
     in-out property <string> engine-status: "OFFLINE";
+    in-out property <image> avatar-preview;
+    in-out property <bool> jobs-running;
     in-out property <[StudioAvatarRow]> avatars;
     in-out property <[StudioVoiceRow]> voices;
     in-out property <[StudioSceneRow]> scenes;
@@ -39,6 +41,7 @@ export global StudioOpenTalking {
     in-out property <string> stop-id;
     in-out property <string> delete-id;
     callback refresh();
+    callback refresh-jobs();
     callback create();
     callback stop(id: string);
     callback delete(id: string);
@@ -51,8 +54,19 @@ export global StudioOpenTalking {
 
 export component StudioOpenTalkingPage inherits VerticalLayout {
     in-out property <bool> is-live-route: false;
+    in property <length> viewport-height: 720px;
+    property <bool> stacked: root.width < 840px;
+    property <int> tab-columns: root.width < 660px ? 2 : root.width < 1080px ? 3 : 5;
     callback navigate-to-live();
     spacing: 16px;
+    alignment: start;
+    min-width: 0px;
+    init => { if !StudioOpenTalking.catalogs-loaded && !StudioOpenTalking.busy { StudioOpenTalking.refresh(); } }
+    Timer {
+        interval: 3s;
+        running: StudioOpenTalking.jobs-running && !StudioOpenTalking.busy;
+        triggered => { StudioOpenTalking.refresh-jobs(); }
+    }
 
     // TOP HEADER CARD (Matches ArtCraft OpenTalking Studio Hub)
     Rectangle {
@@ -95,7 +109,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                         spacing: 2px;
                         alignment: center;
 
-                        HorizontalLayout {
+                        FlexboxLayout {
                             spacing: 8px;
                             Text {
                                 text: "OPENTALKING STUDIO";
@@ -107,9 +121,9 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                             // Engine Status Pill
                             Rectangle {
                                 border-radius: 10px;
-                                background: StudioOpenTalking.catalogs-loaded ? Floword.success.with-alpha(0.2) : Floword.danger.with-alpha(0.2);
+                                background: StudioOpenTalking.engine-status != "OFFLINE" ? Floword.success.with-alpha(0.2) : Floword.danger.with-alpha(0.2);
                                 border-width: 1px;
-                                border-color: StudioOpenTalking.catalogs-loaded ? Floword.success.with-alpha(0.4) : Floword.danger.with-alpha(0.4);
+                                border-color: StudioOpenTalking.engine-status != "OFFLINE" ? Floword.success.with-alpha(0.4) : Floword.danger.with-alpha(0.4);
 
                                 HorizontalLayout {
                                     padding-left: 8px;
@@ -118,8 +132,8 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                                     padding-bottom: 3px;
 
                                     Text {
-                                        text: StudioOpenTalking.catalogs-loaded ? I18n.t("studioOpenTalking.engineOnline") : I18n.t("studioOpenTalking.engineOffline");
-                                        color: StudioOpenTalking.catalogs-loaded ? Floword.success : Floword.danger;
+                                        text: "ENGINE " + StudioOpenTalking.engine-status;
+                                        color: StudioOpenTalking.engine-status != "OFFLINE" ? Floword.success : Floword.danger;
                                         font-size: 10px;
                                         font-weight: 700;
                                     }
@@ -131,6 +145,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                             text: I18n.t("studioOpenTalking.subtitle");
                             color: Floword.muted;
                             font-size: 12px;
+                            wrap: word-wrap;
                         }
                     }
                 }
@@ -163,11 +178,13 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
             }
 
             // Row 2: Navigation Tabs (5 Tabs: Create, Avatars, Voices, Interactive, History)
-            HorizontalLayout {
+            GridLayout {
                 spacing: 8px;
 
                 // Tab 0: Tạo Video Người Ảo
                 Rectangle {
+                    row: 0;
+                    col: 0;
                     border-radius: 10px;
                     background: StudioOpenTalking.active-tab == 0 ? Floword.raised : tab0-touch.has-hover ? Floword.raised.with-alpha(0.6) : Floword.field;
                     border-width: 1px;
@@ -197,6 +214,8 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
 
                 // Tab 1: Kho Nhân Vật
                 Rectangle {
+                    row: 0;
+                    col: 1;
                     border-radius: 10px;
                     background: StudioOpenTalking.active-tab == 1 ? Floword.raised : tab1-touch.has-hover ? Floword.raised.with-alpha(0.6) : Floword.field;
                     border-width: 1px;
@@ -226,6 +245,8 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
 
                 // Tab 2: Giọng Nói & Lồng Tiếng
                 Rectangle {
+                    row: root.tab-columns == 2 ? 1 : 0;
+                    col: root.tab-columns == 2 ? 0 : 2;
                     border-radius: 10px;
                     background: StudioOpenTalking.active-tab == 2 ? Floword.raised : tab2-touch.has-hover ? Floword.raised.with-alpha(0.6) : Floword.field;
                     border-width: 1px;
@@ -255,6 +276,8 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
 
                 // Tab 3: Hội Thoại Trực Tiếp (Active Pill with LIVE badge)
                 Rectangle {
+                    row: root.tab-columns < 5 ? 1 : 0;
+                    col: root.tab-columns == 2 ? 1 : root.tab-columns == 3 ? 0 : 3;
                     border-radius: 10px;
                     background: StudioOpenTalking.active-tab == 3 ? Floword.raised : tab3-touch.has-hover ? Floword.raised.with-alpha(0.6) : Floword.field;
                     border-width: 1px;
@@ -306,6 +329,8 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
 
                 // Tab 4: Lịch Sử Video
                 Rectangle {
+                    row: root.tab-columns == 2 ? 2 : root.tab-columns == 3 ? 1 : 0;
+                    col: root.tab-columns == 2 ? 0 : root.tab-columns == 3 ? 1 : 4;
                     border-radius: 10px;
                     background: StudioOpenTalking.active-tab == 4 ? Floword.raised : tab4-touch.has-hover ? Floword.raised.with-alpha(0.6) : Floword.field;
                     border-width: 1px;
@@ -333,7 +358,6 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                     }
                 }
 
-                Rectangle { horizontal-stretch: 1; }
             }
 
             if StudioOpenTalking.status != "": Rectangle {
@@ -344,7 +368,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
 
                 HorizontalLayout {
                     padding: 8px;
-                    Text { text: StudioOpenTalking.status; color: Floword.muted; font-size: 12px; }
+                    Text { text: StudioOpenTalking.status; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
                 }
             }
         }
@@ -407,7 +431,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
         }
 
         // ENGINE OFFLINE NOTICE (if engine offline)
-        if !StudioOpenTalking.catalogs-loaded: Rectangle {
+        if StudioOpenTalking.engine-status == "OFFLINE": Rectangle {
             background: Floword.danger.with-alpha(0.12);
             border-radius: 12px;
             border-width: 1px;
@@ -436,14 +460,18 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
         }
 
         // 2-COLUMN WORKSPACE
-        HorizontalLayout {
+        GridLayout {
             spacing: 18px;
             min-width: 0px;
 
             // LEFT COLUMN: Character, Voice, Driver, Scene, Script
             StudioCard {
+                row: 0;
+                col: 0;
                 horizontal-stretch: 1;
-                min-width: 360px;
+                min-width: 0px;
+                preferred-width: 440px;
+                max-height: self.min-height;
                 spacing: 14px;
 
                 StudioHeading { title: "1. THIẾT LẬP NHÂN VẬT & MÔ HÌNH"; glyph: Glyph.film; }
@@ -451,7 +479,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                 VerticalLayout {
                     spacing: 6px;
                     Text { text: I18n.t("studioOpenTalking.avatar"); color: Floword.text; font-size: 13px; font-weight: 600; }
-                    Select { options: StudioOpenTalking.avatar-options; current <=> StudioOpenTalking.avatar-index; placeholder: I18n.t("studioOpenTalking.chooseAvatar"); height: 38px; background: Floword.field; border-color: Floword.line; enabled: !StudioOpenTalking.busy; }
+                    Select { options: StudioOpenTalking.avatar-options; current <=> StudioOpenTalking.avatar-index; changed(index) => { StudioOpenTalking.select-avatar(index); } placeholder: I18n.t("studioOpenTalking.chooseAvatar"); height: 38px; background: Floword.field; border-color: Floword.line; enabled: !StudioOpenTalking.busy; }
                 }
 
                 VerticalLayout {
@@ -486,9 +514,13 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
 
             // RIGHT COLUMN: 3D Preview, Preconditions & Creation Trigger
             VerticalLayout {
+                row: root.stacked ? 1 : 0;
+                col: root.stacked ? 0 : 1;
                 horizontal-stretch: 1;
-                min-width: 360px;
+                min-width: 0px;
+                preferred-width: 440px;
                 spacing: 14px;
+                alignment: start;
 
                 // 3D Avatar Preview Screen Card
                 Rectangle {
@@ -497,14 +529,16 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                     border-width: 1px;
                     border-color: Floword.line-bright;
                     clip: true;
-                    min-height: 260px;
+                    // Do not let the source image's intrinsic size stretch the
+                    // entire form. Scale with the available window, not the photo.
+                    height: Math.clamp(Math.min(self.width * 0.72, root.viewport-height * 0.52), 240px, 480px);
 
                     // 3D Avatar High-Definition Illustration
                     Image {
                         width: 100%;
                         height: 100%;
-                        source: @image-url("../assets/studio-avatar.jpg");
-                        image-fit: cover;
+                        source: StudioOpenTalking.avatar-preview;
+                        image-fit: contain;
                     }
 
                     // Glassmorphic dark gradient
@@ -531,11 +565,11 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                                     spacing: 6px;
                                     Rectangle {
                                         width: 8px; height: 8px; border-radius: 4px;
-                                        background: StudioOpenTalking.catalogs-loaded ? Floword.success : Floword.danger;
+                                        background: StudioOpenTalking.engine-status != "OFFLINE" ? Floword.success : Floword.danger;
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: StudioOpenTalking.catalogs-loaded ? "ENGINE READY" : "ENGINE OFFLINE";
+                                        text: "ENGINE " + StudioOpenTalking.engine-status;
                                         color: #ffffff; font-size: 11px; font-weight: 700;
                                     }
                                 }
@@ -749,7 +783,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                         StudioButton {
                             label: "Chọn tạo video";
                             clicked => {
-                                StudioOpenTalking.avatar-index = index;
+                                StudioOpenTalking.select-avatar(index);
                                 StudioOpenTalking.active-tab = 0;
                             }
                         }
@@ -758,7 +792,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                             label: "Dùng cho LIVE";
                             primary: true;
                             clicked => {
-                                StudioOpenTalking.avatar-index = index;
+                                StudioOpenTalking.select-avatar(index);
                                 StudioOpenTalking.active-tab = 3;
                             }
                         }
