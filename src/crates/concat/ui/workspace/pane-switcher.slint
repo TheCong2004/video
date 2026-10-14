@@ -41,6 +41,7 @@ export enum PaneKind {
     keyframes,
     /// the VU meters: how loud the timeline plays, left and right
     meters,
+    ai-editing,
 }
 
 export global Panes {
@@ -58,7 +59,8 @@ export global Panes {
     }
 
     public pure function label(kind: PaneKind) -> string {
-        return kind == PaneKind.media ? I18n.t("paneSwitcher.library")
+        return kind == PaneKind.ai-editing ? "AI Editing"
+            : kind == PaneKind.media ? I18n.t("paneSwitcher.library")
             : kind == PaneKind.preview ? I18n.t("common.preview")
             : kind == PaneKind.inspector ? I18n.t("paneSwitcher.inspector")
             : kind == PaneKind.keyframes ? I18n.t("common.keyframes")
@@ -70,7 +72,8 @@ export global Panes {
     /// the same string Rust matches on to draw the chip under the cursor.
     /// Not the label: that is prose and could be translated tomorrow.
     public pure function id(kind: PaneKind) -> string {
-        return kind == PaneKind.media ? "media"
+        return kind == PaneKind.ai-editing ? "ai-editing"
+            : kind == PaneKind.media ? "media"
             : kind == PaneKind.preview ? "preview"
             : kind == PaneKind.inspector ? "inspector"
             : kind == PaneKind.keyframes ? "keyframes"
@@ -83,7 +86,8 @@ export global Panes {
     /// picture of each: a strip of film, a still frame, the inspector's own
     /// sliders, and a stack of lanes.
     public pure function glyph(kind: PaneKind) -> Glyph {
-        return kind == PaneKind.media ? Glyph.film
+        return kind == PaneKind.ai-editing ? Glyph.film
+            : kind == PaneKind.media ? Glyph.film
             : kind == PaneKind.preview ? Glyph.image
             : kind == PaneKind.inspector ? Glyph.settings
             : kind == PaneKind.keyframes ? Glyph.keyframe
@@ -259,7 +263,7 @@ export component PaneSwitcher inherits Rectangle {
     /// somewhere to be laid out. When the Keyframes row arrived this still
     /// said four, and the row that removes the panel was the one under the
     /// clip.
-    property <length> list-h: 6 * 26px + 9px + 26px + 8px;
+    property <length> list-h: 7 * 26px + 9px + 26px + 8px;
     /// The whole list when the window has room for it under the button, and
     /// the room otherwise, with the rest reached by scrolling. Never under
     /// three rows: shorter than that is not a list worth scrolling, and
@@ -405,6 +409,11 @@ export component PaneSwitcher inherits Rectangle {
                         chosen => { menu.close(); root.picked(PaneKind.meters); }
                     }
                     SwitchRow {
+                        kind: PaneKind.ai-editing;
+                        current: root.kind == PaneKind.ai-editing;
+                        chosen => { menu.close(); root.picked(PaneKind.ai-editing); }
+                    }
+                    SwitchRow {
                         kind: PaneKind.timeline;
                         current: root.kind == PaneKind.timeline;
                         chosen => { menu.close(); root.picked(PaneKind.timeline); }
@@ -435,7 +444,7 @@ export component AddPaneButton inherits Rectangle {
     property <length> menu-w: 168px;
     /// Five view rows and the surface's padding; held to the room under the
     /// button the way the seat's own menu is.
-    property <length> list-h: 6 * 26px + 8px;
+    property <length> list-h: 7 * 26px + 8px;
     property <length> menu-h: Math.min(root.list-h, Math.max(3 * 26px + 8px,
         Panes.room-below(root.absolute-position.y + root.height + 4px)));
 
@@ -510,6 +519,10 @@ export component AddPaneButton inherits Rectangle {
                     SwitchRow {
                         kind: PaneKind.meters;
                         chosen => { menu.close(); root.added(PaneKind.meters); }
+                    }
+                    SwitchRow {
+                        kind: PaneKind.ai-editing;
+                        chosen => { menu.close(); root.added(PaneKind.ai-editing); }
                     }
                     SwitchRow {
                         kind: PaneKind.timeline;

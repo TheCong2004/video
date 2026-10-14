@@ -1044,16 +1044,18 @@ pub fn apply(
             // successful run, so one bad command cannot leave a half-applied
             // batch behind (and the editor records it as one undo step).
             let mut staged = project.clone();
+            let mut staged_mint = mint.clone();
             let mut created = None;
             let mut applied = false;
             for command in commands {
-                let outcome = apply(&mut staged, mint, command)?;
+                let outcome = apply(&mut staged, &mut staged_mint, command)?;
                 if outcome.created_id.is_some() {
                     created = outcome.created_id;
                 }
                 applied |= outcome.applied;
             }
             *project = staged;
+            *mint = staged_mint;
             Ok(Outcome {
                 created_id: created,
                 applied,

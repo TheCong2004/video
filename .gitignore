@@ -53,6 +53,9 @@ desktop.ini
 # machine-specific.
 # Local build dependencies
 .deps/
+# Native compiler scratch, isolated acceptance fixtures and local service logs.
+# Keep caches on D without accidentally committing them or credentials.
+/.runtime/
 /vendor/
 /ffmpeg-dev/
 # FFmpeg built for a phone by src/scripts/ffmpeg-mobile.sh: sources,

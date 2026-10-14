@@ -51,12 +51,14 @@ pub(crate) fn busy(app: &App) -> bool {
     app.global::<StudioSession>().get_busy()
 }
 fn cloud_busy(app: &App) -> bool {
-    app.global::<StudioAi>().get_busy()
+    app.global::<crate::ui::AiEditing>().get_busy()
+        || app.global::<StudioAi>().get_busy()
         || app.global::<ProductionStudio>().get_busy()
         || app.global::<StudioBridge>().get_workflow_worker_busy()
         || app.global::<StudioBrowser>().get_busy()
 }
 fn clear_cloud(app: &App) {
+    crate::ai_editing::account_changed(app);
     let ai = app.global::<StudioAi>();
     ai.set_providers(ModelRc::default());
     ai.set_providers_loaded(false);

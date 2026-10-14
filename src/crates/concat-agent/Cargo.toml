@@ -1,0 +1,16 @@
+[package]
+name = "concat-agent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Validated AI edit plans compiled into the existing Concat editor"
+
+[dependencies]
+concat-project.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

@@ -12,7 +12,9 @@
 //! disk is written by exactly one code path.
 
 use concat_project::model::VideoSettings;
-use concat_project::{Command, DocumentSettings, Editor, Project};
+use concat_project::{
+    Command, DocumentSettings, DraftError, Editor, PlanningSnapshot, PreparedDraft, Project,
+};
 use serde::Serialize;
 
 use crate::projects;
@@ -35,6 +37,8 @@ pub struct Session {
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct EditorView {
+    /// Native mutation revision; advances on undo/redo, not inference.
+    pub revision: u64,
     /// The whole project, as the engine holds it.
     pub project: Project,
     /// Whether there is something to undo.
@@ -199,6 +203,11 @@ impl Session {
         self.editor.project()
     }
 
+    /// Read the mutation revision without cloning a planning snapshot.
+    pub fn revision(&self) -> u64 {
+        self.editor.revision()
+    }
+
     /// Whether there is something to undo.
     pub fn can_undo(&self) -> bool {
         self.editor.can_undo()
@@ -217,6 +226,7 @@ impl Session {
     fn view_with(&self, created_id: Option<String>) -> EditorView {
         let settings = self.settings();
         EditorView {
+            revision: self.editor.revision(),
             project: self.editor.project().clone(),
             can_undo: self.editor.can_undo(),
             can_redo: self.editor.can_redo(),
@@ -234,6 +244,22 @@ impl Session {
     /// Applies one edit command and returns the new state.
     pub fn apply(&mut self, command: Command) -> Result<EditorView, String> {
         self.apply_within(None, command)
+    }
+
+    /// Isolated draft with this exact session's reserved ID high-watermark.
+    pub fn planning_snapshot(&self) -> PlanningSnapshot {
+        self.editor.planning_snapshot()
+    }
+
+    /// Prepare commands without changing the live project or its history.
+    pub fn prepare_batch(&self, commands: Vec<Command>) -> Result<PreparedDraft, DraftError> {
+        self.editor.prepare_batch(commands)
+    }
+
+    /// Apply a human-approved draft only to the unchanged originating Session.
+    pub fn commit_draft(&mut self, draft: PreparedDraft) -> Result<EditorView, DraftError> {
+        let outcome = self.editor.commit_draft(draft)?;
+        Ok(self.view_with(outcome.created_id))
     }
 
     /// Applies one edit command as a move of `gesture`, so that a knob
@@ -319,6 +345,248 @@ mod tests {
             rate_num: 30,
             rate_den: 1,
         }
+    }
+
+    #[test]
+    fn worker_draft_commit_undo_disk_save_and_reopen() {
+        let scratch =
+            std::env::temp_dir().join(format!("concat-draft-session-{}", std::process::id()));
+        std::fs::create_dir_all(&scratch).expect("scratch dir");
+        let info =
+            projects::create(&scratch.to_string_lossy(), "Draft", 1920, 1080, 30, 1).unwrap();
+        let mut session = Session::open_info(&info).unwrap();
+        let before = session.project().clone();
+        let snapshot = session.planning_snapshot();
+        let draft = std::thread::spawn(move || {
+            snapshot
+                .prepare_batch(vec![Command::AddTextClip {
+                    track_id: None,
+                    above: true,
+                    start: 0.0,
+                    style: None,
+                    duration: Some(3.0),
+                    offset_y: None,
+                }])
+                .unwrap()
+        })
+        .join()
+        .unwrap();
+        assert_eq!(session.project(), &before);
+        let expected = draft.project().clone();
+        let view = session.commit_draft(draft).unwrap();
+        assert!(view.can_undo);
+        assert!(view.revision > 0);
+        assert_eq!(session.project(), &expected);
+        session.save(None).unwrap();
+        let reopened = Session::open_info(&info).unwrap();
+        assert_eq!(reopened.project(), &expected);
+        assert_eq!(session.undo().project, before);
+        assert_eq!(session.redo().project, expected);
+        // This is an explicit, test-owned directory underneath temp_dir.
+        std::fs::remove_dir_all(&scratch).unwrap();
+    }
+
+    #[test]
+    fn reopened_and_mutated_sessions_cannot_approve_old_draft() {
+        let scratch =
+            std::env::temp_dir().join(format!("concat-stale-session-{}", std::process::id()));
+        std::fs::create_dir_all(&scratch).unwrap();
+        let info =
+            projects::create(&scratch.to_string_lossy(), "Stale", 1920, 1080, 30, 1).unwrap();
+        let mut session = Session::open_info(&info).unwrap();
+        let draft = session
+            .prepare_batch(vec![Command::AddTrack { bottom: false }])
+            .unwrap();
+        let mut reopened = Session::open_info(&info).unwrap();
+        assert!(reopened.commit_draft(draft).is_err());
+        let draft = session
+            .prepare_batch(vec![Command::AddTrack { bottom: false }])
+            .unwrap();
+        session.apply(Command::AddTrack { bottom: false }).unwrap();
+        session.undo();
+        assert!(session.commit_draft(draft).is_err());
+        assert!(session.can_redo());
+        std::fs::remove_dir_all(&scratch).unwrap();
+    }
+
+    #[test]
+    fn approved_draft_composites_real_footage_title_and_exports() {
+        use concat_core::{FrameRate, frame::Frame};
+        use concat_media::{EncodeOptions, Encoder, FrameSink};
+        use concat_project::commands::NewMedia;
+        use concat_project::model::{MediaKind, TextStyle};
+        use std::sync::{Arc, atomic::AtomicBool};
+
+        let root = std::env::temp_dir().join(format!("concat-draft-render-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let source = root.join("source.mp4");
+        // No skip-on-error: inability to encode/render is an actual failed
+        // acceptance test, never evidence of a working export.
+        let mut encoder = Encoder::create(
+            &source,
+            128,
+            128,
+            FrameRate::THIRTY,
+            &EncodeOptions::default(),
+        )
+        .unwrap();
+        for _ in 0..30 {
+            encoder.write_frame(&Frame::black(128, 128)).unwrap();
+        }
+        encoder.finish().unwrap();
+        drop(encoder);
+        let info = projects::create(&root.to_string_lossy(), "Render", 128, 128, 30, 1).unwrap();
+        let mut session = Session::open_info(&info).unwrap();
+        let media = session
+            .apply(Command::AddMedia {
+                item: NewMedia {
+                    path: source.to_string_lossy().into_owned(),
+                    name: "source.mp4".into(),
+                    duration: Some(1.0),
+                    kind: MediaKind::Video,
+                    width: Some(128),
+                    height: Some(128),
+                    frame_rate: Some(30.0),
+                    frame_rate_fraction: Some("30/1".into()),
+                    video_codec: Some("h264".into()),
+                    audio_codec: None,
+                    has_audio: false,
+                    audio_tracks: vec![],
+                    origin: None,
+                    color_space: Default::default(),
+                },
+            })
+            .unwrap()
+            .created_id
+            .unwrap();
+        let track = session.project().active().tracks[0].id.clone();
+        session
+            .apply(Command::AddClip {
+                media_id: media,
+                track_id: track,
+                start: 0.0,
+                ripple: false,
+            })
+            .unwrap();
+        let before = session.project().clone();
+        let draft = session
+            .prepare_batch(vec![Command::AddTextClip {
+                track_id: None,
+                above: true,
+                start: 0.2,
+                duration: Some(0.5),
+                offset_y: None,
+                style: Some(TextStyle {
+                    content: "AI".into(),
+                    ..Default::default()
+                }),
+            }])
+            .unwrap();
+        let titles = crate::titles::Titles::new(&crate::dirs::AppDirs::under(&root.join("cache")));
+        let mut clips = concat_export::flatten::flatten_timeline_in(
+            draft.project(),
+            None,
+            Some(std::path::Path::new(session.path())),
+        );
+        clips.extend(
+            titles
+                .clips(draft.project(), 128, 128)
+                .into_iter()
+                .map(|title| title.clip),
+        );
+        let monitor = crate::preview::Monitor::new();
+        let settings = session.settings();
+        let frame = |time| {
+            monitor
+                .frame(
+                    Arc::new(clips.clone()),
+                    &settings,
+                    crate::preview::FrameSpec {
+                        time,
+                        width: 128,
+                        height: 128,
+                        moving: false,
+                        proxy: false,
+                        color_space: Default::default(),
+                    },
+                )
+                .unwrap()
+        };
+        let bright = |pixels: Vec<u8>| {
+            pixels
+                .chunks_exact(4)
+                .filter(|p| p[0] > 100 && p[1] > 100 && p[2] > 100)
+                .count()
+        };
+        assert_eq!(
+            bright(frame(0.05)),
+            0,
+            "title must not appear before its start"
+        );
+        assert!(
+            bright(frame(0.3)) > 10,
+            "title must be composited over real footage"
+        );
+        assert_eq!(
+            bright(frame(0.8)),
+            0,
+            "title must end at its requested time"
+        );
+        assert_eq!(
+            session.project(),
+            &before,
+            "rendering a draft cannot mutate live state"
+        );
+        session.commit_draft(draft).unwrap();
+        session.save(None).unwrap();
+        assert_eq!(
+            Session::open_info(&info).unwrap().project(),
+            session.project()
+        );
+        let output = root.join("approved.mp4");
+        let request = concat_export::ExportRequest {
+            output: output.to_string_lossy().into_owned(),
+            width: 128,
+            height: 128,
+            rate_num: 30,
+            rate_den: 1,
+            crf: 24,
+            preset: "ultrafast".into(),
+            codec: concat_media::VideoCodec::H264,
+            ten_bit: false,
+            rate_mode: concat_media::RateMode::Vbr,
+            bitrate_kbps: 0,
+            color_range: concat_media::ColorRange::Limited,
+            color_space: Default::default(),
+            hdr: false,
+            clips,
+        };
+        let cancel = AtomicBool::new(false);
+        let mut progress = |_: i64, _: i64, _: &'static str| {};
+        concat_export::render(
+            &request,
+            concat_export::Reporter {
+                progress: &mut progress,
+                cancel: &cancel,
+            },
+        )
+        .unwrap();
+        let metadata = concat_media::probe(&output).unwrap();
+        assert!(metadata.duration.is_some());
+        assert!(std::fs::metadata(&output).unwrap().len() > 100);
+        assert_eq!(session.undo().project, before);
+        // The app-global decoder pool retains open readers between previews.
+        // Release only this test's source before Windows removes its fixture.
+        crate::scheduler().pool().forget(&source);
+        for clip in &request.clips {
+            crate::scheduler()
+                .pool()
+                .forget(std::path::Path::new(&clip.path));
+        }
+        crate::scheduler()
+            .pool()
+            .close_idle(std::time::Duration::ZERO);
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]

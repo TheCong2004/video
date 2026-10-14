@@ -125,6 +125,7 @@ pollster.workspace = true
 concat-core.workspace = true
 concat-media.workspace = true
 concat-project.workspace = true
+concat-agent.workspace = true
 concat-export.workspace = true
 concat-host = { workspace = true, features = ["gpu"] }
 concat-studio.workspace = true

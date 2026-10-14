@@ -276,7 +276,7 @@ impl WorkflowClient {
         self.write_with_timeout(method, route, body, Duration::from_secs(15))
     }
 
-    fn write_with_timeout(
+    pub(crate) fn write_with_timeout(
         &self,
         method: &str,
         route: &str,

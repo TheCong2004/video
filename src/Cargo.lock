@@ -1132,6 +1132,7 @@ dependencies = [
 name = "concat"
 version = "0.2.7"
 dependencies = [
+ "concat-agent",
  "concat-api",
  "concat-core",
  "concat-effects",
@@ -1160,6 +1161,16 @@ dependencies = [
  "wayland-client",
  "wgpu",
  "winresource",
+]
+
+[[package]]
+name = "concat-agent"
+version = "0.2.7"
+dependencies = [
+ "concat-project",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

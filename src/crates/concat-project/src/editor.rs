@@ -22,6 +22,7 @@
 
 use crate::model::AppliedFilter;
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use serde_json::Value;
 
@@ -43,12 +44,67 @@ struct Snapshot {
 /// and the undo/redo stacks. This is the object a host holds per open
 /// project; everything else in the crate is reachable through it.
 pub struct Editor {
+    authority: Arc<()>,
+    revision: u64,
     project: Project,
     mint: IdMint,
     /// Oldest snapshot at the front: overflowing the depth cap evicts from
     /// the front in constant time, where a Vec would shuffle the whole stack.
     undo: VecDeque<Snapshot>,
     redo: Vec<Project>,
+}
+
+/// An isolated, validated native batch. Not cloneable or deserializable:
+/// consuming it on approval prevents an accidental repeated commit.
+pub struct PreparedDraft {
+    authority: Arc<()>,
+    revision: u64,
+    commands: Vec<Command>,
+    project: Project,
+}
+
+/// Read-only planning basis that can move to a worker. It preserves the live
+/// editor binding without exposing a second mutable owner of that binding.
+pub struct PlanningSnapshot {
+    editor: Editor,
+}
+
+impl std::ops::Deref for PlanningSnapshot {
+    type Target = Editor;
+    fn deref(&self) -> &Editor {
+        &self.editor
+    }
+}
+
+impl PreparedDraft {
+    /// Read-only state for native preview; never the authoritative project.
+    pub fn project(&self) -> &Project {
+        &self.project
+    }
+    /// Revision against which this draft was prepared.
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+}
+
+/// Refusal at the isolated draft or live approval boundary.
+#[derive(Debug, thiserror::Error)]
+pub enum DraftError {
+    /// Another editor or any intervening mutation owns the current state.
+    #[error("draft belongs to another editor or an outdated revision")]
+    Stale,
+    /// Empty, oversized, nested or view-only batch.
+    #[error("draft must contain 1..=256 editing operations, with no nested batches")]
+    InvalidBatch,
+    /// A native operation silently refused its input or was a no-op.
+    #[error("operation {0} did not change the project")]
+    NoChange(usize),
+    /// Sequential compilation cannot reproduce the final native batch.
+    #[error("sequential draft and native batch disagree")]
+    PreviewMismatch,
+    /// A native operation failed.
+    #[error(transparent)]
+    Command(#[from] CommandError),
 }
 
 impl Editor {
@@ -60,6 +116,8 @@ impl Editor {
     /// A fresh editor whose first timeline renders to `video`.
     pub fn with_video(video: crate::model::VideoSettings) -> Self {
         Self {
+            authority: Arc::new(()),
+            revision: 0,
             project: Project::with_video(video),
             mint: IdMint::default(),
             undo: VecDeque::new(),
@@ -75,6 +133,8 @@ impl Editor {
         let mut mint = IdMint::default();
         mint.adopt_project(&project);
         Some(Self {
+            authority: Arc::new(()),
+            revision: 0,
             project,
             mint,
             undo: VecDeque::new(),
@@ -103,6 +163,9 @@ impl Editor {
                 }
             }
         }
+        if changed {
+            self.advance_revision();
+        }
         changed
     }
 
@@ -122,6 +185,7 @@ impl Editor {
             "animationLoop",
         ];
         let mut found = RetiredFields::default();
+        let mut changed = false;
         for timeline in &mut self.project.timelines {
             for index in 0..timeline.clips.len() {
                 let extra = &timeline.clips[index].extra;
@@ -134,6 +198,7 @@ impl Editor {
                 if !any {
                     continue;
                 }
+                changed = true;
                 let name = timeline.clips[index].name.clone();
                 if reversed && !found.reversed.contains(&name) {
                     found.reversed.push(name.clone());
@@ -149,6 +214,9 @@ impl Editor {
                 }
             }
         }
+        if changed {
+            self.advance_revision();
+        }
         found
     }
 
@@ -156,6 +224,82 @@ impl Editor {
     /// [`Editor::apply`] so nothing can change without being undoable.
     pub fn project(&self) -> &Project {
         &self.project
+    }
+
+    /// Monotonic mutation revision, including undo/redo and view changes.
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    fn advance_revision(&mut self) {
+        self.revision = self
+            .revision
+            .checked_add(1)
+            .expect("editor revision exhausted");
+    }
+
+    /// Preserve reserved IDs, including IDs no longer present after undo.
+    /// The fork has independent history and cannot approve a live draft.
+    pub fn fork_for_draft(&self) -> Self {
+        Self {
+            authority: Arc::new(()),
+            revision: 0,
+            project: self.project.clone(),
+            mint: self.mint.clone(),
+            undo: VecDeque::new(),
+            redo: Vec::new(),
+        }
+    }
+
+    /// Capture planning state while holding the Session owner, then release
+    /// it before inference. Approval still requires the original live editor.
+    pub fn planning_snapshot(&self) -> PlanningSnapshot {
+        let mut editor = self.fork_for_draft();
+        editor.authority = self.authority.clone();
+        editor.revision = self.revision;
+        PlanningSnapshot { editor }
+    }
+
+    /// Execute only on scratch state, then verify parity with one native batch.
+    pub fn prepare_batch(&self, commands: Vec<Command>) -> Result<PreparedDraft, DraftError> {
+        if commands.is_empty()
+            || commands.len() > 256
+            || commands
+                .iter()
+                .any(|c| c.is_view_state() || matches!(c, Command::Batch { .. }))
+        {
+            return Err(DraftError::InvalidBatch);
+        }
+        let mut sequential = self.fork_for_draft();
+        for (index, command) in commands.iter().enumerate() {
+            if !sequential.apply(command.clone())?.applied {
+                return Err(DraftError::NoChange(index));
+            }
+        }
+        let mut batched = self.fork_for_draft();
+        batched.apply(Command::Batch {
+            commands: commands.clone(),
+        })?;
+        if batched.project != sequential.project {
+            return Err(DraftError::PreviewMismatch);
+        }
+        Ok(PreparedDraft {
+            authority: self.authority.clone(),
+            revision: self.revision,
+            commands,
+            project: batched.project,
+        })
+    }
+
+    /// Call only after human permission, on the Session owner thread.
+    /// A changed editor (even edit then undo) rejects the old proposal.
+    pub fn commit_draft(&mut self, draft: PreparedDraft) -> Result<Outcome, DraftError> {
+        if !Arc::ptr_eq(&self.authority, &draft.authority) || self.revision != draft.revision {
+            return Err(DraftError::Stale);
+        }
+        Ok(self.apply(Command::Batch {
+            commands: draft.commands,
+        })?)
     }
 
     /// The project, writable around the undo stack: for tests that need a
@@ -190,7 +334,11 @@ impl Editor {
         command: Command,
     ) -> Result<Outcome, CommandError> {
         if command.is_view_state() {
-            return apply(&mut self.project, &mut self.mint, command);
+            let outcome = apply(&mut self.project, &mut self.mint, command)?;
+            if outcome.applied {
+                self.advance_revision();
+            }
+            return Ok(outcome);
         }
         let before = self.project.clone();
         let outcome = apply(&mut self.project, &mut self.mint, command)?;
@@ -213,6 +361,7 @@ impl Editor {
             }
         }
         self.redo.clear();
+        self.advance_revision();
         Ok(outcome)
     }
 
@@ -316,6 +465,7 @@ impl Editor {
             Some(previous) => {
                 self.redo
                     .push(std::mem::replace(&mut self.project, previous.before));
+                self.advance_revision();
                 true
             }
             None => false,
@@ -331,6 +481,7 @@ impl Editor {
                     before,
                     gesture: None,
                 });
+                self.advance_revision();
                 true
             }
             None => false,

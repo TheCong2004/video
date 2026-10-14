@@ -2387,6 +2387,21 @@ impl Studio {
         }
     }
 
+    /// Explicit human approval of an isolated, revision-bound AI proposal.
+    /// Uses the real Session result, never the ambiguous optional created ID.
+    pub(crate) fn approve_ai_draft(
+        &mut self,
+        draft: concat_project::PreparedDraft,
+    ) -> Result<(), String> {
+        self.flush_commit();
+        let session = self.session.as_mut().ok_or("No project is open")?;
+        session.commit_draft(draft).map_err(|error| error.to_string())?;
+        self.echo = None;
+        self.last_commit = None;
+        self.after_change();
+        Ok(())
+    }
+
     /// [`Studio::apply`] as one move of an inspector gesture: the same
     /// bookkeeping, but the editor folds it into the gesture's undo step
     /// and the coalescing window stays open for the next move.

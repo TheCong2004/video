@@ -12,6 +12,7 @@ license = "AGPL-3.0-or-later"  # + plugin exception, see LICENSE-EXCEPTIONS.md
 concat-core = { path = "crates/concat-core" }
 concat-media = { path = "crates/concat-media" }
 concat-project = { path = "crates/concat-project" }
+concat-agent = { path = "crates/concat-agent" }
 concat-render = { path = "crates/concat-render" }
 concat-export = { path = "crates/concat-export" }
 concat-host = { path = "crates/concat-host" }

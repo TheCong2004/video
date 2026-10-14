@@ -53,6 +53,7 @@ mod presets;
 mod source;
 mod studio;
 mod studio_ai;
+mod ai_editing;
 mod studio_bridge;
 mod studio_browser;
 mod studio_live;
@@ -212,6 +213,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     studio_pages::bind(&app);
     studio_products::bind(&app);
     studio_ai::bind(&app);
+    ai_editing::bind(&app);
     studio_browser::bind(&app);
     studio_opentalking::bind(&app);
     studio_live::bind(&app);

@@ -30,7 +30,7 @@ pub mod speed;
 
 pub use commands::{Command, CommandError, Outcome, why_not_merge};
 pub use doc::{DOCUMENT_VERSION, DocumentSettings, document_version, from_document, to_document};
-pub use editor::{Editor, RetiredFields};
+pub use editor::{DraftError, Editor, PlanningSnapshot, PreparedDraft, RetiredFields};
 pub use model::Project;
 
 #[cfg(test)]
@@ -2824,6 +2824,155 @@ mod tests {
             editor.project().active().clips.is_empty(),
             "the first undo steps over the fixture's add-clip, so the batch recorded nothing"
         );
+    }
+
+    #[test]
+    fn draft_is_isolated_bound_and_one_undo() {
+        let (mut editor, _, clip) = fixture();
+        let before = editor.project().clone();
+        let draft = editor
+            .prepare_batch(vec![Command::SplitClips {
+                clip_ids: vec![clip],
+                time: 4.0,
+            }])
+            .unwrap();
+        assert_eq!(editor.project(), &before);
+        assert_ne!(draft.project(), &before);
+        let preview = draft.project().clone();
+        assert!(editor.commit_draft(draft).unwrap().applied);
+        assert_eq!(editor.project(), &preview);
+        assert!(editor.undo());
+        assert_eq!(editor.project(), &before);
+        assert!(editor.redo());
+        assert_eq!(editor.project(), &preview);
+    }
+
+    #[test]
+    fn worker_snapshot_approves_only_unchanged_live_editor() {
+        let (mut editor, _, clip) = fixture();
+        let snapshot = editor.planning_snapshot();
+        let draft = std::thread::spawn(move || {
+            snapshot
+                .prepare_batch(vec![Command::SplitClips {
+                    clip_ids: vec![clip],
+                    time: 4.0,
+                }])
+                .unwrap()
+        })
+        .join()
+        .unwrap();
+        let preview = draft.project().clone();
+        editor.commit_draft(draft).unwrap();
+        assert_eq!(editor.project(), &preview);
+    }
+
+    #[test]
+    fn draft_rejects_other_editor_and_edit_undo_aba() {
+        let (mut editor, _, clip) = fixture();
+        let (mut other, _, _) = fixture();
+        let command = || Command::SplitClips {
+            clip_ids: vec![clip.clone()],
+            time: 4.0,
+        };
+        let foreign = editor.prepare_batch(vec![command()]).unwrap();
+        assert!(other.commit_draft(foreign).is_err());
+        let stale = editor.prepare_batch(vec![command()]).unwrap();
+        editor.apply(command()).unwrap();
+        editor.undo();
+        let before = editor.project().clone();
+        assert!(editor.commit_draft(stale).is_err());
+        assert_eq!(editor.project(), &before);
+        assert!(editor.can_redo());
+    }
+
+    #[test]
+    fn draft_retains_reserved_ids_after_undo() {
+        let (mut editor, _, clip) = fixture();
+        editor
+            .apply(Command::SplitClips {
+                clip_ids: vec![clip.clone()],
+                time: 4.0,
+            })
+            .unwrap();
+        editor.undo();
+        let draft = editor
+            .prepare_batch(vec![Command::SplitClips {
+                clip_ids: vec![clip],
+                time: 4.0,
+            }])
+            .unwrap();
+        let preview = draft.project().clone();
+        editor.commit_draft(draft).unwrap();
+        assert_eq!(editor.project(), &preview);
+    }
+
+    #[test]
+    fn draft_refuses_empty_and_silent_native_noop() {
+        let (editor, _, _) = fixture();
+        assert!(editor.prepare_batch(vec![]).is_err());
+        assert!(
+            editor
+                .prepare_batch(vec![Command::RemoveClips {
+                    clip_ids: vec!["missing".into()],
+                    ripple: false,
+                }])
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn retired_false_and_null_cleanup_invalidates_draft() {
+        let (mut editor, _, clip) = fixture();
+        let timeline = std::sync::Arc::make_mut(&mut editor.project_mut().timelines[0]);
+        let item = std::sync::Arc::make_mut(&mut timeline.clips[0]);
+        item.extra.insert("reverse".into(), json!(false));
+        item.extra.insert("animationIn".into(), json!(null));
+        let draft = editor
+            .prepare_batch(vec![Command::SplitClips {
+                clip_ids: vec![clip],
+                time: 4.0,
+            }])
+            .unwrap();
+        let found = editor.drop_retired_fields();
+        assert!(found.reversed.is_empty() && found.animated.is_empty());
+        assert!(editor.commit_draft(draft).is_err());
+    }
+
+    #[test]
+    fn a_failed_nested_batch_does_not_consume_live_ids() {
+        let (mut editor, _, clip_id) = fixture();
+        let (mut control, _, control_clip) = fixture();
+        let rejected = editor.apply(Command::Batch {
+            commands: vec![Command::Batch {
+                commands: vec![
+                    Command::SplitClips {
+                        clip_ids: vec![clip_id.clone()],
+                        time: 4.0,
+                    },
+                    Command::MergeClips {
+                        clip_ids: vec!["missing".into()],
+                    },
+                ],
+            }],
+        });
+        assert!(rejected.is_err());
+        let actual = editor
+            .apply(Command::SplitClips {
+                clip_ids: vec![clip_id],
+                time: 4.0,
+            })
+            .unwrap();
+        let expected = control
+            .apply(Command::SplitClips {
+                clip_ids: vec![control_clip],
+                time: 4.0,
+            })
+            .unwrap();
+        assert_eq!(
+            actual.created_id, expected.created_id,
+            "rollback must include the live ID generator"
+        );
+        assert_eq!(editor.project(), control.project());
     }
 
     #[test]

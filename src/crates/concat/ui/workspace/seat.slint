@@ -12,6 +12,7 @@ import { PreviewPane } from "preview-pane.slint";
 import { TimelinePane } from "timeline-pane.slint";
 import { KeyframesPane } from "keyframes-pane.slint";
 import { MetersPane } from "meters-pane.slint";
+import { AiEditingPane } from "ai-editing-pane.slint";
 
 // One box of the workspace, showing whichever view its `kind` names.
 //
@@ -51,6 +52,15 @@ export component Seat inherits Rectangle {
     /// be handed a zero box — on the frame before the first layout, and any
     /// time a gutter is dragged to the end of its travel.
     property <length> margin-x: Math.max(1px, Math.min(72px, root.width / 4));
+
+    if root.kind == PaneKind.ai-editing: AiEditingPane {
+        width: root.width;
+        height: root.height;
+        pane-seat: root.index;
+        pane-removable: Editor.seats.length > 1;
+        pane-picked(kind) => { root.picked(kind); }
+        pane-removed => { root.removed(); }
+    }
     property <length> margin-y: Math.max(1px, Math.min(72px, root.height / 4));
 
     /// Whether this seat has the room to be cut in two along each axis.

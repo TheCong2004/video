@@ -1,10 +1,10 @@
-param([switch]$CheckOnly, [switch]$TestAdapters, [switch]$RunBuilt)
+param([switch]$CheckOnly, [switch]$TestAdapters, [switch]$TestAI, [switch]$RunBuilt)
 
 $ErrorActionPreference = 'Stop'
 $concatRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $concatRoot 'src'
 $depsRoot = Join-Path $concatRoot '.deps'
-$names = @('FFMPEG_DIR', 'SHERPA_ONNX_LIB_DIR', 'ORT_LIB_LOCATION', 'PATH', 'CARGO_BUILD_JOBS')
+$names = @('FFMPEG_DIR', 'SHERPA_ONNX_LIB_DIR', 'ORT_LIB_LOCATION', 'PATH', 'CARGO_BUILD_JOBS', 'TEMP', 'TMP')
 $previous = @{}
 foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 
@@ -15,7 +15,13 @@ function Find-SingleDirectory([string]$Pattern, [string]$Description) {
 }
 
 try {
-    if (([int]$CheckOnly.IsPresent + [int]$TestAdapters.IsPresent + [int]$RunBuilt.IsPresent) -gt 1) { throw 'Choose only one of -CheckOnly, -TestAdapters, or -RunBuilt.' }
+    if (([int]$CheckOnly.IsPresent + [int]$TestAdapters.IsPresent + [int]$TestAI.IsPresent + [int]$RunBuilt.IsPresent) -gt 1) { throw 'Choose only one of -CheckOnly, -TestAdapters, -TestAI, or -RunBuilt.' }
+    # Native compiler/test scratch files belong beside the existing D: target,
+    # not on the system drive. Keep this cache; restore the caller's variables.
+    $nativeTemp = Join-Path $concatRoot '.runtime\native-temp'
+    New-Item -ItemType Directory -Path $nativeTemp -Force | Out-Null
+    $env:TEMP = $nativeTemp
+    $env:TMP = $nativeTemp
     if (Test-Path Env:DOCS_RS) { throw 'Unset DOCS_RS before checking or running a native desktop build.' }
     if (!$env:FFMPEG_DIR) { $env:FFMPEG_DIR = Find-SingleDirectory (Join-Path $depsRoot 'ffmpeg\*') 'FFmpeg' }
     if (!$env:SHERPA_ONNX_LIB_DIR) { $env:SHERPA_ONNX_LIB_DIR = Join-Path $depsRoot 'sherpa-libs' }
@@ -46,6 +52,11 @@ try {
         if ($TestAdapters) {
             # Studio tests do not link the editor, media or speech engines.
             & cargo test -p concat-studio --profile quick
+        }
+        elseif ($TestAI) {
+            & cargo test -p concat-agent -p concat-project --profile quick
+            if ($LASTEXITCODE -ne 0) { throw "AI/project tests failed with exit code $LASTEXITCODE." }
+            & cargo test -p concat-host --lib session::tests
         }
         elseif ($CheckOnly) { & cargo check -p concat }
         elseif ($RunBuilt) {

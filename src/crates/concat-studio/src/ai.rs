@@ -1,7 +1,46 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Typed native AI gateway actions. Provider credentials stay on the server.
 use crate::workflows::{WorkflowClient, WorkflowError};
+use serde::Deserialize;
 use serde_json::{Value, json};
+
+/// Actual provider outcome; these do not imply that edits have been approved/applied.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EditPlanOutcome {
+    /// A JSON proposal, still requiring strict native compilation and user approval.
+    Plan,
+    /// Explicit provider refusal.
+    Refused,
+    /// Provider exhausted output budget.
+    Truncated,
+    /// Selected model did not advertise strict structured-output support.
+    Unsupported,
+    /// Provider response could not be verified as an edit plan.
+    Invalid,
+}
+
+/// Real reported usage, omitted if the provider supplies none.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct EditPlanUsage {
+    pub prompt_tokens: u64,
+    pub completion_tokens: u64,
+    pub total_tokens: u64,
+}
+
+/// Bounded provider receipt, not an executor result.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct EditPlanAnswer {
+    pub outcome: EditPlanOutcome,
+    pub model: String,
+    pub plan: Option<Value>,
+    pub finish_reason: Option<String>,
+    pub usage: Option<EditPlanUsage>,
+}
 
 /// Display-only connection metadata: never copy API keys or OAuth tokens.
 #[derive(Clone, Debug, PartialEq)]
@@ -78,6 +117,69 @@ fn submitted(error: WorkflowError) -> AiError {
 }
 
 impl WorkflowClient {
+    /// Request one structured proposal through the existing authenticated gateway.
+    /// Context must be scoped read-only timeline metadata, never paths/credentials.
+    /// There is no automatic retry after dispatch; an uncertain response may consume quota.
+    pub fn ai_edit_plan(
+        &self,
+        model: &str,
+        prompt: &str,
+        timeline_id: &str,
+        base_revision: u64,
+        context: &Value,
+    ) -> Result<EditPlanAnswer, AiError> {
+        if model.trim().is_empty()
+            || model.len() > 500
+            || model.chars().any(char::is_control)
+            || prompt.trim().is_empty()
+            || prompt.len() > 8192
+            || prompt.contains('\0')
+            || timeline_id.is_empty()
+            || timeline_id.len() > 128
+            || timeline_id.chars().any(char::is_control)
+            || base_revision > 9_007_199_254_740_991
+            || !context.is_object()
+            || context.to_string().len() > 32768
+        {
+            return Err(AiError::Input);
+        }
+        let value = self
+            .write_with_timeout(
+                "POST",
+                "/api/v1/artcraft/ai/edit-plan",
+                &json!({
+                    "model": model, "prompt": prompt, "timelineId": timeline_id,
+                    "baseRevision": base_revision, "context": context,
+                }),
+                std::time::Duration::from_secs(80),
+            )
+            .map_err(submitted)?;
+        if value.to_string().len() > 70 * 1024 {
+            return Err(AiError::UnknownOutcome);
+        }
+        let receipt: EditPlanAnswer =
+            serde_json::from_value(value).map_err(|_| AiError::UnknownOutcome)?;
+        if receipt.model.is_empty()
+            || receipt.model.len() > 500
+            || receipt.model.chars().any(char::is_control)
+            || receipt.finish_reason.as_ref().is_some_and(|r| {
+                !["stop", "length", "tool_calls", "content_filter"].contains(&r.as_str())
+            })
+        {
+            return Err(AiError::UnknownOutcome);
+        }
+        match (&receipt.outcome, &receipt.plan) {
+            (EditPlanOutcome::Plan, Some(plan))
+                if receipt.finish_reason.as_deref() == Some("stop")
+                    && plan.get("version").and_then(Value::as_u64) == Some(1)
+                    && plan.get("units").and_then(Value::as_str) == Some("seconds")
+                    && plan.get("timelineId").and_then(Value::as_str) == Some(timeline_id)
+                    && plan.get("baseRevision").and_then(Value::as_u64) == Some(base_revision) => {}
+            (EditPlanOutcome::Plan, _) | (_, Some(_)) => return Err(AiError::UnknownOutcome),
+            _ => {}
+        }
+        Ok(receipt)
+    }
     /// Create one API-key connection. No key is retained locally or returned.
     pub fn ai_add_provider(
         &self,
@@ -337,6 +439,48 @@ mod tests {
         assert!(req.starts_with("POST /api/v1/artcraft/ai/chat "));
         assert!(req.contains("\"stream\":false"));
         assert!(!req.contains("providerConnectionId"));
+    }
+    #[test]
+    fn structured_plan_preserves_scope_and_real_usage_without_applying() {
+        let plan = json!({"version":1,"units":"seconds","timelineId":"tl","baseRevision":3,
+            "operations":[{"op":"split","clipId":"clip","time":2.0,"as":"right"}]});
+        let (client, worker) = fixture(
+            json!({"outcome":"plan","model":"actual","plan":plan,
+            "finishReason":"stop","usage":{"promptTokens":10,"completionTokens":20,"totalTokens":30}}),
+            200,
+        );
+        let reply = client
+            .ai_edit_plan("chosen", "split", "tl", 3, &json!({"clips":[]}))
+            .unwrap();
+        assert_eq!(reply.outcome, EditPlanOutcome::Plan);
+        assert_eq!(reply.usage.unwrap().total_tokens, 30);
+        let request = worker.join().unwrap();
+        assert!(request.starts_with("POST /api/v1/artcraft/ai/edit-plan "));
+        assert!(request.contains("\"baseRevision\":3"));
+    }
+    #[test]
+    fn unsupported_or_truncated_plan_is_never_success_and_usage_is_not_invented() {
+        let (client, worker) = fixture(json!({"outcome":"unsupported","model":"chosen"}), 200);
+        let reply = client
+            .ai_edit_plan("chosen", "split", "tl", 3, &json!({}))
+            .unwrap();
+        assert_eq!(reply.outcome, EditPlanOutcome::Unsupported);
+        assert!(reply.usage.is_none() && reply.plan.is_none());
+        worker.join().unwrap();
+        let (client, worker) = fixture(
+            json!({"outcome":"plan","model":"chosen","finishReason":"length","plan":{}}),
+            200,
+        );
+        assert_eq!(
+            client.ai_edit_plan("chosen", "split", "tl", 3, &json!({})),
+            Err(AiError::UnknownOutcome)
+        );
+        worker.join().unwrap();
+        let client = WorkflowClient::new("http://127.0.0.1:1", Some("fixture".into())).unwrap();
+        assert_eq!(
+            client.ai_edit_plan("chosen", "split", "tl", u64::MAX, &json!({})),
+            Err(AiError::Input)
+        );
     }
     #[test]
     fn unknown_or_error_response_never_retries_or_leaks_body() {
