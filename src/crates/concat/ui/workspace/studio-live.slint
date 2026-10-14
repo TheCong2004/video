@@ -62,22 +62,22 @@ component LiveCheckbox inherits Rectangle {
     in property <bool> checked;
     in property <bool> enabled: true;
     callback toggled();
-    min-height: 22px;
+    min-height: 20px;
     background: transparent;
 
     HorizontalLayout {
-        spacing: 10px;
+        spacing: 8px;
         alignment: start;
         Rectangle {
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             border-radius: 4px;
             border-width: 1px;
             border-color: root.checked ? Floword.success : Floword.line;
             background: root.checked ? Floword.success.with-alpha(0.2) : Floword.field;
             y: (parent.height - self.height) / 2;
             if root.checked: Icon {
-                x: 2px; y: 2px; width: 14px; height: 14px;
+                x: 2px; y: 2px; width: 12px; height: 12px;
                 glyph: Glyph.check;
                 tint: Floword.success;
             }
@@ -85,7 +85,7 @@ component LiveCheckbox inherits Rectangle {
         Text {
             text: root.text;
             color: root.enabled ? Floword.text : Floword.muted;
-            font-size: 12px;
+            font-size: 11.5px;
             vertical-alignment: center;
             wrap: word-wrap;
             horizontal-stretch: 1;
@@ -102,17 +102,17 @@ component LiveTabButton inherits Rectangle {
     in property <string> text;
     in property <bool> active;
     callback clicked();
-    border-radius: 7px;
+    border-radius: 6px;
     background: root.active ? Floword.raised : transparent;
     border-width: root.active ? 1px : 0px;
     border-color: Floword.line;
-    min-height: 28px;
+    min-height: 25px;
     horizontal-stretch: 1;
     caption := Text {
         text: root.text;
         color: root.active ? Floword.text : Floword.muted;
-        font-size: 11px;
-        font-weight: root.active ? 600 : 400;
+        font-size: 10.5px;
+        font-weight: root.active ? 700 : 500;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -133,38 +133,41 @@ component VoiceWaveBar inherits Rectangle {
 }
 
 export component StudioLivePage inherits VerticalLayout {
-    spacing: 16px;
+    spacing: 12px;
 
     // =========================================================================
-    // 1. TOP HEADER TOOLBAR
+    // 1. UNIFIED BROADCAST HEADER TOOLBAR (Compact 46px)
     // =========================================================================
     Rectangle {
         background: Floword.surface;
-        border-radius: 16px;
+        border-radius: 10px;
         border-width: 1px;
-        border-color: Floword.line;
+        border-color: Floword.line-bright;
+        height: 46px;
 
         HorizontalLayout {
-            padding: 14px;
-            spacing: 12px;
+            padding-left: 12px;
+            padding-right: 12px;
+            spacing: 10px;
             alignment: space-between;
 
-            // Brand & Mode
+            // Brand title & Live Status Pill
             HorizontalLayout {
-                spacing: 12px;
+                spacing: 8px;
                 alignment: start;
 
                 Rectangle {
-                    width: 38px;
-                    height: 38px;
-                    border-radius: 10px;
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 7px;
                     background: Floword.cyan.with-alpha(0.18);
                     border-width: 1px;
                     border-color: Floword.cyan.with-alpha(0.4);
+                    y: (parent.height - self.height) / 2;
 
                     Icon {
                         glyph: Glyph.waveform;
-                        size: 18px;
+                        size: 14px;
                         tint: Floword.cyan;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
@@ -172,80 +175,118 @@ export component StudioLivePage inherits VerticalLayout {
                 }
 
                 VerticalLayout {
-                    spacing: 2px;
+                    spacing: 1px;
                     alignment: center;
+                    Text {
+                        text: "TIKTOK LIVE AI BROADCAST";
+                        color: Floword.text;
+                        font-size: 13px;
+                        font-weight: 800;
+                        letter-spacing: 0.5px;
+                    }
+                }
+
+                Rectangle { width: 4px; }
+
+                // Live status pill
+                Rectangle {
+                    background: StudioLive.state == "connected" ? Floword.success.with-alpha(0.2)
+                        : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.2)
+                        : Floword.field;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: StudioLive.state == "connected" ? Floword.success.with-alpha(0.5)
+                        : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.5)
+                        : Floword.line;
+                    y: (parent.height - self.height) / 2;
 
                     HorizontalLayout {
-                        spacing: 8px;
-                        Text {
-                            text: "TIKTOK LIVE AI BROADCAST STUDIO";
-                            color: Floword.text;
-                            font-size: 15px;
-                            font-weight: 800;
-                        }
+                        padding-left: 7px;
+                        padding-right: 7px;
+                        padding-top: 3px;
+                        padding-bottom: 3px;
+                        spacing: 5px;
+                        alignment: center;
 
-                        // Connection State Pill
                         Rectangle {
-                            background: StudioLive.state == "connected" ? Floword.success.with-alpha(0.2)
-                                : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.2)
-                                : Floword.field;
-                            border-radius: 10px;
-                            border-width: 1px;
-                            border-color: StudioLive.state == "connected" ? Floword.success.with-alpha(0.5)
-                                : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.5)
-                                : Floword.line;
-
-                            HorizontalLayout {
-                                padding-left: 8px;
-                                padding-right: 8px;
-                                padding-top: 3px;
-                                padding-bottom: 3px;
-                                spacing: 6px;
-                                alignment: center;
-
-                                Rectangle {
-                                    width: 7px;
-                                    height: 7px;
-                                    border-radius: 3.5px;
-                                    background: StudioLive.state == "connected" ? Floword.success
-                                        : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning
-                                        : Floword.muted;
-                                    y: (parent.height - self.height) / 2;
-                                }
-
-                                Text {
-                                    text: StudioLive.state == "connected" ? I18n.t("studioLive.connected")
-                                        : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? I18n.t("studioLive.connecting")
-                                        : I18n.t("studioLive.stopped");
-                                    color: StudioLive.state == "connected" ? Floword.success : Floword.text;
-                                    font-size: 11px;
-                                    font-weight: 700;
-                                }
-                            }
+                            width: 6px;
+                            height: 6px;
+                            border-radius: 3px;
+                            background: StudioLive.state == "connected" ? Floword.success
+                                : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning
+                                : Floword.muted;
+                            y: (parent.height - self.height) / 2;
                         }
-                    }
 
-                    Text {
-                        text: "Phát sóng tương tác AI đa kênh · Tự động trả lời bình luận & chốt đơn sản phẩm";
-                        color: Floword.muted;
-                        font-size: 12px;
+                        Text {
+                            text: StudioLive.state == "connected" ? I18n.t("studioLive.connected")
+                                : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? I18n.t("studioLive.connecting")
+                                : I18n.t("studioLive.stopped");
+                            color: StudioLive.state == "connected" ? Floword.success : Floword.text;
+                            font-size: 10.5px;
+                            font-weight: 700;
+                        }
                     }
                 }
             }
 
-            // Right: Modals toggles
+            // Center: Service Readiness indicators
             HorizontalLayout {
                 spacing: 10px;
+                alignment: center;
+
+                HorizontalLayout {
+                    spacing: 4px;
+                    alignment: center;
+                    Icon { glyph: Glyph.volume; size: 11px; tint: StudioOpenTalking.voice-options.length > 0 ? Floword.success : Floword.warning; }
+                    Text {
+                        text: StudioOpenTalking.voice-options.length > 0 ? I18n.t("studioLive.voiceReady") : I18n.t("studioLive.voiceNotReady");
+                        color: StudioOpenTalking.voice-options.length > 0 ? Floword.text : Floword.warning;
+                        font-size: 10.5px;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 4px;
+                    alignment: center;
+                    Icon { glyph: Glyph.sparkle; size: 11px; tint: StudioAi.models-loaded ? Floword.success : Floword.warning; }
+                    Text {
+                        text: StudioAi.models-loaded ? I18n.t("studioLive.aiReady") : I18n.t("studioLive.aiNotReady");
+                        color: StudioAi.models-loaded ? Floword.text : Floword.warning;
+                        font-size: 10.5px;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 4px;
+                    alignment: center;
+                    Rectangle {
+                        width: 5px; height: 5px; border-radius: 2.5px;
+                        background: StudioLive.auto-reply ? Floword.success : Floword.warning;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: StudioLive.auto-reply ? "Tự động: BẬT" : "Tự động: TẮT";
+                        color: StudioLive.auto-reply ? Floword.success : Floword.warning;
+                        font-size: 10.5px;
+                        font-weight: 600;
+                    }
+                }
+            }
+
+            // Right: Products & Settings
+            HorizontalLayout {
+                spacing: 6px;
                 alignment: end;
 
-                // Products Manager button
                 StudioButton {
+                    compact: true;
                     label: I18n.t1("studioLive.manageProductsBtn", "" + StudioProducts.rows.length);
                     clicked => { StudioLive.show-products = !StudioLive.show-products; }
                 }
 
-                // Advanced Settings button
                 StudioButton {
+                    compact: true;
                     label: I18n.t("studioLive.advancedSettings");
                     clicked => { StudioLive.show-settings = !StudioLive.show-settings; }
                 }
@@ -253,98 +294,22 @@ export component StudioLivePage inherits VerticalLayout {
         }
     }
 
-    // =========================================================================
-    // 2. STATUS & INSPECTION NOTICES
-    // =========================================================================
-    Rectangle {
-        background: Floword.surface;
-        border-radius: 12px;
-        border-width: 1px;
-        border-color: Floword.line;
-        min-height: 42px;
-
-        HorizontalLayout {
-            padding-left: 16px;
-            padding-right: 16px;
-            padding-top: 10px;
-            padding-bottom: 10px;
-            spacing: 14px;
-            alignment: space-between;
-
-            HorizontalLayout {
-                spacing: 18px;
-                alignment: start;
-
-                HorizontalLayout {
-                    spacing: 6px;
-                    alignment: center;
-                    Icon {
-                        glyph: Glyph.volume;
-                        size: 14px;
-                        tint: StudioOpenTalking.voice-options.length > 0 ? Floword.success : Floword.warning;
-                    }
-                    Text {
-                        text: StudioOpenTalking.voice-options.length > 0 ? I18n.t("studioLive.voiceReady") : I18n.t("studioLive.voiceNotReady");
-                        color: StudioOpenTalking.voice-options.length > 0 ? Floword.text : Floword.warning;
-                        font-size: 12px;
-                        font-weight: 500;
-                        vertical-alignment: center;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 6px;
-                    alignment: center;
-                    Icon {
-                        glyph: Glyph.sparkle;
-                        size: 14px;
-                        tint: StudioAi.models-loaded ? Floword.success : Floword.warning;
-                    }
-                    Text {
-                        text: StudioAi.models-loaded ? I18n.t("studioLive.aiReady") : I18n.t("studioLive.aiNotReady");
-                        color: StudioAi.models-loaded ? Floword.text : Floword.warning;
-                        font-size: 12px;
-                        font-weight: 500;
-                        vertical-alignment: center;
-                    }
-                }
-            }
-
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: end;
-
-                Rectangle {
-                    width: 7px;
-                    height: 7px;
-                    border-radius: 3.5px;
-                    background: StudioLive.auto-reply ? Floword.success : Floword.warning;
-                }
-
-                Text {
-                    text: StudioLive.auto-reply ? I18n.t("studioLive.autoReplyNoticeOn") : I18n.t("studioLive.autoReplyNoticeOff");
-                    color: StudioLive.auto-reply ? Floword.success : Floword.warning;
-                    font-size: 12px;
-                    font-weight: 600;
-                    vertical-alignment: center;
-                }
-            }
-        }
-    }
-
     if StudioLive.inspection-result != "": Rectangle {
         background: Floword.success.with-alpha(0.12);
-        border-radius: 10px;
+        border-radius: 8px;
         border-width: 1px;
         border-color: Floword.success.with-alpha(0.4);
         HorizontalLayout {
-            padding: 12px;
-            spacing: 8px;
-            Icon { glyph: Glyph.check; size: 16px; tint: Floword.success; }
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            spacing: 6px;
+            Icon { glyph: Glyph.check; size: 14px; tint: Floword.success; }
             Text {
                 text: StudioLive.inspection-result;
                 color: Floword.success;
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 600;
                 wrap: word-wrap;
                 horizontal-stretch: 1;
@@ -354,24 +319,26 @@ export component StudioLivePage inherits VerticalLayout {
 
     if StudioLive.status != "": Rectangle {
         background: Floword.warning.with-alpha(0.12);
-        border-radius: 10px;
+        border-radius: 8px;
         border-width: 1px;
         border-color: Floword.warning.with-alpha(0.4);
         HorizontalLayout {
-            padding: 12px;
-            spacing: 8px;
-            Icon { glyph: Glyph.more; size: 16px; tint: Floword.warning; }
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            spacing: 6px;
+            Icon { glyph: Glyph.more; size: 14px; tint: Floword.warning; }
             Text {
                 text: StudioLive.status;
                 color: Floword.warning;
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 600;
                 wrap: word-wrap;
                 horizontal-stretch: 1;
             }
         }
     }
-
 
     // =========================================================================
     // 3. OPTIONAL MODALS / DRAWERS (Products & Settings)
@@ -382,6 +349,7 @@ export component StudioLivePage inherits VerticalLayout {
         HorizontalLayout {
             Rectangle { horizontal-stretch: 1; }
             StudioButton {
+                compact: true;
                 label: I18n.t("studioProducts.hide");
                 clicked => { StudioLive.show-products = false; }
             }
@@ -389,13 +357,14 @@ export component StudioLivePage inherits VerticalLayout {
     }
 
     if StudioLive.show-settings: StudioCard {
-        StudioHeading { title: I18n.t("studioLive.settingsTitle"); glyph: Glyph.settings; }
-        Text { text: I18n.t("studioLive.obsGuide"); color: Floword.muted; wrap: word-wrap; }
-        Text { text: I18n.t("studioLive.obsSceneRule"); color: Floword.text; font-weight: 600; }
-        Text { text: I18n.t("studioLive.autoReplyNote"); color: Floword.warning; wrap: word-wrap; }
+        StudioHeading { title: I18n.t("studioLive.settingsTitle"); glyph: Glyph.settings; font-size: 14px; }
+        Text { text: I18n.t("studioLive.obsGuide"); color: Floword.muted; font-size: 11.5px; wrap: word-wrap; }
+        Text { text: I18n.t("studioLive.obsSceneRule"); color: Floword.text; font-size: 12px; font-weight: 600; }
+        Text { text: I18n.t("studioLive.autoReplyNote"); color: Floword.warning; font-size: 11px; wrap: word-wrap; }
         HorizontalLayout {
             Rectangle { horizontal-stretch: 1; }
             StudioButton {
+                compact: true;
                 label: I18n.t("common.cancel");
                 clicked => { StudioLive.show-settings = false; }
             }
@@ -403,25 +372,28 @@ export component StudioLivePage inherits VerticalLayout {
     }
 
     // =========================================================================
-    // 4. MAIN THREE-COLUMN WORKSPACE (Matching ArtCraft / Image 2)
+    // 4. MAIN THREE-COLUMN WORKSPACE (Optimized for 1080p Viewport)
     // =========================================================================
     HorizontalLayout {
-        spacing: 16px;
+        spacing: 12px;
         min-width: 0px;
 
         // ---------------------------------------------------------------------
-        // COLUMN 1: LIVE STUDIO OUTPUT & AVATAR SETTINGS
+        // COLUMN 1: LIVE STUDIO OUTPUT & AVATAR SETTINGS (Compact 295px)
         // ---------------------------------------------------------------------
         StudioCard {
-            width: 320px;
+            width: 295px;
             horizontal-stretch: 0;
-            spacing: 12px;
+            padding-v: 12px;
+            padding-h: 12px;
+            spacing: 8px;
 
-            StudioHeading { title: "1. KẾT NỐI TIKTOK LIVE"; glyph: Glyph.waveform; }
+            StudioHeading { title: "1. KẾT NỐI TIKTOK LIVE"; glyph: Glyph.waveform; font-size: 12.5px; icon-size: 15px; }
 
             // TikTok Username Input
             StudioField {
-                label: "Kênh TikTok Live (@username):";
+                compact: true;
+                label: "Kênh TikTok (@username):";
                 placeholder: "@ten_kenh_tiktok";
                 value: StudioLive.username;
                 enabled: !StudioLive.busy && StudioLive.state != "connected";
@@ -429,14 +401,16 @@ export component StudioLivePage inherits VerticalLayout {
             }
 
             HorizontalLayout {
-                spacing: 8px;
+                spacing: 6px;
                 if StudioLive.state != "connected" && StudioLive.state != "connecting" && StudioLive.state != "stopping": StudioButton {
+                    compact: true;
                     label: "Kiểm tra phòng";
                     enabled: !StudioLive.busy && StudioLive.username != "";
                     clicked => { StudioLive.inspect(StudioLive.username); }
                 }
 
                 if StudioLive.state != "connected" && StudioLive.state != "connecting" && StudioLive.state != "stopping": StudioButton {
+                    compact: true;
                     label: StudioLive.busy ? "Đang kết nối…" : "Kết nối Live";
                     primary: true;
                     enabled: !StudioLive.busy && StudioLive.username != "";
@@ -444,6 +418,7 @@ export component StudioLivePage inherits VerticalLayout {
                 }
 
                 if StudioLive.state == "connected" || StudioLive.state == "connecting" || StudioLive.state == "stopping": StudioButton {
+                    compact: true;
                     label: StudioLive.busy ? "Đang ngắt…" : "Ngắt kết nối";
                     enabled: !StudioLive.busy;
                     clicked => { StudioLive.disconnect(); }
@@ -453,14 +428,17 @@ export component StudioLivePage inherits VerticalLayout {
             // Connection status feedback
             Rectangle {
                 background: Floword.field;
-                border-radius: 8px;
+                border-radius: 6px;
                 border-width: 1px;
                 border-color: StudioLive.state == "connected" ? Floword.success.with-alpha(0.4) : Floword.line;
+                height: 24px;
                 HorizontalLayout {
-                    padding: 8px;
-                    spacing: 8px;
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 6px;
+                    alignment: start;
                     Rectangle {
-                        width: 8px; height: 8px; border-radius: 4px;
+                        width: 6px; height: 6px; border-radius: 3px;
                         background: StudioLive.state == "connected" ? Floword.success : Floword.warning;
                         y: (parent.height - self.height) / 2;
                     }
@@ -469,25 +447,26 @@ export component StudioLivePage inherits VerticalLayout {
                             : StudioLive.state == "connecting" ? "Đang dò tìm luồng phát..."
                             : "Chưa kết nối · Nhập @username";
                         color: StudioLive.state == "connected" ? Floword.success : Floword.muted;
-                        font-size: 11px;
+                        font-size: 10.5px;
                         font-weight: 600;
+                        vertical-alignment: center;
                     }
                 }
             }
 
             Rectangle { height: 1px; background: Floword.line; }
 
-            StudioHeading { title: "2. NHÂN VẬT & GIỌNG ĐỌC"; glyph: Glyph.film; }
+            StudioHeading { title: "2. NHÂN VẬT & GIỌNG ĐỌC"; glyph: Glyph.film; font-size: 12.5px; icon-size: 15px; }
 
             // Avatar selection
             VerticalLayout {
-                spacing: 6px;
-                Text { text: I18n.t("studioOpenTalking.avatar"); color: Floword.text; font-size: 13px; font-weight: 600; }
+                spacing: 3px;
+                Text { text: I18n.t("studioOpenTalking.avatar"); color: Floword.text; font-size: 11.5px; font-weight: 600; }
                 Select {
                     options: StudioOpenTalking.avatar-options;
                     current <=> StudioOpenTalking.avatar-index;
                     placeholder: I18n.t("studioOpenTalking.chooseAvatar");
-                    height: 38px;
+                    height: 32px;
                     background: Floword.field;
                     border-color: Floword.line;
                     enabled: !StudioOpenTalking.busy;
@@ -496,13 +475,13 @@ export component StudioLivePage inherits VerticalLayout {
 
             // Voice selection
             VerticalLayout {
-                spacing: 6px;
-                Text { text: I18n.t("studioOpenTalking.voice"); color: Floword.text; font-size: 13px; font-weight: 600; }
+                spacing: 3px;
+                Text { text: I18n.t("studioOpenTalking.voice"); color: Floword.text; font-size: 11.5px; font-weight: 600; }
                 Select {
                     options: StudioOpenTalking.voice-options;
                     current <=> StudioOpenTalking.voice-index;
                     placeholder: I18n.t("studioOpenTalking.chooseVoice");
-                    height: 38px;
+                    height: 32px;
                     background: Floword.field;
                     border-color: Floword.line;
                     enabled: !StudioOpenTalking.busy;
@@ -511,13 +490,13 @@ export component StudioLivePage inherits VerticalLayout {
 
             // Model selection
             VerticalLayout {
-                spacing: 6px;
-                Text { text: I18n.t("studioAi.defaultModel"); color: Floword.text; font-size: 13px; font-weight: 600; }
+                spacing: 3px;
+                Text { text: I18n.t("studioAi.defaultModel"); color: Floword.text; font-size: 11.5px; font-weight: 600; }
                 Select {
                     options: StudioAi.models;
                     current <=> StudioAi.model-index;
                     placeholder: I18n.t("studioAi.defaultModel");
-                    height: 38px;
+                    height: 32px;
                     background: Floword.field;
                     border-color: Floword.line;
                     enabled: !StudioAi.busy && StudioAi.models-loaded;
@@ -526,13 +505,15 @@ export component StudioLivePage inherits VerticalLayout {
 
             // Actions
             HorizontalLayout {
-                spacing: 8px;
+                spacing: 6px;
                 StudioButton {
+                    compact: true;
                     label: I18n.t("studioLive.testSpeech");
                     enabled: !StudioLive.busy && !StudioLive.is-speaking;
                     clicked => { StudioLive.speak-text(I18n.t("studioLive.testSpeechSample")); }
                 }
                 StudioButton {
+                    compact: true;
                     label: StudioOpenTalking.busy ? I18n.t("studioOpenTalking.working") : I18n.t("studioOpenTalking.refresh");
                     enabled: !StudioOpenTalking.busy;
                     clicked => { StudioOpenTalking.refresh(); StudioAi.load-models(); }
@@ -545,16 +526,16 @@ export component StudioLivePage inherits VerticalLayout {
         // ---------------------------------------------------------------------
         VerticalLayout {
             horizontal-stretch: 1;
-            min-width: 360px;
-            spacing: 14px;
+            min-width: 320px;
+            spacing: 10px;
 
-            // Virtual Host Video Screen
+            // Virtual Host Video Screen (Compact 290px)
             Rectangle {
                 background: Floword.surface;
-                border-radius: 16px;
+                border-radius: 14px;
                 border-width: 1px;
                 border-color: Floword.line-bright;
-                min-height: 360px;
+                height: 290px;
                 clip: true;
 
                 // High Definition 3D Live Streamer Background
@@ -569,12 +550,12 @@ export component StudioLivePage inherits VerticalLayout {
                 Rectangle {
                     width: 100%;
                     height: 100%;
-                    background: @linear-gradient(180deg, #080D1BDD 0%, #080D1B44 35%, #080D1B33 65%, #080D1BEE 100%);
+                    background: @linear-gradient(180deg, #080D1BDD 0%, #080D1B22 35%, #080D1B22 65%, #080D1BEE 100%);
                 }
 
                 VerticalLayout {
                     alignment: space-between;
-                    padding: 14px;
+                    padding: 10px;
 
                     // Top preview bar
                     HorizontalLayout {
@@ -582,28 +563,28 @@ export component StudioLivePage inherits VerticalLayout {
 
                         // Speaking / Status Pill
                         Rectangle {
-                            background: #000000bb;
-                            border-radius: 14px;
+                            background: #000000cc;
+                            border-radius: 12px;
                             border-width: 1px;
                             border-color: #ffffff20;
-                            height: 28px;
+                            height: 24px;
 
                             HorizontalLayout {
-                                padding-left: 10px;
-                                padding-right: 10px;
-                                spacing: 6px;
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                spacing: 5px;
                                 alignment: center;
                                 Rectangle {
-                                    width: 8px;
-                                    height: 8px;
-                                    border-radius: 4px;
+                                    width: 6px;
+                                    height: 6px;
+                                    border-radius: 3px;
                                     background: StudioLive.state == "connected" ? Floword.success : Floword.warning;
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
                                     text: StudioLive.state == "connected" ? "LIVE PHÁT SÓNG" : "CHƯA KẾT NỐI PHIÊN LIVE";
                                     color: #ffffff;
-                                    font-size: 11px;
+                                    font-size: 10px;
                                     font-weight: 700;
                                 }
                             }
@@ -611,56 +592,33 @@ export component StudioLivePage inherits VerticalLayout {
 
                         // Host info badge
                         Rectangle {
-                            background: #000000bb;
-                            border-radius: 14px;
+                            background: #000000cc;
+                            border-radius: 12px;
                             border-width: 1px;
                             border-color: #ffffff20;
-                            height: 28px;
+                            height: 24px;
 
                             HorizontalLayout {
-                                padding-left: 10px;
-                                padding-right: 10px;
-                                spacing: 6px;
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                spacing: 5px;
                                 alignment: center;
-                                Icon { glyph: Glyph.sparkle; size: 13px; tint: Floword.cyan; }
+                                Icon { glyph: Glyph.sparkle; size: 11px; tint: Floword.cyan; }
                                 Text {
                                     text: StudioOpenTalking.avatar-options.length > 0 && StudioOpenTalking.avatar-index < StudioOpenTalking.avatar-options.length
                                         ? StudioOpenTalking.avatar-options[StudioOpenTalking.avatar-index]
-                                        : "Chọn nhân vật để xem trước";
+                                        : "Chưa chọn nhân vật";
                                     color: #ffffff;
-                                    font-size: 11px;
+                                    font-size: 10px;
                                     font-weight: 600;
                                 }
                             }
                         }
                     }
 
-                    // Center Canvas area
-                    if StudioOpenTalking.avatar-options.length == 0 || StudioOpenTalking.avatar-index >= StudioOpenTalking.avatar-options.length: Rectangle {
-                        min-height: 120px;
-                        VerticalLayout {
-                            alignment: center;
-                            spacing: 6px;
-                            Text {
-                                text: "CHỌN NHÂN VẬT ĐỂ BẮT ĐẦU XEM TRƯỚC";
-                                color: Floword.cyan;
-                                font-size: 14px;
-                                font-weight: 700;
-                                horizontal-alignment: center;
-                            }
-                            Text {
-                                text: "Chọn nhân vật và giọng đọc từ bảng điều khiển bên trái để kích hoạt AI Host.";
-                                color: Floword.muted;
-                                font-size: 12px;
-                                horizontal-alignment: center;
-                                wrap: word-wrap;
-                            }
-                        }
-                    }
-
                     // Bottom audio waveform & subtitle overlay
                     VerticalLayout {
-                        spacing: 8px;
+                        spacing: 6px;
 
                         // Audio Waveform & Interrupt
                         HorizontalLayout {
@@ -669,23 +627,24 @@ export component StudioLivePage inherits VerticalLayout {
 
                             // Sound waves
                             HorizontalLayout {
-                                spacing: 4px;
+                                spacing: 3px;
                                 alignment: center;
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 8px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 16px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 22px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 12px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 26px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 18px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 10px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 24px; }
+                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 6px; }
                                 VoiceWaveBar { active: StudioLive.is-speaking; target-height: 14px; }
                                 VoiceWaveBar { active: StudioLive.is-speaking; target-height: 20px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 28px; }
+                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 10px; }
+                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 22px; }
+                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 16px; }
+                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 8px; }
+                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 20px; }
                                 VoiceWaveBar { active: StudioLive.is-speaking; target-height: 12px; }
+                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 18px; }
+                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 24px; }
+                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 10px; }
                             }
 
                             if StudioLive.is-speaking: StudioButton {
+                                compact: true;
                                 label: I18n.t("studioLive.interrupt");
                                 clicked => { StudioLive.interrupt-speech(); }
                             }
@@ -693,19 +652,22 @@ export component StudioLivePage inherits VerticalLayout {
 
                         // Subtitle card
                         Rectangle {
-                            background: #000000cc;
-                            border-radius: 12px;
+                            background: #000000dd;
+                            border-radius: 9px;
                             border-width: 1px;
                             border-color: #ffffff18;
 
                             HorizontalLayout {
-                                padding: 10px;
-                                spacing: 10px;
-                                Icon { glyph: Glyph.volume; size: 16px; tint: Floword.cyan; }
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                padding-top: 6px;
+                                padding-bottom: 6px;
+                                spacing: 8px;
+                                Icon { glyph: Glyph.volume; size: 14px; tint: Floword.cyan; }
                                 Text {
                                     text: StudioLive.displayed-subtitle;
                                     color: #f1f5f9;
-                                    font-size: 12px;
+                                    font-size: 11px;
                                     font-weight: 500;
                                     wrap: word-wrap;
                                     horizontal-stretch: 1;
@@ -717,38 +679,43 @@ export component StudioLivePage inherits VerticalLayout {
                 }
             }
 
-            // Pinned Product Card (Inspired by ArtCraft)
+            // Pinned Product Card (Compact 74px)
             Rectangle {
                 background: Floword.surface;
-                border-radius: 16px;
+                border-radius: 12px;
                 border-width: 1px;
                 border-color: Floword.line;
+                height: 74px;
 
                 HorizontalLayout {
-                    padding: 14px;
-                    spacing: 12px;
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 8px;
+                    padding-bottom: 8px;
+                    spacing: 10px;
                     alignment: space-between;
 
                     VerticalLayout {
-                        spacing: 4px;
+                        spacing: 2px;
                         horizontal-stretch: 1;
+                        alignment: center;
 
                         HorizontalLayout {
-                            spacing: 8px;
+                            spacing: 6px;
                             Rectangle {
                                 background: Floword.success.with-alpha(0.18);
                                 border-radius: 4px;
                                 border-width: 1px;
                                 border-color: Floword.success.with-alpha(0.3);
                                 HorizontalLayout {
-                                    padding-left: 6px;
-                                    padding-right: 6px;
-                                    padding-top: 2px;
-                                    padding-bottom: 2px;
+                                    padding-left: 5px;
+                                    padding-right: 5px;
+                                    padding-top: 1px;
+                                    padding-bottom: 1px;
                                     Text {
                                         text: I18n.t("studioLive.pinnedBadge");
                                         color: Floword.success;
-                                        font-size: 10px;
+                                        font-size: 9.5px;
                                         font-weight: 700;
                                     }
                                 }
@@ -757,7 +724,7 @@ export component StudioLivePage inherits VerticalLayout {
                                 text: StudioLive.pinned-price != "" ? StudioLive.pinned-price
                                     : (StudioProducts.active-price != "" ? StudioProducts.active-price : "-- đ");
                                 color: Floword.success;
-                                font-size: 12px;
+                                font-size: 11.5px;
                                 font-weight: 700;
                             }
                         }
@@ -766,30 +733,32 @@ export component StudioLivePage inherits VerticalLayout {
                             text: StudioLive.pinned-title != "" ? StudioLive.pinned-title
                                 : (StudioProducts.active-title != "" ? StudioProducts.active-title : I18n.t("studioLive.noProduct"));
                             color: Floword.text;
-                            font-size: 14px;
+                            font-size: 12.5px;
                             font-weight: 700;
-                            wrap: word-wrap;
+                            overflow: elide;
                         }
 
                         Text {
                             text: StudioLive.pinned-script != "" ? StudioLive.pinned-script
                                 : (StudioProducts.active-title != "" ? StudioProducts.active-title : I18n.t("studioLive.noProductScript"));
                             color: Floword.muted;
-                            font-size: 11px;
-                            wrap: word-wrap;
+                            font-size: 10.5px;
+                            overflow: elide;
                         }
                     }
 
                     VerticalLayout {
-                        spacing: 6px;
+                        spacing: 5px;
                         alignment: center;
 
                         StudioButton {
+                            compact: true;
                             label: I18n.t("studioLive.nextProduct");
                             clicked => { StudioLive.next-product(); }
                         }
 
                         StudioButton {
+                            compact: true;
                             label: I18n.t("studioLive.speakScript");
                             primary: true;
                             enabled: !StudioLive.busy && !StudioLive.is-speaking;
@@ -801,31 +770,33 @@ export component StudioLivePage inherits VerticalLayout {
         }
 
         // ---------------------------------------------------------------------
-        // COLUMN 3: REAL-TIME COMMENTS & AI AUTO-REPLY
+        // COLUMN 3: REAL-TIME COMMENTS & AI AUTO-REPLY (Width 375px)
         // ---------------------------------------------------------------------
         StudioCard {
-            width: 350px;
+            width: 375px;
             horizontal-stretch: 0;
-            min-height: 580px;
-            spacing: 12px;
+            padding-v: 12px;
+            padding-h: 12px;
+            spacing: 8px;
 
             // Header & Auto-Reply Switch
             HorizontalLayout {
                 alignment: space-between;
-                spacing: 8px;
+                spacing: 6px;
                 HorizontalLayout {
-                    spacing: 8px;
+                    spacing: 6px;
                     alignment: start;
-                    Icon { glyph: Glyph.more; size: 18px; tint: Floword.violet; }
+                    Icon { glyph: Glyph.more; size: 15px; tint: Floword.violet; }
                     Text {
                         text: I18n.t("studioLive.commentsTitle");
                         color: Floword.text;
-                        font-size: 15px;
+                        font-size: 13px;
                         font-weight: 700;
                         vertical-alignment: center;
                     }
                 }
                 StudioButton {
+                    compact: true;
                     label: StudioLive.auto-reply ? I18n.t("studioLive.autoOn") : I18n.t("studioLive.autoOff");
                     primary: StudioLive.auto-reply;
                     clicked => { StudioLive.toggle-auto-reply(); }
@@ -836,17 +807,11 @@ export component StudioLivePage inherits VerticalLayout {
 
             // Checkbox options
             VerticalLayout {
-                spacing: 6px;
+                spacing: 4px;
                 LiveCheckbox {
                     text: I18n.t("studioLive.autoProductReply");
                     checked: StudioLive.auto-product-reply;
                     toggled => { StudioLive.toggle-auto-product-reply(); }
-                }
-                Text {
-                    text: I18n.t("studioLive.autoProductReplyNote");
-                    color: Floword.muted;
-                    font-size: 11px;
-                    wrap: word-wrap;
                 }
                 LiveCheckbox {
                     text: I18n.t("studioLive.autoProductRotation");
@@ -859,7 +824,7 @@ export component StudioLivePage inherits VerticalLayout {
 
             // Filter Tabs
             HorizontalLayout {
-                spacing: 4px;
+                spacing: 3px;
                 LiveTabButton {
                     text: I18n.t1("studioLive.tabAll", "" + StudioLive.comments.length);
                     active: StudioLive.active-tab == 0;
@@ -884,23 +849,23 @@ export component StudioLivePage inherits VerticalLayout {
 
             // Real-time Event Feed List
             VerticalLayout {
-                spacing: 8px;
-                min-height: 220px;
+                spacing: 6px;
+                min-height: 140px;
                 vertical-stretch: 1;
 
                 if StudioLive.comments.length == 0: VerticalLayout {
                     alignment: center;
-                    spacing: 4px;
+                    spacing: 3px;
                     Text {
                         text: I18n.t("studioLive.waitingEvents");
                         color: Floword.muted;
-                        font-size: 12px;
+                        font-size: 11px;
                         horizontal-alignment: center;
                     }
                     Text {
                         text: I18n.t("studioLive.waitingHint");
                         color: Floword.muted;
-                        font-size: 11px;
+                        font-size: 10px;
                         horizontal-alignment: center;
                     }
                 }
@@ -910,7 +875,7 @@ export component StudioLivePage inherits VerticalLayout {
                         : (comment.kind == "like" || comment.kind == "follow") ? Floword.success.with-alpha(0.08)
                         : comment.kind == "ai" ? Floword.violet.with-alpha(0.12)
                         : Floword.field;
-                    border-radius: 10px;
+                    border-radius: 8px;
                     border-width: 1px;
                     border-color: comment.kind == "gift" ? Floword.warning.with-alpha(0.3)
                         : (comment.kind == "like" || comment.kind == "follow") ? Floword.success.with-alpha(0.3)
@@ -918,28 +883,28 @@ export component StudioLivePage inherits VerticalLayout {
                         : Floword.line;
 
                     HorizontalLayout {
-                        padding: 8px;
-                        spacing: 8px;
+                        padding: 6px;
+                        spacing: 6px;
                         alignment: space-between;
 
                         VerticalLayout {
                             horizontal-stretch: 1;
-                            spacing: 3px;
+                            spacing: 2px;
 
                             HorizontalLayout {
-                                spacing: 6px;
+                                spacing: 5px;
                                 Text {
                                     text: comment.username;
                                     color: comment.kind == "gift" ? Floword.warning
                                         : comment.kind == "ai" ? Floword.violet
                                         : Floword.success;
-                                    font-size: 12px;
+                                    font-size: 11px;
                                     font-weight: 700;
                                 }
                                 if comment.time != "": Text {
                                     text: comment.time;
                                     color: Floword.muted;
-                                    font-size: 10px;
+                                    font-size: 9.5px;
                                     vertical-alignment: center;
                                 }
                             }
@@ -947,12 +912,13 @@ export component StudioLivePage inherits VerticalLayout {
                             Text {
                                 text: comment.content;
                                 color: Floword.text;
-                                font-size: 12px;
+                                font-size: 11px;
                                 wrap: word-wrap;
                             }
                         }
 
                         if comment.kind != "gift" && comment.kind != "like" && comment.kind != "follow" && comment.kind != "ai": StudioButton {
+                            compact: true;
                             label: I18n.t("studioLive.askAi");
                             enabled: StudioLive.state == "connected" && !StudioLive.busy && !StudioLive.is-speaking;
                             clicked => { StudioLive.reply-to-comment(comment.username, comment.content); }
@@ -963,21 +929,21 @@ export component StudioLivePage inherits VerticalLayout {
 
             // Bottom Chat Input & Speak
             HorizontalLayout {
-                spacing: 8px;
+                spacing: 6px;
                 alignment: center;
 
                 Rectangle {
                     background: Floword.field;
-                    border-radius: 9px;
+                    border-radius: 8px;
                     border-width: 1px;
                     border-color: chat-in.has-focus ? Floword.violet : Floword.line;
-                    min-height: 38px;
-                    max-height: 38px;
+                    min-height: 30px;
+                    max-height: 30px;
                     horizontal-stretch: 1;
 
                     HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
+                        padding-left: 8px;
+                        padding-right: 8px;
                         alignment: center;
                         Rectangle {
                             horizontal-stretch: 1;
@@ -987,7 +953,7 @@ export component StudioLivePage inherits VerticalLayout {
                                 text: StudioLive.message;
                                 enabled: !StudioLive.busy;
                                 color: Floword.text;
-                                font-size: 13px;
+                                font-size: 11.5px;
                                 vertical-alignment: center;
                                 edited => { StudioLive.message = self.text; }
                             }
@@ -995,18 +961,20 @@ export component StudioLivePage inherits VerticalLayout {
                                 width: 100%;
                                 text: I18n.t("studioLive.messageHint");
                                 color: Floword.muted;
-                                font-size: 13px;
+                                font-size: 11px;
                                 vertical-alignment: center;
                             }
                         }
                     }
                 }
                 StudioButton {
+                    compact: true;
                     label: I18n.t("studioLive.speakBtn");
                     enabled: !StudioLive.busy && !StudioLive.is-speaking && StudioLive.message != "";
                     clicked => { StudioLive.speak-text(StudioLive.message); }
                 }
                 StudioButton {
+                    compact: true;
                     label: I18n.t("studioLive.sendBtn");
                     primary: true;
                     enabled: !StudioLive.busy && StudioLive.state == "connected" && StudioLive.message != "";
