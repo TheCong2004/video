@@ -2,6 +2,7 @@
 import { I18n } from "../i18n.slint";
 import { Floword } from "../theme/floword.slint";
 import { Select } from "../primitives/primitives.slint";
+import { Glyph, Icon } from "../icons.slint";
 import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
 
 export struct StudioAvatarRow { id: string, label: string, model-type: string }
@@ -144,11 +145,12 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                         border-color: Floword.line;
                         background: refresh-touch.has-hover ? Floword.raised : Floword.field;
 
-                        Text {
-                            text: "🔄";
-                            font-size: 15px;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                        Icon {
+                            glyph: Glyph.sparkle;
+                            size: 16px;
+                            tint: Floword.cyan;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
                         }
 
                         refresh-touch := TouchArea {
@@ -579,7 +581,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                         alignment: end;
 
                         StudioButton {
-                            label: "🔊 Nghe thử";
+                            label: "Nghe thử giọng";
                             clicked => {
                                 StudioOpenTalking.test-voice(index);
                             }

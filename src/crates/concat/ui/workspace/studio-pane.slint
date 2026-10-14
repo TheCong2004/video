@@ -95,24 +95,113 @@ export component StudioPage inherits VerticalLayout {
 
     HorizontalLayout {
         spacing: 20px;
+        alignment: space-between;
         VerticalLayout {
-            spacing: 7px;
-            Text { text: "OBSIDIAN MOTION STUDIO"; color: Floword.violet; font-size: 12px; font-weight: 600; }
-            Text { text: StudioBridge.title(root.route); color: Floword.text; font-size: 27px; font-weight: 700; wrap: word-wrap; }
+            spacing: 5px;
+            HorizontalLayout {
+                spacing: 8px;
+                Rectangle {
+                    width: 8px; height: 8px; border-radius: 4px; background: Floword.cyan;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text { text: "OBSIDIAN MOTION STUDIO · NEON GRID V2"; color: Floword.cyan; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; }
+            }
+            Text { text: StudioBridge.title(root.route); color: Floword.text; font-size: 26px; font-weight: 700; wrap: word-wrap; }
         }
         Rectangle { horizontal-stretch: 1; }
-        StudioButton { label: I18n.t("start.projects"); clicked => { root.back(); } }
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: center;
+            StudioButton { label: "← " + I18n.t("start.projects"); clicked => { root.back(); } }
+        }
     }
     if root.route == StudioRoute.overview: VerticalLayout {
         spacing: 20px;
-        StudioCard {
-            StudioHeading { title: "Bắt đầu sáng tạo video"; glyph: Glyph.sparkle; }
-            Text { text: "Chưa từng dựng video? Hãy mở Xưởng phim AI, viết ý tưởng của bạn và làm theo 3 bước hướng dẫn. Mọi cài đặt chuyên sâu vẫn có sẵn khi cần."; color: Floword.muted; font-size: 14px; wrap: word-wrap; }
+
+        // HERO BANNER
+        Rectangle {
+            background: Floword.surface;
+            border-radius: 18px;
+            border-width: 1px;
+            border-color: Floword.line-bright;
+            clip: true;
+
             HorizontalLayout {
-                spacing: 12px;
-                StudioButton { label: "Tạo video đầu tiên"; primary: true; clicked => { root.navigate(StudioRoute.production); } }
-                StudioButton { label: "Xem mẫu kịch bản"; clicked => { root.navigate(StudioRoute.scripts); } }
-                Rectangle { horizontal-stretch: 1; }
+                padding: 22px;
+                spacing: 22px;
+                alignment: space-between;
+
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 12px;
+                    alignment: center;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Rectangle {
+                            background: Floword.cyan.with-alpha(0.18);
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Floword.cyan.with-alpha(0.35);
+                            HorizontalLayout {
+                                padding-left: 8px; padding-right: 8px; padding-top: 3px; padding-bottom: 3px;
+                                Text {
+                                    text: "XƯỞNG SẢN XUẤT VIDEO AI · OBSIDIAN V2";
+                                    color: Floword.cyan;
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    letter-spacing: 0.6px;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "Tạo video đầu tiên chỉ với 3 bước đơn giản";
+                        color: Floword.text;
+                        font-size: 23px;
+                        font-weight: 700;
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "Từ ý tưởng câu chuyện thành phim hoàn chỉnh: viết kịch bản, AI tự động sinh hình ảnh nhân vật & lồng tiếng, ghép cảnh và xuất bản đa nền tảng.";
+                        color: Floword.muted;
+                        font-size: 13px;
+                        wrap: word-wrap;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        padding-top: 4px;
+                        StudioButton {
+                            label: "Tạo video đầu tiên";
+                            primary: true;
+                            clicked => { root.navigate(StudioRoute.production); }
+                        }
+                        StudioButton {
+                            label: "Xem mẫu kịch bản";
+                            clicked => { root.navigate(StudioRoute.scripts); }
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+                    }
+                }
+
+                // Hero Illustration Image
+                Rectangle {
+                    width: 320px;
+                    height: 180px;
+                    border-radius: 14px;
+                    border-width: 1px;
+                    border-color: Floword.line-bright;
+                    clip: true;
+                    Image {
+                        source: @image-url("../assets/studio-hero.jpg");
+                        width: 100%;
+                        height: 100%;
+                        image-fit: cover;
+                    }
+                }
             }
         }
 
@@ -121,7 +210,7 @@ export component StudioPage inherits VerticalLayout {
             spacing: 16px;
             StudioMetric { label: I18n.t("nativeStudio.jobs"); value: ProductionStudio.runs-loaded ? "\{ProductionStudio.runs.length}" : "—"; }
             StudioMetric { label: I18n.t("nativeStudio.workflow"); value: StudioBridge.workflows-state == 1 && !StudioBridge.workflows-loading ? "\{StudioBridge.workflows.length}" : "—"; }
-            StudioMetric { label: I18n.t("productionStudio.scripts"); value: ScriptLibrary.loaded ? "\{ScriptLibrary.rows.length}" : "—"; }
+            StudioMetric { label: I18n.t("productionStudio.scripts"); value: ScriptLibrary.loaded ? "\{ScriptLibrary.rows.length}" : "4 Mẫu"; }
             StudioMetric { label: "Kênh Hoạt Động"; value: "\{StudioChannels.rows.length}"; }
         }
 
@@ -131,25 +220,38 @@ export component StudioPage inherits VerticalLayout {
             // Card 1: Xưởng Phim AI
             Rectangle {
                 background: Floword.surface;
-                border-radius: 14px;
+                border-radius: 16px;
                 border-width: 1px;
                 border-color: Floword.line;
                 horizontal-stretch: 1;
+                clip: true;
                 VerticalLayout {
-                    padding: 18px;
-                    spacing: 10px;
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Icon { glyph: Glyph.film; size: 20px; tint: Floword.violet; }
-                        Text { text: "Xưởng Phim AI"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
+                    Rectangle {
+                        height: 110px;
+                        clip: true;
+                        Image {
+                            source: @image-url("../assets/studio-production.jpg");
+                            width: 100%;
+                            height: 100%;
+                            image-fit: cover;
+                        }
                     }
-                    Text { text: "Từ ý tưởng đến video hoàn chỉnh. Chỉ cần mô tả câu chuyện và làm theo hướng dẫn."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
-                    HorizontalLayout {
-                        Rectangle { horizontal-stretch: 1; }
-                        StudioButton {
-                            label: "Mở Xưởng phim";
-                            primary: true;
-                            clicked => { root.navigate(StudioRoute.production); }
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 8px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Icon { glyph: Glyph.film; size: 18px; tint: Floword.cyan; }
+                            Text { text: "Xưởng Phim AI"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
+                        }
+                        Text { text: "Từ ý tưởng đến video hoàn chỉnh theo quy trình 7 bước tự động."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+                        HorizontalLayout {
+                            Rectangle { horizontal-stretch: 1; }
+                            StudioButton {
+                                label: "Mở Xưởng phim";
+                                primary: true;
+                                clicked => { root.navigate(StudioRoute.production); }
+                            }
                         }
                     }
                 }
@@ -158,24 +260,37 @@ export component StudioPage inherits VerticalLayout {
             // Card 2: Chợ Kịch Bản
             Rectangle {
                 background: Floword.surface;
-                border-radius: 14px;
+                border-radius: 16px;
                 border-width: 1px;
                 border-color: Floword.line;
                 horizontal-stretch: 1;
+                clip: true;
                 VerticalLayout {
-                    padding: 18px;
-                    spacing: 10px;
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Icon { glyph: Glyph.sparkle; size: 20px; tint: Floword.violet; }
-                        Text { text: "Chợ Kịch Bản"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
+                    Rectangle {
+                        height: 110px;
+                        clip: true;
+                        Image {
+                            source: @image-url("../assets/studio-scripts.jpg");
+                            width: 100%;
+                            height: 100%;
+                            image-fit: cover;
+                        }
                     }
-                    Text { text: "Chọn một mẫu câu chuyện có sẵn để bắt đầu nhanh hơn."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
-                    HorizontalLayout {
-                        Rectangle { horizontal-stretch: 1; }
-                        StudioButton {
-                            label: "Xem kịch bản";
-                            clicked => { root.navigate(StudioRoute.scripts); }
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 8px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Icon { glyph: Glyph.text-mark; size: 18px; tint: Floword.violet; }
+                            Text { text: "Chợ Kịch Bản"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
+                        }
+                        Text { text: "Kho kịch bản điện ảnh triệu view và câu chuyện xúc động từ ArtCraft."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+                        HorizontalLayout {
+                            Rectangle { horizontal-stretch: 1; }
+                            StudioButton {
+                                label: "Xem kịch bản";
+                                clicked => { root.navigate(StudioRoute.scripts); }
+                            }
                         }
                     }
                 }
@@ -187,7 +302,7 @@ export component StudioPage inherits VerticalLayout {
             // Card 3: TikTok LIVE Studio
             Rectangle {
                 background: Floword.surface;
-                border-radius: 14px;
+                border-radius: 16px;
                 border-width: 1px;
                 border-color: Floword.line;
                 horizontal-stretch: 1;
@@ -210,10 +325,10 @@ export component StudioPage inherits VerticalLayout {
                 }
             }
 
-            // Card 4: Hàng Đợi Đăng Bài
+            // Card 4: Workflow Promax
             Rectangle {
                 background: Floword.surface;
-                border-radius: 14px;
+                border-radius: 16px;
                 border-width: 1px;
                 border-color: Floword.line;
                 horizontal-stretch: 1;
@@ -222,15 +337,15 @@ export component StudioPage inherits VerticalLayout {
                     spacing: 10px;
                     HorizontalLayout {
                         spacing: 8px;
-                        Icon { glyph: Glyph.import; size: 20px; tint: Floword.warning; }
-                        Text { text: "Hàng Đợi Đăng Bài"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
+                        Icon { glyph: Glyph.curves; size: 20px; tint: Floword.cyan; }
+                        Text { text: "Workflow Promax"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
                     }
-                    Text { text: "Lên lịch và tự động hóa xuất bản đa nền tảng (TikTok, YouTube, Facebook)."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+                    Text { text: "Quy trình tự động hóa các nút AI, kiểm tra preflight và điều phối worker."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
                     HorizontalLayout {
                         Rectangle { horizontal-stretch: 1; }
                         StudioButton {
-                            label: "Xem lịch đăng";
-                            clicked => { root.navigate(StudioRoute.publish); }
+                            label: "Khám phá workflow";
+                            clicked => { root.navigate(StudioRoute.workflows); }
                         }
                     }
                 }
@@ -240,7 +355,7 @@ export component StudioPage inherits VerticalLayout {
         // Service Connectivity Ribbon
         Rectangle {
             background: Floword.surface;
-            border-radius: 12px;
+            border-radius: 14px;
             border-width: 1px;
             border-color: Floword.line;
             HorizontalLayout {
@@ -250,7 +365,7 @@ export component StudioPage inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: center;
-                    Text { text: "Dịch vụ tạo video:"; color: Floword.muted; font-size: 12px; }
+                    Text { text: "Promax Engine (43100):"; color: Floword.muted; font-size: 12px; }
                     Text {
                         text: StudioBridge.promax-state == 1 ? "Sẵn sàng" : "Chưa kết nối";
                         color: StudioBridge.promax-state == 1 ? Floword.success : Floword.warning;
@@ -260,7 +375,7 @@ export component StudioPage inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: center;
-                    Text { text: "Dịch vụ xử lý hình ảnh:"; color: Floword.muted; font-size: 12px; }
+                    Text { text: "ArtCraft Media (30000):"; color: Floword.muted; font-size: 12px; }
                     Text {
                         text: StudioBridge.artcraft-state == 1 ? "Sẵn sàng" : "Chưa kết nối";
                         color: StudioBridge.artcraft-state == 1 ? Floword.success : Floword.warning;
@@ -310,11 +425,82 @@ export component StudioPage inherits VerticalLayout {
         Text { text: ProductionStudio.status; color: Floword.muted; wrap: word-wrap; }
         StudioRunList { history-only: root.route == StudioRoute.history; }
     }
-    if root.route == StudioRoute.workflows: HorizontalLayout {
+    if root.route == StudioRoute.workflows: VerticalLayout {
         spacing: 16px;
 
-        // Left Column: Promax Workflow Catalog
-        StudioCard {
+        // Workflow Banner
+        Rectangle {
+            height: 140px;
+            border-radius: 16px;
+            clip: true;
+            background: Floword.surface;
+            border-width: 1px;
+            border-color: Floword.line-bright;
+
+            Image {
+                width: 100%;
+                height: 100%;
+                source: @image-url("../assets/studio-workflow.jpg");
+                image-fit: cover;
+            }
+
+            Rectangle {
+                width: 100%;
+                height: 100%;
+                background: @linear-gradient(90deg, #080D1BEE 0%, #080D1BDD 45%, #080D1B77 75%, #080D1B22 100%);
+            }
+
+            HorizontalLayout {
+                padding-left: 28px;
+                padding-right: 28px;
+                padding-top: 20px;
+                padding-bottom: 20px;
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 8px;
+                    alignment: center;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Rectangle {
+                            background: Floword.violet.with-alpha(0.25);
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Floword.violet;
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                padding-top: 3px;
+                                padding-bottom: 3px;
+                                spacing: 6px;
+                                Icon { glyph: Glyph.curves; size: 12px; tint: Floword.cyan; }
+                                Text { text: "PROMAX PIPELINE · AUTONOMOUS WORKFLOW"; color: Floword.cyan; font-size: 11px; font-weight: 700; }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "Trung tâm điều phối quy trình tự động hóa Promax";
+                        color: Floword.text;
+                        font-size: 20px;
+                        font-weight: 700;
+                    }
+
+                    Text {
+                        text: "Tự động phân phối các capability xử lý video đến worker tối ưu.";
+                        color: Floword.muted;
+                        font-size: 13px;
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 16px;
+
+            // Left Column: Promax Workflow Catalog
+            StudioCard {
             horizontal-stretch: 1;
             min-width: 360px;
             spacing: 14px;
@@ -482,6 +668,7 @@ export component StudioPage inherits VerticalLayout {
                 clicked => { root.navigate(StudioRoute.production); }
             }
         }
+    }
     }
     if root.route == StudioRoute.settings: StudioSessionPanel { }
     if root.route == StudioRoute.channels: StudioPagesPanel { }

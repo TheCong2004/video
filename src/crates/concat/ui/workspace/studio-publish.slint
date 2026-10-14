@@ -45,7 +45,7 @@ export component StudioPublishPanel inherits VerticalLayout {
             spacing: 10px;
 
             StudioButton {
-                label: "🔄 " + I18n.t("studioPublish.refresh");
+                label: I18n.t("studioPublish.refresh");
                 enabled: !StudioPublish.busy;
                 clicked => { StudioPublish.refresh(); }
             }
@@ -237,14 +237,14 @@ export component StudioPublishPanel inherits VerticalLayout {
                     alignment: end;
 
                     if item.status == "pending" || item.status == "ready": StudioButton {
-                        label: "✓ Duyệt";
+                        label: "Duyệt xuất bản";
                         primary: true;
                         enabled: !StudioPublish.busy;
                         clicked => { StudioPublish.approve(item.id); }
                     }
 
                     if item.status == "scheduled" || item.status == "approved" || item.status == "ready": StudioButton {
-                        label: "🚀 Đăng ngay";
+                        label: "Đăng ngay";
                         enabled: !StudioPublish.busy;
                         clicked => { StudioPublish.post-now(item.id); }
                     }
@@ -256,7 +256,7 @@ export component StudioPublishPanel inherits VerticalLayout {
                     }
 
                     if item.status == "pending" || item.status == "scheduled": StudioButton {
-                        label: "✕ Từ chối";
+                        label: "Hủy bỏ";
                         enabled: !StudioPublish.busy;
                         clicked => { StudioPublish.reject(item.id); }
                     }

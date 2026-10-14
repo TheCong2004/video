@@ -123,10 +123,101 @@ export component StudioProduction inherits VerticalLayout {
     spacing: 18px;
     property <bool> advanced-open: false;
 
-    StudioCard {
-        StudioHeading { title: "Tạo video của bạn"; glyph: Glyph.film; }
-        Text { text: "Mô tả ý tưởng, chọn cách tạo, kiểm tra rồi bắt đầu. Các thiết lập khó nằm trong Tùy chọn nâng cao."; color: Floword.muted; font-size: 14px; wrap: word-wrap; }
-        Text { text: "1. Viết ý tưởng   →   2. Kiểm tra   →   3. Tạo video"; color: Floword.violet; font-size: 14px; font-weight: 600; }
+    // HERO BANNER WITH 3D ILLUSTRATION & BEGINNER GUIDE
+    Rectangle {
+        height: 160px;
+        border-radius: 16px;
+        clip: true;
+        background: Floword.surface;
+        border-width: 1px;
+        border-color: Floword.line-bright;
+
+        Image {
+            width: 100%;
+            height: 100%;
+            source: @image-url("../assets/studio-production.jpg");
+            image-fit: cover;
+        }
+
+        // Dark gradient & glassmorphic overlay for maximum readability
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: @linear-gradient(90deg, #080D1BEE 0%, #080D1BDD 45%, #080D1B77 75%, #080D1B22 100%);
+        }
+
+        HorizontalLayout {
+            padding-left: 28px;
+            padding-right: 28px;
+            padding-top: 20px;
+            padding-bottom: 20px;
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 8px;
+                alignment: center;
+                max-width: 680px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Rectangle {
+                        background: Floword.violet.with-alpha(0.25);
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: Floword.violet;
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            padding-top: 3px;
+                            padding-bottom: 3px;
+                            spacing: 6px;
+                            Icon { glyph: Glyph.sparkle; size: 12px; tint: Floword.cyan; }
+                            Text { text: "XƯỞNG SẢN XUẤT VIDEO AI · 7 CÔNG ĐOẠN"; color: Floword.cyan; font-size: 11px; font-weight: 700; }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Biến ý tưởng thành video điện ảnh hoàn chỉnh";
+                    color: Floword.text;
+                    font-size: 22px;
+                    font-weight: 700;
+                }
+
+                Text {
+                    text: "Chỉ 3 bước đơn giản: 1. Viết ý tưởng   →   2. Kiểm tra trước khi tạo   →   3. Bắt đầu tạo video";
+                    color: Floword.muted;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                }
+            }
+
+            // Quick status pill
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    background: Floword.raised.with-alpha(0.9);
+                    border-radius: 12px;
+                    border-width: 1px;
+                    border-color: Floword.line-bright;
+                    HorizontalLayout {
+                        padding: 14px;
+                        spacing: 12px;
+                        alignment: center;
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text { text: "Trạng thái xưởng"; color: Floword.muted; font-size: 11px; }
+                            Text {
+                                text: ProductionStudio.busy ? "Đang xử lý..." : (ProductionStudio.ready ? "Đã sẵn sàng tạo" : "Đang chờ ý tưởng");
+                                color: ProductionStudio.busy ? Floword.warning : (ProductionStudio.ready ? Floword.success : Floword.cyan);
+                                font-size: 13px;
+                                font-weight: 700;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // 1. PIPELINE 7-PHASE VISUALIZER RIBBON (Matching ArtCraft ProductionPipelineView)
@@ -143,19 +234,19 @@ export component StudioProduction inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 8px;
                     Icon { glyph: Glyph.film; size: 18px; tint: Floword.violet; }
-                    Text { text: "7 CÔNG ĐOẠN TẠO VIDEO"; color: Floword.violet; font-size: 13px; font-weight: 700; }
+                    Text { text: "QUY TRÌNH 7 CÔNG ĐOẠN TỰ ĐỘNG"; color: Floword.violet; font-size: 13px; font-weight: 700; }
                 }
-                Text { text: "Từ ý tưởng đến video hoàn chỉnh"; color: Floword.muted; font-size: 12px; }
+                Text { text: "Hệ thống AI tự động điều phối từ đầu đến cuối"; color: Floword.muted; font-size: 12px; }
             }
 
-            // Stepper pills
+            // Stepper pills with neon accents
             HorizontalLayout {
                 spacing: 8px;
                 alignment: space-between;
                 Rectangle {
-                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
+                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.cyan.with-alpha(0.4); horizontal-stretch: 1;
                     HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
-                        Text { text: "1"; color: Floword.violet; font-size: 12px; font-weight: 700; }
+                        Text { text: "1"; color: Floword.cyan; font-size: 12px; font-weight: 700; }
                         Text { text: "Nguồn & Ý tưởng"; color: Floword.text; font-size: 12px; }
                     }
                 }

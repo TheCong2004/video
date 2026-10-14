@@ -55,6 +55,76 @@ export component StudioScripts inherits VerticalLayout {
     callback apply-template(brief: string, scenes: float, duration: float);
     spacing: 16px;
 
+    // HERO BANNER WITH 3D SCRIPT MARKET ILLUSTRATION
+    Rectangle {
+        height: 150px;
+        border-radius: 16px;
+        clip: true;
+        background: Floword.surface;
+        border-width: 1px;
+        border-color: Floword.line-bright;
+
+        Image {
+            width: 100%;
+            height: 100%;
+            source: @image-url("../assets/studio-scripts.jpg");
+            image-fit: cover;
+        }
+
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: @linear-gradient(90deg, #080D1BEE 0%, #080D1BDD 45%, #080D1B77 75%, #080D1B22 100%);
+        }
+
+        HorizontalLayout {
+            padding-left: 28px;
+            padding-right: 28px;
+            padding-top: 20px;
+            padding-bottom: 20px;
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 8px;
+                alignment: center;
+                max-width: 680px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Rectangle {
+                        background: Floword.violet.with-alpha(0.25);
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: Floword.violet;
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            padding-top: 3px;
+                            padding-bottom: 3px;
+                            spacing: 6px;
+                            Icon { glyph: Glyph.sparkle; size: 12px; tint: Floword.cyan; }
+                            Text { text: "CHỢ KỊCH BẢN & KHO PROMPT CHUẨN ĐIỆN ẢNH"; color: Floword.cyan; font-size: 11px; font-weight: 700; }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Kho kịch bản mẫu & Prompt hình ảnh tuyển chọn";
+                    color: Floword.text;
+                    font-size: 22px;
+                    font-weight: 700;
+                }
+
+                Text {
+                    text: "Chọn câu chuyện mẫu hoặc tạo kịch bản cá nhân hóa để sản xuất video 1 chạm.";
+                    color: Floword.muted;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+    }
+
     // Header intro
     HorizontalLayout {
         alignment: space-between;

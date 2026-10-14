@@ -45,19 +45,19 @@ export component StudioBulkPanel inherits VerticalLayout {
             spacing: 10px;
 
             StudioButton {
-                label: "📄 " + I18n.t("studioBulk.sampleBtn");
+                label: I18n.t("studioBulk.sampleBtn");
                 enabled: !StudioBulk.busy;
                 clicked => { StudioBulk.load-sample(); }
             }
 
             StudioButton {
-                label: "🔍 " + I18n.t("studioBulk.validateBtn");
+                label: I18n.t("studioBulk.validateBtn");
                 enabled: !StudioBulk.busy && StudioBulk.csv-content != "";
                 clicked => { StudioBulk.validate(); }
             }
 
             StudioButton {
-                label: "🚀 " + I18n.t1("studioBulk.commitBtn", "" + StudioBulk.valid-count);
+                label: I18n.t1("studioBulk.commitBtn", "" + StudioBulk.valid-count);
                 primary: true;
                 enabled: !StudioBulk.busy && StudioBulk.valid-count > 0;
                 clicked => { StudioBulk.commit(); }
