@@ -2,7 +2,7 @@
 
 //! Bind the on-demand Studio health check without blocking the window.
 
-use concat_host::studio_bridge::{Reachability, check_local};
+use concat_host::studio_bridge::{Reachability, check_backend};
 use concat_host::studio_workflows::WorkflowError;
 use slint::{ComponentHandle, ModelRc, VecModel};
 
@@ -30,21 +30,48 @@ pub(crate) fn bind(app: &App) {
         let worker = std::thread::Builder::new()
             .name("studio-health".into())
             .spawn(move || {
-                let promax = state(check_local(43100, "/health/ready"));
-                let artcraft = state(check_local(30000, "/health"));
+                let origin = std::env::var("CONCAT_PROMAX_ORIGIN")
+                    .unwrap_or_else(|_| "https://promax-backend.thecong2610.workers.dev".into());
+                let promax = state(check_backend(&origin));
+                let omniroute = match crate::studio_local_ai::client()
+                    .and_then(|client| client.ai_providers())
+                {
+                    Ok(_) => 1,
+                    Err(WorkflowError::InvalidResponse) => 3,
+                    Err(_) => 2,
+                };
+                let nexora = match crate::studio_browser::client().and_then(|client| {
+                    client.health()?;
+                    client.profiles()
+                }) {
+                    Ok(_) => 1,
+                    Err(
+                        concat_host::studio_browser::BrowserError::InvalidResponse
+                        | concat_host::studio_browser::BrowserError::UnsupportedApi,
+                    ) => 3,
+                    Err(_) => 2,
+                };
                 // Closing the window discards this reply. No global window or
                 // project state is accessed by the worker.
                 let _ = reply.upgrade_in_event_loop(move |app| {
                     let bridge = app.global::<StudioBridge>();
                     bridge.set_promax_state(promax);
-                    bridge.set_artcraft_state(artcraft);
+                    bridge.set_artcraft_state(omniroute);
+                    bridge.set_nexora_state(nexora);
                     bridge.set_checking(false);
                 });
             });
         if worker.is_err() {
             bridge.set_promax_state(2);
             bridge.set_artcraft_state(2);
+            bridge.set_nexora_state(2);
             bridge.set_checking(false);
+        }
+    });
+    let weak = app.as_weak();
+    app.global::<StudioBridge>().on_start_nexora(move || {
+        if let Some(app) = weak.upgrade() {
+            app.global::<crate::ui::StudioBrowser>().invoke_start();
         }
     });
 }

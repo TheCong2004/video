@@ -29,6 +29,14 @@ pub enum AuthError {
     Cancelled,
     /// Invalid one-use callback or refused identity exchange.
     Rejected,
+    /// The one-use identity-provider code was rejected, not an email password.
+    IdentityRejected,
+    /// Promax explicitly rejected the verified-identity exchange (status only).
+    ExchangeRejected(u16),
+    /// Promax exchange could not be reached or completed. Never replay it.
+    ExchangeUnavailable,
+    /// Promax did not return a verifiable session; never unlock the UI.
+    InvalidExchange,
     /// Network/timeout, not a successful login.
     Unavailable,
     /// No native session, or rotated refresh could not be confirmed.
@@ -44,6 +52,34 @@ pub struct Account {
     pub user_id: String,
     pub tenant_id: String,
     pub roles: Vec<String>,
+    /// Stable verified identity for local data, independent of ephemeral cloud IDs.
+    pub local_identity: String,
+}
+
+/// A signup can require email verification; that is not a signed-in session.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Registration {
+    /// Verified identity was exchanged for an encrypted native Promax session.
+    SignedIn(Account),
+    /// No identity access token was issued. Do not unlock the application.
+    ConfirmationRequired,
+}
+
+fn email_credentials(email: &str, password: &str, signup: bool) -> Result<Value, AuthError> {
+    let email = email.trim();
+    if email.len() > 254
+        || email.split('@').count() != 2
+        || email.starts_with('@')
+        || email.ends_with('@')
+        || email.chars().any(|c| c.is_control() || c.is_whitespace())
+        || password.is_empty()
+        || password.len() > 1024
+        || password.contains('\0')
+        || (signup && password.chars().count() < 8)
+    {
+        return Err(AuthError::Rejected);
+    }
+    Ok(json!({"email":email,"password":password}))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -55,6 +91,8 @@ struct Session {
     tenant: String,
     roles: Vec<String>,
     origin: String,
+    #[serde(default)]
+    subject: Option<String>,
 }
 impl Session {
     fn account(&self) -> Account {
@@ -62,6 +100,11 @@ impl Session {
             user_id: self.user.clone(),
             tenant_id: self.tenant.clone(),
             roles: self.roles.clone(),
+            local_identity: format!(
+                "{}|{}",
+                self.origin,
+                self.subject.as_deref().unwrap_or(&self.user)
+            ),
         }
     }
 }
@@ -84,6 +127,60 @@ impl LoginAttempt {
             .or_else(|_| TcpListener::bind("127.0.0.1:0"))
             .map_err(|_| AuthError::Callback)?;
         Self::from_listener(supabase_origin, listener)
+    }
+    /// One-use allowlisted social login, with the same PKCE/callback protections.
+    pub fn for_provider(origin: &str, key: &str, provider: &str) -> Result<Self, AuthError> {
+        if !matches!(provider, "google" | "github") {
+            return Err(AuthError::Configuration);
+        }
+        let mut attempt = Self::new(origin, key)?;
+        let mut url = url::Url::parse(&attempt.authorize).map_err(|_| AuthError::Configuration)?;
+        let pairs: Vec<(String, String)> = url
+            .query_pairs()
+            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .collect();
+        url.set_query(None);
+        for (name, value) in pairs {
+            url.query_pairs_mut()
+                .append_pair(&name, if name == "provider" { provider } else { &value });
+        }
+        attempt.authorize = url.into();
+        Ok(attempt)
+    }
+    /// Query public provider settings before sending the user to a disabled flow.
+    pub fn provider_enabled(origin: &str, key: &str, provider: &str) -> Result<bool, AuthError> {
+        validate_identity_config(origin, key)?;
+        if !matches!(provider, "google" | "github") {
+            return Err(AuthError::Configuration);
+        }
+        let response = ureq::AgentBuilder::new()
+            .timeout(Duration::from_secs(8))
+            .redirects(0)
+            .build()
+            .get(&format!(
+                "{}/auth/v1/settings",
+                origin.trim_end_matches('/')
+            ))
+            .set("apikey", key)
+            .set("Accept", "application/json")
+            .call()
+            .map_err(|_| AuthError::Unavailable)?;
+        if response.status() != 200 {
+            return Err(AuthError::Unavailable);
+        }
+        let mut bytes = Vec::new();
+        response
+            .into_reader()
+            .take(65537)
+            .read_to_end(&mut bytes)
+            .map_err(|_| AuthError::Unavailable)?;
+        if bytes.len() > 65536 {
+            return Err(AuthError::Rejected);
+        }
+        let settings: Value = serde_json::from_slice(&bytes).map_err(|_| AuthError::Rejected)?;
+        settings["external"][provider]
+            .as_bool()
+            .ok_or(AuthError::Configuration)
     }
     fn from_listener(origin: &str, listener: TcpListener) -> Result<Self, AuthError> {
         listener
@@ -342,6 +439,7 @@ fn parse_session(data: &Value, origin: &str) -> Result<Session, AuthError> {
         tenant: field(principal, "tenantId")?,
         roles,
         origin: origin.into(),
+        subject: None,
     })
 }
 
@@ -352,6 +450,17 @@ fn request(
     bearer: Option<&str>,
     body: &Value,
 ) -> Result<Value, AuthError> {
+    let exchange = path == "/api/v1/auth/supabase/exchange";
+    let unavailable = if exchange {
+        AuthError::ExchangeUnavailable
+    } else {
+        AuthError::Unavailable
+    };
+    let invalid = if exchange {
+        AuthError::InvalidExchange
+    } else {
+        AuthError::Rejected
+    };
     let agent = ureq::AgentBuilder::new()
         .timeout(Duration::from_secs(12))
         .redirects(0)
@@ -369,19 +478,22 @@ fn request(
     let response = match req.send_bytes(&serde_json::to_vec(body).map_err(|_| AuthError::Rejected)?)
     {
         Ok(r) if r.status() == 200 => r,
+        Err(ureq::Error::Status(status, _)) if exchange => {
+            return Err(AuthError::ExchangeRejected(status));
+        }
         Err(ureq::Error::Status(400 | 401 | 403, _)) => return Err(AuthError::Rejected),
-        _ => return Err(AuthError::Unavailable),
+        _ => return Err(unavailable),
     };
     let mut bytes = Vec::new();
     response
         .into_reader()
         .take(131073)
         .read_to_end(&mut bytes)
-        .map_err(|_| AuthError::Unavailable)?;
+        .map_err(|_| unavailable)?;
     if bytes.len() > 131072 {
-        return Err(AuthError::Rejected);
+        return Err(invalid);
     }
-    serde_json::from_slice(&bytes).map_err(|_| AuthError::Rejected)
+    serde_json::from_slice(&bytes).map_err(|_| invalid)
 }
 
 enum State {
@@ -394,8 +506,129 @@ pub struct AuthManager {
     origin: String,
     path: PathBuf,
     state: Mutex<State>,
+    remember: AtomicBool,
 }
 impl AuthManager {
+    /// Opt out of disk persistence without discarding an active in-memory session.
+    pub fn set_remember(&self, remember: bool) -> Result<(), AuthError> {
+        let state = self.state.lock().map_err(|_| AuthError::Storage)?;
+        if remember {
+            if let State::SignedIn(session) = &*state {
+                persist(&self.path, session)?;
+            }
+        } else if self.path.exists() {
+            fs::remove_file(&self.path).map_err(|_| AuthError::Storage)?;
+        }
+        self.remember.store(remember, Ordering::Release);
+        Ok(())
+    }
+    /// Ask the identity provider to email recovery instructions. Never signs in.
+    pub fn request_password_reset(
+        &self,
+        origin: &str,
+        key: &str,
+        email: &str,
+        cancel: &AtomicBool,
+    ) -> Result<(), AuthError> {
+        validate_identity_config(origin, key)?;
+        send_recovery(origin, key, email, cancel)
+    }
+}
+
+fn send_recovery(
+    origin: &str,
+    key: &str,
+    email: &str,
+    cancel: &AtomicBool,
+) -> Result<(), AuthError> {
+    let body = email_credentials(email, "validation-only", false)?;
+    if cancel.load(Ordering::Acquire) {
+        return Err(AuthError::Cancelled);
+    }
+    let reply = request(
+        origin.trim_end_matches('/'),
+        "/auth/v1/recover",
+        Some(key),
+        None,
+        &json!({"email":body["email"]}),
+    )?;
+    if cancel.load(Ordering::Acquire) {
+        return Err(AuthError::Cancelled);
+    }
+    if !reply.is_object() || reply.get("error").is_some() {
+        return Err(AuthError::Rejected);
+    }
+    Ok(())
+}
+impl AuthManager {
+    /// Authenticate with Supabase password grant and then the existing verified
+    /// Promax exchange. Merely filling the form can never create a session.
+    pub fn sign_in_email(
+        &self,
+        identity_origin: &str,
+        key: &str,
+        email: &str,
+        password: &str,
+        cancelled: &AtomicBool,
+    ) -> Result<Account, AuthError> {
+        validate_identity_config(identity_origin, key)?;
+        let body = email_credentials(email, password, false)?;
+        if cancelled.load(Ordering::Acquire) {
+            return Err(AuthError::Cancelled);
+        }
+        let identity = request(
+            identity_origin.trim_end_matches('/'),
+            "/auth/v1/token?grant_type=password",
+            Some(key),
+            None,
+            &body,
+        )?;
+        self.accept_identity(&identity, cancelled)
+    }
+
+    /// Register a real identity. Confirmation-only replies never unlock the UI.
+    pub fn sign_up_email(
+        &self,
+        identity_origin: &str,
+        key: &str,
+        email: &str,
+        password: &str,
+        cancelled: &AtomicBool,
+    ) -> Result<Registration, AuthError> {
+        validate_identity_config(identity_origin, key)?;
+        let body = email_credentials(email, password, true)?;
+        if cancelled.load(Ordering::Acquire) {
+            return Err(AuthError::Cancelled);
+        }
+        let identity = request(
+            identity_origin.trim_end_matches('/'),
+            "/auth/v1/signup",
+            Some(key),
+            None,
+            &body,
+        )?;
+        if cancelled.load(Ordering::Acquire) {
+            return Err(AuthError::Cancelled);
+        }
+        if identity
+            .get("access_token")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.is_empty())
+        {
+            self.accept_identity(&identity, cancelled)
+                .map(Registration::SignedIn)
+        } else if identity.get("id").and_then(Value::as_str).is_some()
+            || identity
+                .get("user")
+                .and_then(|user| user.get("id"))
+                .and_then(Value::as_str)
+                .is_some()
+        {
+            Ok(Registration::ConfirmationRequired)
+        } else {
+            Err(AuthError::Rejected)
+        }
+    }
     /// Session is bound to the normalized Promax origin and this OS account.
     pub fn new(origin: &str, config: &Path) -> Result<Self, AuthError> {
         WorkflowClient::new(origin, Some("validation-only".into()))
@@ -410,6 +643,7 @@ impl AuthManager {
             origin,
             path: config.join("studio").join(format!("session-{hash}.dpapi")),
             state: Mutex::new(State::Unloaded),
+            remember: AtomicBool::new(true),
         })
     }
     /// Finish a one-use code exchange, then verify identity with Promax.
@@ -431,7 +665,19 @@ impl AuthManager {
             Some(key),
             None,
             &json!({"auth_code":code.code,"code_verifier":code.verifier}),
-        )?;
+        )
+        .map_err(|error| match error {
+            AuthError::Rejected => AuthError::IdentityRejected,
+            other => other,
+        })?;
+        self.accept_identity(&identity, cancelled)
+    }
+
+    fn accept_identity(
+        &self,
+        identity: &Value,
+        cancelled: &AtomicBool,
+    ) -> Result<Account, AuthError> {
         let access = identity
             .get("access_token")
             .and_then(Value::as_str)
@@ -448,15 +694,36 @@ impl AuthManager {
             &json!({"accessToken":access,"deviceType":"desktop"}),
         )?;
         if result.get("ok").and_then(Value::as_bool) != Some(true) {
-            return Err(AuthError::Rejected);
+            return Err(AuthError::InvalidExchange);
         }
-        let session = parse_session(result.get("data").ok_or(AuthError::Rejected)?, &self.origin)?;
+        let mut session = parse_session(
+            result.get("data").ok_or(AuthError::InvalidExchange)?,
+            &self.origin,
+        )
+        .map_err(|_| AuthError::InvalidExchange)?;
+        // The token was already verified by the Promax exchange. Reading the
+        // stable issuer/subject here never grants authentication or permission.
+        session.subject = access
+            .split('.')
+            .nth(1)
+            .and_then(|s| URL_SAFE_NO_PAD.decode(s).ok())
+            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+            .and_then(|claims| {
+                Some(format!(
+                    "{}|{}",
+                    field(&claims, "iss").ok()?,
+                    field(&claims, "sub").ok()?
+                ))
+            })
+            .or_else(|| identity.get("user").and_then(|v| field(v, "id").ok()));
         let mut state = self.state.lock().map_err(|_| AuthError::Storage)?;
         if cancelled.load(Ordering::Acquire) {
             return Err(AuthError::Cancelled);
         }
         let account = session.account();
-        persist(&self.path, &session)?;
+        if self.remember.load(Ordering::Acquire) {
+            persist(&self.path, &session)?;
+        }
         *state = State::SignedIn(session);
         Ok(account)
     }
@@ -527,18 +794,21 @@ impl AuthManager {
                     if v.get("ok").and_then(Value::as_bool) != Some(true) {
                         return Err(AuthError::Rejected);
                     }
-                    let next =
+                    let mut next =
                         parse_session(v.get("data").ok_or(AuthError::Rejected)?, &self.origin)?;
                     if next.user != session.user || next.tenant != session.tenant {
                         return Err(AuthError::Rejected);
                     }
+                    next.subject = session.subject.clone();
                     Ok(next)
                 });
                 // Any ambiguous rotating refresh invalidates local state. Never replay.
                 *state = State::SignedOut;
                 let _ = fs::remove_file(&self.path);
                 let next = refreshed.map_err(|_| WorkflowError::Authentication)?;
-                persist(&self.path, &next).map_err(|_| WorkflowError::Authentication)?;
+                if self.remember.load(Ordering::Acquire) {
+                    persist(&self.path, &next).map_err(|_| WorkflowError::Authentication)?;
+                }
                 *state = State::SignedIn(next);
             }
         }
@@ -681,26 +951,218 @@ fn crypt(bytes: &[u8], origin: &str, encrypt: bool) -> Result<Vec<u8>, AuthError
     }
 }
 #[cfg(windows)]
-fn protect(bytes: &[u8], origin: &str) -> Result<Vec<u8>, AuthError> {
+pub(crate) fn protect(bytes: &[u8], origin: &str) -> Result<Vec<u8>, AuthError> {
     crypt(bytes, origin, true)
 }
 #[cfg(windows)]
-fn unprotect(bytes: &[u8], origin: &str) -> Result<Vec<u8>, AuthError> {
+pub(crate) fn unprotect(bytes: &[u8], origin: &str) -> Result<Vec<u8>, AuthError> {
     crypt(bytes, origin, false)
 }
 // Never fall back to plaintext on an unsupported platform.
 #[cfg(not(windows))]
-fn protect(_: &[u8], _: &str) -> Result<Vec<u8>, AuthError> {
+pub(crate) fn protect(_: &[u8], _: &str) -> Result<Vec<u8>, AuthError> {
     Err(AuthError::Storage)
 }
 #[cfg(not(windows))]
-fn unprotect(_: &[u8], _: &str) -> Result<Vec<u8>, AuthError> {
+pub(crate) fn unprotect(_: &[u8], _: &str) -> Result<Vec<u8>, AuthError> {
     Err(AuthError::Storage)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn oauth_provider_selection_is_allowlisted_and_preserves_pkce() {
+        for provider in ["google", "github"] {
+            let attempt = LoginAttempt::for_provider(
+                "https://identity.example",
+                "sb_publishable_fixture",
+                provider,
+            )
+            .unwrap();
+            let url = url::Url::parse(attempt.authorize_url()).unwrap();
+            assert!(
+                url.query_pairs()
+                    .any(|(key, value)| key == "provider" && value == provider)
+            );
+            assert!(
+                url.query_pairs()
+                    .any(|(key, value)| key == "code_challenge_method" && value == "s256")
+            );
+            assert!(!attempt.authorize_url().contains(&attempt.verifier));
+        }
+        assert!(
+            LoginAttempt::for_provider(
+                "https://identity.example",
+                "sb_publishable_fixture",
+                "unknown"
+            )
+            .is_err()
+        );
+    }
+    #[cfg(windows)]
+    #[test]
+    fn remember_unchecked_keeps_verified_session_in_memory_only() {
+        let (origin, worker) = fixture(response("verified-user"), "200 OK");
+        let root = temporary();
+        let manager = AuthManager::new(&origin, &root).unwrap();
+        manager.set_remember(false).unwrap();
+        manager
+            .accept_identity(
+                &json!({"access_token":"identity-fixture-token"}),
+                &AtomicBool::new(false),
+            )
+            .unwrap();
+        worker.join().unwrap();
+        assert!(!manager.path.exists());
+        assert!(manager.client().is_ok());
+        manager.set_remember(true).unwrap();
+        assert!(manager.path.exists());
+        manager.set_remember(false).unwrap();
+        assert!(!manager.path.exists());
+        assert!(manager.client().is_ok());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn recovery_request_is_real_bounded_and_never_signs_in() {
+        let (origin, worker) = fixture(json!({}), "200 OK");
+        let root = temporary();
+        let manager = AuthManager::new(&origin, &root).unwrap();
+        send_recovery(
+            &origin,
+            "sb_publishable_fixture",
+            "user@example.test",
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        let sent = worker.join().unwrap();
+        assert!(sent.starts_with("POST /auth/v1/recover "));
+        assert!(sent.contains("user@example.test"));
+        assert!(!sent.contains("password"));
+        assert!(!manager.path.exists());
+        assert_eq!(manager.client().err(), Some(WorkflowError::Authentication));
+        assert!(
+            manager
+                .request_password_reset(
+                    &origin,
+                    "sb_publishable_fixture",
+                    "bad-email",
+                    &AtomicBool::new(false)
+                )
+                .is_err()
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn local_identity_survives_ephemeral_cloud_ids_but_not_account_switches() {
+        let mut first = token_response("https://cloud.example.test", "cloud-user-a", now() + 3600);
+        first.subject = Some("verified-issuer|verified-subject".into());
+        let mut second = token_response("https://cloud.example.test", "cloud-user-b", now() + 3600);
+        second.subject = first.subject.clone();
+        assert_eq!(
+            first.account().local_identity,
+            second.account().local_identity
+        );
+        second.subject = Some("verified-issuer|other-subject".into());
+        assert_ne!(
+            first.account().local_identity,
+            second.account().local_identity
+        );
+    }
+    #[test]
+    fn email_auth_validates_credentials_without_fabricating_a_session() {
+        assert!(email_credentials("not-email", "password123", false).is_err());
+        assert!(email_credentials("user@example.test", "short", true).is_err());
+        assert!(email_credentials("user@example.test", "", false).is_err());
+        assert!(email_credentials("user@example.test", "existing", false).is_ok());
+        assert_eq!(
+            email_credentials(" user@example.test ", "password123", true).unwrap()["email"],
+            "user@example.test"
+        );
+        let root = temporary();
+        let manager = AuthManager::new("http://127.0.0.1:1", &root).unwrap();
+        assert_eq!(
+            manager.accept_identity(&json!({"user":{"id":"x"}}), &AtomicBool::new(false)),
+            Err(AuthError::Rejected)
+        );
+        assert!(!manager.path.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[cfg(windows)]
+    #[test]
+    fn email_identity_uses_real_exchange_and_encrypted_storage_not_the_email_as_identity() {
+        let (origin, worker) = fixture(response("verified-user"), "200 OK");
+        let root = temporary();
+        let manager = AuthManager::new(&origin, &root).unwrap();
+        let account = manager
+            .accept_identity(
+                &json!({"access_token":"identity-fixture-token"}),
+                &AtomicBool::new(false),
+            )
+            .unwrap();
+        assert_eq!(account.user_id, "verified-user");
+        let request = worker.join().unwrap();
+        assert!(request.starts_with("POST /api/v1/auth/supabase/exchange "));
+        assert!(request.contains("identity-fixture-token"));
+        assert!(
+            !fs::read(&manager.path)
+                .unwrap()
+                .windows(14)
+                .any(|v| v == b"fixture-access")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn rejected_backend_exchange_reports_status_without_persisting_or_exposing_response() {
+        for (status, code) in [
+            ("400 Bad Request", 400),
+            ("401 Unauthorized", 401),
+            ("503 Service Unavailable", 503),
+        ] {
+            let (origin, worker) = fixture(json!({"error":"private-upstream-detail"}), status);
+            let root = temporary();
+            let manager = AuthManager::new(&origin, &root).unwrap();
+            let result = manager.accept_identity(
+                &json!({"access_token":"identity-fixture-token"}),
+                &AtomicBool::new(false),
+            );
+            assert_eq!(result, Err(AuthError::ExchangeRejected(code)));
+            assert!(!format!("{result:?}").contains("private-upstream-detail"));
+            assert!(!manager.path.exists());
+            assert!(matches!(
+                *manager.state.lock().unwrap(),
+                State::Unloaded | State::SignedOut
+            ));
+            worker.join().unwrap();
+            if root.exists() {
+                fs::remove_dir_all(root).unwrap();
+            }
+        }
+    }
+    #[test]
+    fn successful_http_without_a_verified_backend_session_never_unlocks_login() {
+        for payload in [
+            json!({"ok":false}),
+            json!({"ok":true}),
+            json!({"ok":true,"data":{"principal":{"userId":"unverified"}}}),
+        ] {
+            let (origin, worker) = fixture(payload, "200 OK");
+            let root = temporary();
+            let manager = AuthManager::new(&origin, &root).unwrap();
+            assert_eq!(
+                manager.accept_identity(
+                    &json!({"access_token":"identity-fixture-token"}),
+                    &AtomicBool::new(false)
+                ),
+                Err(AuthError::InvalidExchange)
+            );
+            assert!(!manager.path.exists());
+            worker.join().unwrap();
+            if root.exists() {
+                fs::remove_dir_all(root).unwrap();
+            }
+        }
+    }
     fn token_response(origin: &str, user: &str, expires: i64) -> Session {
         Session {
             access: "fixture-access".into(),
@@ -710,6 +1172,7 @@ mod tests {
             tenant: "fixture-tenant".into(),
             roles: vec!["member".into()],
             origin: origin.into(),
+            subject: None,
         }
     }
     fn response(user: &str) -> Value {

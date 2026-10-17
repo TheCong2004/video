@@ -5,14 +5,19 @@
 //! Engines and authenticated providers are connected explicitly, not on startup.
 
 pub mod ai;
+pub mod edit_bridge;
+pub mod legacy_keys;
 pub mod auth;
 pub mod browser;
+pub mod nexora;
 pub mod bulk_import;
 pub mod health;
 pub mod live;
 pub mod live_runtime;
+pub mod local_ai;
 pub mod opentalking;
 pub mod pages;
 pub mod products;
 pub mod scripts;
 pub mod workflows;
+pub mod generation;

@@ -234,6 +234,40 @@ pub enum Request {
         #[serde(default)]
         height: Option<u32>,
     },
+
+    /// Creates a named safety checkpoint in the session.
+    #[serde(rename = "session.checkpointCreate")]
+    SessionCheckpointCreate {
+        /// The project folder.
+        path: String,
+        /// The checkpoint name.
+        name: String,
+        /// Optional actor identifier.
+        #[serde(default)]
+        actor: Option<String>,
+    },
+    /// Restores a named safety checkpoint in the session.
+    #[serde(rename = "session.checkpointRestore")]
+    SessionCheckpointRestore {
+        /// The project folder.
+        path: String,
+        /// Checkpoint ID to restore.
+        id: u64,
+        /// Optional actor identifier.
+        #[serde(default)]
+        actor: Option<String>,
+    },
+    /// Acquires an agent write lease with TTL.
+    #[serde(rename = "session.leaseAcquire")]
+    SessionLeaseAcquire {
+        /// The project folder.
+        path: String,
+        /// Agent identity / client name.
+        actor: String,
+        /// Lease TTL in seconds.
+        #[serde(default)]
+        ttl_secs: Option<u64>,
+    },
 }
 
 /// One template slot and the file that takes it.
@@ -321,6 +355,32 @@ pub enum Reply {
     Picture(Picture),
     /// Methods with nothing to say beyond having worked.
     Done(Done),
+    /// A named safety checkpoint receipt.
+    Checkpoint(CheckpointReceipt),
+    /// An acquired agent lease receipt.
+    Lease(LeaseReceipt),
+}
+
+/// A receipt for a created safety checkpoint.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckpointReceipt {
+    /// Monotonic checkpoint identifier.
+    pub id: u64,
+    /// Checkpoint label name.
+    pub name: String,
+    /// ISO timestamp of creation.
+    pub created_at: String,
+}
+
+/// A receipt for an acquired agent write lease.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LeaseReceipt {
+    /// Agent connection ID holding the lease.
+    pub connection_id: String,
+    /// Duration in seconds the lease is valid for.
+    pub valid_for_secs: u64,
 }
 
 /// The build and the contract it speaks.

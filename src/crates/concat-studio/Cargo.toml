@@ -13,11 +13,12 @@ ureq = "2"
 url = "2"
 base64 = "0.22"
 sha2 = "0.10"
+hmac = "0.12"
 rand = "0.9"
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Security_Cryptography", "Win32_Foundation"] }
+windows-sys = { version = "0.61", features = ["Win32_Security_Cryptography", "Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading"] }
 
 [lints]
 workspace = true

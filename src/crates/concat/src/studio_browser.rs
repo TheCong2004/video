@@ -5,8 +5,18 @@ use crate::{
     ui::{App, StudioBrowser},
 };
 use concat_host::studio_browser::{BrowserClient, BrowserError, BrowserProfile};
+use concat_studio::nexora::NexoraSettings;
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::sync::{Arc, Mutex};
+
+fn settings() -> Result<NexoraSettings, BrowserError> {
+    let dirs = concat_host::AppDirs::locate().map_err(|_| BrowserError::Configuration)?;
+    NexoraSettings::load(&dirs.config)
+}
+/// One configured local boundary shared with OAuth and service diagnostics.
+pub(crate) fn client() -> Result<BrowserClient, BrowserError> {
+    settings()?.client()
+}
 
 fn message(error: BrowserError) -> String {
     match error {
@@ -15,6 +25,8 @@ fn message(error: BrowserError) -> String {
         BrowserError::InvalidResponse => t("studioBrowser.invalidResponse"),
         BrowserError::Stale => t("studioBrowser.stale"),
         BrowserError::UnknownOutcome => t("studioBrowser.unknownOutcome"),
+        BrowserError::Authentication => "Nexora yêu cầu Local API token. Sao chép token từ Cài đặt/Tích hợp của Nexora vào ô bên dưới; không dùng token Promax và không gửi token vào chat.".into(),
+        BrowserError::UnsupportedApi => "Dịch vụ không hỗ trợ Local Browser API của Nexora. Kiểm tra địa chỉ/cổng hoặc cập nhật Nexora.".into(),
     }
 }
 
@@ -22,6 +34,7 @@ fn execute(
     app: &App,
     selected: Option<(BrowserProfile, bool)>,
     rows: Arc<Mutex<Vec<BrowserProfile>>>,
+    start: bool,
 ) {
     if crate::studio_session::busy(app) {
         return;
@@ -39,10 +52,11 @@ fn execute(
         .name("studio-browser".into())
         .spawn(move || {
             let result = (|| {
-                let client = BrowserClient::new(
-                    &std::env::var("DONUT_BROWSER_API_URL")
-                        .unwrap_or_else(|_| "http://127.0.0.1:10108".into()),
-                )?;
+                if start {
+                    return settings()?.start().map(Some);
+                }
+                let client = client()?;
+                client.health()?;
                 if let Some((selected, stop)) = selected {
                     if stop {
                         client.stop(&selected)?;
@@ -99,7 +113,15 @@ fn execute(
                         state.set_loaded(false);
                         state.set_status(t("studioBrowser.changed").into());
                     }
-                    Err(error) => state.set_status(message(error).into()),
+                    Err(error) => {
+                        state.set_loaded(false);
+                        state.set_ids(ModelRc::default());
+                        state.set_names(ModelRc::default());
+                        if let Ok(mut rows) = rows.lock() {
+                            rows.clear();
+                        }
+                        state.set_status(message(error).into());
+                    }
                 }
             });
         });
@@ -115,7 +137,7 @@ pub(crate) fn bind(app: &App) {
     let rows = profiles.clone();
     app.global::<StudioBrowser>().on_refresh(move || {
         if let Some(app) = weak.upgrade() {
-            execute(&app, None, rows.clone());
+            execute(&app, None, rows.clone(), false);
         }
     });
     let weak = app.as_weak();
@@ -130,12 +152,12 @@ pub(crate) fn bind(app: &App) {
                 .ok()
                 .and_then(|index| rows.lock().ok()?.get(index).cloned());
             if let Some(selected) = selected {
-                execute(&app, Some((selected, false)), rows.clone());
+                execute(&app, Some((selected, false)), rows.clone(), false);
             }
         }
     });
     let weak = app.as_weak();
-    let rows = profiles;
+    let rows = profiles.clone();
     app.global::<StudioBrowser>().on_stop_profile(move || {
         if let Some(app) = weak.upgrade() {
             let state = app.global::<StudioBrowser>();
@@ -146,8 +168,103 @@ pub(crate) fn bind(app: &App) {
                 .ok()
                 .and_then(|index| rows.lock().ok()?.get(index).cloned());
             if let Some(selected) = selected {
-                execute(&app, Some((selected, true)), rows.clone());
+                execute(&app, Some((selected, true)), rows.clone(), false);
             }
         }
     });
+    let weak = app.as_weak();
+    let rows = profiles;
+    app.global::<StudioBrowser>().on_start(move || {
+        if let Some(app) = weak.upgrade() {
+            execute(&app, None, rows.clone(), true);
+        }
+    });
+    let weak = app.as_weak();
+    app.global::<StudioBrowser>().on_save_connection(move || {
+        if let Some(app) = weak.upgrade() {
+            configure(&app, false, false);
+        }
+    });
+    let weak = app.as_weak();
+    app.global::<StudioBrowser>().on_choose_executable(move || {
+        if let Some(app) = weak.upgrade() {
+            configure(&app, true, false);
+        }
+    });
+    let weak = app.as_weak();
+    app.global::<StudioBrowser>().on_forget_token(move || {
+        if let Some(app) = weak.upgrade() {
+            configure(&app, false, true);
+        }
+    });
+    let weak = app.as_weak();
+    let _ = std::thread::Builder::new()
+        .name("nexora-settings-load".into())
+        .spawn(move || {
+            let result = settings();
+            let _ = weak.upgrade_in_event_loop(move |app| {
+                if app.global::<StudioBrowser>().get_busy() {
+                    return;
+                }
+                if let Ok(settings) = result {
+                    publish_settings(&app, &settings);
+                }
+            });
+        });
+}
+
+fn publish_settings(app: &App, settings: &NexoraSettings) {
+    let state = app.global::<StudioBrowser>();
+    state.set_api_origin(settings.origin.clone().into());
+    state.set_executable(
+        settings
+            .executable
+            .clone()
+            .or_else(|| settings.discover_executable())
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default()
+            .into(),
+    );
+    state.set_token_present(settings.has_token());
+}
+
+fn configure(app: &App, choose: bool, forget: bool) {
+    let state = app.global::<StudioBrowser>();
+    if state.get_busy() || crate::studio_session::busy(app) {
+        return;
+    }
+    let origin = state.get_api_origin().to_string();
+    let executable = state.get_executable().to_string();
+    let token = state.get_new_token().to_string();
+    state.set_new_token("".into());
+    state.set_busy(true);
+    let weak = app.as_weak();
+    let worker=std::thread::Builder::new().name("nexora-settings-save".into()).spawn(move||{
+        let result=(||{
+            let mut settings=settings()?;
+            if choose {
+                if let Some(path)=rfd::FileDialog::new().set_title("Chọn nexorabrowser.exe đã cài đặt").add_filter("Nexora executable",&["exe"]).pick_file(){ settings.executable=Some(path); }
+            } else if forget {settings.set_token("")?;}
+            else {
+                settings.origin=origin.trim().to_string();
+                settings.executable=if executable.trim().is_empty(){None}else{Some(executable.trim().into())};
+                if !token.is_empty(){settings.set_token(&token)?;}
+            }
+            let dirs=concat_host::AppDirs::locate().map_err(|_|BrowserError::Configuration)?;
+            settings.save(&dirs.config)?;
+            Ok::<_,BrowserError>(settings)
+        })();
+        let _=weak.upgrade_in_event_loop(move|app|{
+            let state=app.global::<StudioBrowser>();state.set_busy(false);
+            state.set_loaded(false);state.set_ids(ModelRc::default());state.set_names(ModelRc::default());
+            match result {
+                Ok(settings)=>{publish_settings(&app,&settings);state.set_status("Đã lưu cấu hình Nexora trên máy. Bấm Kết nối/Tải profile để kiểm tra dịch vụ; token được lưu mã hóa.".into());}
+                Err(error)=>state.set_status(message(error).into()),
+            }
+        });
+    });
+    if worker.is_err() {
+        state.set_busy(false);
+        state.set_status(t("studioBrowser.unavailable").into());
+    }
 }

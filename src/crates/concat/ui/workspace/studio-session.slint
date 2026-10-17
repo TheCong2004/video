@@ -1,45 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { I18n } from "../i18n.slint";
-import { Floword } from "../theme/floword.slint";
-import { Select } from "../primitives/primitives.slint";
-import { StudioBrowser } from "studio-browser.slint";
-import { StudioCard, StudioHeading, StudioButton } from "studio-chrome.slint";
 
+// Signed-in is reserved for a verified remote identity; local access never
+// changes it. Kept for compatibility with existing status models.
 export global StudioSession {
     in-out property <bool> busy;
     in-out property <bool> signed-in;
     in-out property <string> account;
     in-out property <string> status;
-    in-out property <bool> confirm-logout;
-    callback sign-in();
-    callback restore();
-    callback logout();
-    callback cancel();
-}
-
-export component StudioSessionPanel inherits StudioCard {
-    StudioHeading { title: I18n.t("studioSession.title"); }
-    Text { text: I18n.t("studioSession.scope"); color: Floword.muted; wrap: word-wrap; }
-    if StudioSession.signed-in: Text { text: StudioSession.account; color: Floword.success; wrap: word-wrap; }
-    Text { text: StudioSession.status; color: Floword.warning; wrap: word-wrap; }
-    if !StudioSession.signed-in: VerticalLayout {
-        spacing: 12px;
-        StudioButton { label: I18n.t("studioSession.loadProfiles"); enabled: !StudioSession.busy && !StudioBrowser.busy; clicked => { StudioBrowser.refresh(); } }
-        Select {
-            height: 40px; options: StudioBrowser.names; current <=> StudioBrowser.index;
-            placeholder: I18n.t("studioSession.chooseProfile"); background: Floword.field; border-color: Floword.line;
-            enabled: !StudioSession.busy && !StudioBrowser.busy;
-        }
-        Text { text: StudioBrowser.status; color: Floword.muted; wrap: word-wrap; }
-        StudioButton { label: I18n.t("studioSession.google"); primary: true; enabled: !StudioSession.busy && !StudioBrowser.busy && StudioBrowser.ids.length > 0; clicked => { StudioSession.sign-in(); } }
-        StudioButton { label: I18n.t("studioSession.restore"); enabled: !StudioSession.busy; clicked => { StudioSession.restore(); } }
-    }
-    if StudioSession.busy: StudioButton { label: I18n.t("studioSession.cancel"); clicked => { StudioSession.cancel(); } }
-    if StudioSession.signed-in: StudioButton { label: I18n.t("studioSession.logout"); enabled: !StudioSession.busy; clicked => { StudioSession.confirm-logout = true; } }
-    if StudioSession.confirm-logout: VerticalLayout {
-        spacing: 10px;
-        Text { text: I18n.t("studioSession.logoutNotice"); color: Floword.warning; wrap: word-wrap; }
-        StudioButton { label: I18n.t("studioSession.confirmLogout"); enabled: !StudioSession.busy; clicked => { StudioSession.logout(); } }
-        StudioButton { label: I18n.t("common.cancel"); enabled: !StudioSession.busy; clicked => { StudioSession.confirm-logout = false; } }
-    }
 }

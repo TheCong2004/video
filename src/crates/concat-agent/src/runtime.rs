@@ -112,6 +112,73 @@ pub struct RunResult {
     pub tokens: u64,
     /// Bounded event names, without raw arguments, prompts, paths or credentials.
     pub activity: Vec<String>,
+    /// Durable execution ledger.
+    pub ledger: RunLedger,
+}
+
+/// Durable audit ledger capturing an agent run's lifecycle, tokens, and outcome.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
+pub struct RunLedger {
+    /// Bounded user prompt that started this run.
+    pub prompt: String,
+    /// Total tokens consumed as reported by the provider.
+    pub tokens: u64,
+    /// Number of completed turns.
+    pub turns: u32,
+    /// Log of sanitized activity summaries.
+    pub activity: Vec<String>,
+    /// Terminal state of the run: "success", "cancelled", "timeout", "budget", "error".
+    pub status: String,
+    /// Error message if run failed.
+    pub error: Option<String>,
+}
+
+impl RunLedger {
+    /// Create a new ledger for a run.
+    pub fn new(prompt: &str) -> Self {
+        Self {
+            prompt: prompt.to_owned(),
+            tokens: 0,
+            turns: 0,
+            activity: Vec::new(),
+            status: "running".into(),
+            error: None,
+        }
+    }
+
+    /// Mark the run as finished with success.
+    pub fn finish_success(&mut self, tokens: u64, turns: u32, activity: Vec<String>) {
+        self.tokens = tokens;
+        self.turns = turns;
+        self.activity = activity;
+        self.status = "success".into();
+    }
+
+    /// Mark the run as failed or terminal with an error.
+    pub fn finish_error(&mut self, error: &RunError, tokens: u64, turns: u32, activity: Vec<String>) {
+        self.tokens = tokens;
+        self.turns = turns;
+        self.activity = activity;
+        self.status = match error {
+            RunError::Cancelled => "cancelled".into(),
+            RunError::Timeout => "timeout".into(),
+            RunError::Budget => "budget".into(),
+            RunError::UsageUnknown => "usage_unknown".into(),
+            RunError::UnknownOutcome => "unknown_outcome".into(),
+            _ => "error".into(),
+        };
+        self.error = Some(error.to_string());
+    }
+
+    /// Serialize ledger to JSON string.
+    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
+    }
+
+    /// Deserialize ledger from JSON string.
+    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(json)
+    }
 }
 const NAMES: [&str; 7] = [
     "read_project",
@@ -142,7 +209,7 @@ fn schema(name: &str) -> Value {
             json!({"type":"object","additionalProperties":false,"properties":{"names":{"type":"array","maxItems":7,"items":{"type":"string","enum":NAMES}}},"required":["names"]})
         }
         "propose_edit" => {
-            json!({"type":"object","additionalProperties":false,"properties":{"plan":{"type":"object","description":"EditPlan: version=1,units=seconds,timelineId and baseRevision from read_project; operations are native split/remove/move/trim/title/place/speed/audio/transform/keyframe/text/addTrack/removeTrack/removeMany/removeRanges. Creation operations require as alias; refer later by @alias. No file paths or scripts.","properties":{"version":{"const":1},"units":{"const":"seconds"},"timelineId":{"type":"string"},"baseRevision":{"type":"integer"},"operations":{"type":"array","minItems":1,"maxItems":256,"items":{"type":"object","properties":{"op":{"type":"string","enum":["split","remove","move","trim","title","place","speed","audio","transform","keyframe","text","addTrack","removeTrack","removeMany","removeRanges"]}},"required":["op"]}}},"required":["version","units","timelineId","baseRevision","operations"]}},"required":["plan"]})
+            json!({"type":"object","additionalProperties":false,"properties":{"plan":{"type":"object","description":"EditPlan: version=1,units=seconds,timelineId and baseRevision from read_project; operations are native split/remove/move/trim/title/place/speed/audio/transform/keyframe/text/addTrack/removeTrack/removeMany/removeRanges/transition/crop/appearance/layer/shape/cutout. Creation operations require as alias; refer later by @alias. No file paths or scripts.","properties":{"version":{"const":1},"units":{"const":"seconds"},"timelineId":{"type":"string"},"baseRevision":{"type":"integer"},"operations":{"type":"array","minItems":1,"maxItems":256,"items":{"type":"object","properties":{"op":{"type":"string","enum":["split","remove","move","trim","title","place","speed","audio","transform","keyframe","text","addTrack","removeTrack","removeMany","removeRanges","transition","crop","appearance","layer","shape","cutout"]}},"required":["op"]}}},"required":["version","units","timelineId","baseRevision","operations"]}},"required":["plan"]})
         }
         _ => json!({"type":"object","additionalProperties":false,"properties":{},"required":[]}),
     };
@@ -302,10 +369,13 @@ pub fn run(
                                 activity.push(
                                     "Agent proposal validated; awaiting human approval".into(),
                                 );
+                                let mut ledger = RunLedger::new(prompt);
+                                ledger.finish_success(tokens, turn + 1, activity.clone());
                                 return Ok(RunResult {
                                     proposal,
                                     tokens,
                                     activity,
+                                    ledger,
                                 });
                             }
                             Err(error) => result = json!({"ok":false,"error":error.to_string()}),

@@ -175,3 +175,22 @@ fn unknown_tools_and_proposal_before_read_cannot_mutate() {
     );
     assert!(!editor.can_undo());
 }
+
+#[test]
+fn run_ledger_records_turns_tokens_and_roundtrips() {
+    let mut ledger = RunLedger::new("Test prompt");
+    assert_eq!(ledger.status, "running");
+    ledger.finish_success(120, 3, vec!["read_project".into(), "propose_edit".into()]);
+    assert_eq!(ledger.status, "success");
+    assert_eq!(ledger.tokens, 120);
+    assert_eq!(ledger.turns, 3);
+    assert_eq!(ledger.activity.len(), 2);
+    let json = ledger.to_json().unwrap();
+    let reloaded = RunLedger::from_json(&json).unwrap();
+    assert_eq!(reloaded, ledger);
+
+    let mut failed = RunLedger::new("Cancel test");
+    failed.finish_error(&RunError::Cancelled, 40, 1, vec!["read_project".into()]);
+    assert_eq!(failed.status, "cancelled");
+    assert!(failed.error.is_some());
+}

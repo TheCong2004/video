@@ -4,8 +4,9 @@
 //! The editor window as a program: what a desktop or an iPhone launches.
 //! Everything is in the library; see `lib.rs`.
 
-// Hide the console window on Windows in release builds.
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// This is the GUI executable: no extra console on Windows, including a native
+// validation build. Diagnostics still go to the existing app log.
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 mod launch;
 

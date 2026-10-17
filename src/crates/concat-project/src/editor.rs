@@ -63,6 +63,14 @@ pub struct PreparedDraft {
     project: Project,
 }
 
+/// Native immutable checkpoint, scoped to one editor opening. A restore uses
+/// the same undo stack and does not rewind the ID mint or mutation revision.
+#[derive(Clone)]
+pub struct Checkpoint {
+    authority: Arc<()>,
+    project: Project,
+}
+
 /// Read-only planning basis that can move to a worker. It preserves the live
 /// editor binding without exposing a second mutable owner of that binding.
 pub struct PlanningSnapshot {
@@ -108,6 +116,25 @@ pub enum DraftError {
 }
 
 impl Editor {
+    /// Capture a named-checkpoint backing snapshot without adding an undo step.
+    pub fn checkpoint(&self) -> Checkpoint {
+        Checkpoint { authority: self.authority.clone(), project: self.project.clone() }
+    }
+
+    /// Restore within this editor as one native undo step. Old proposals stay
+    /// stale even when the checkpoint happens to contain their original state.
+    pub fn restore_checkpoint(&mut self, checkpoint: &Checkpoint) -> Result<bool, DraftError> {
+        if !Arc::ptr_eq(&self.authority, &checkpoint.authority) { return Err(DraftError::Stale); }
+        if self.project == checkpoint.project { return Ok(false); }
+        self.end_gesture();
+        let before=std::mem::replace(&mut self.project, checkpoint.project.clone());
+        self.mint.adopt_project(&self.project);
+        self.undo.push_back(Snapshot { before, gesture: None });
+        if self.undo.len()>UNDO_DEPTH { self.undo.pop_front(); }
+        self.redo.clear();
+        self.advance_revision();
+        Ok(true)
+    }
     /// A fresh, empty project.
     pub fn new() -> Self {
         Self::with_video(crate::model::VideoSettings::default())

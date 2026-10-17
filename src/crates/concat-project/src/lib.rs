@@ -30,7 +30,7 @@ pub mod speed;
 
 pub use commands::{Command, CommandError, Outcome, why_not_merge};
 pub use doc::{DOCUMENT_VERSION, DocumentSettings, document_version, from_document, to_document};
-pub use editor::{DraftError, Editor, PlanningSnapshot, PreparedDraft, RetiredFields};
+pub use editor::{Checkpoint, DraftError, Editor, PlanningSnapshot, PreparedDraft, RetiredFields};
 pub use model::Project;
 
 #[cfg(test)]

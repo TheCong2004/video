@@ -116,6 +116,7 @@ export component TitleBar inherits Rectangle {
     /// Export act on an edit, and on this screen there is neither — a strip
     /// of controls that all refuse is worse than a strip without them.
     in property <bool> minimal;
+    in property <bool> auth-mode;
     /// The launch screen is under the strip, which has a ground of its own —
     /// a deeper one than the editor's. The strip takes that ground rather
     /// than its usual panel, so the launcher reads as one room and not as a
@@ -308,7 +309,7 @@ export component TitleBar inherits Rectangle {
         // application — so the launch screen has no reason to be shut out of
         // it, and every reason not to be: it is now the only way through to
         // the theme.
-        VerticalLayout {
+        if !root.auth-mode: VerticalLayout {
             alignment: center;
             HeaderIconButton {
                 glyph: Glyph.settings;

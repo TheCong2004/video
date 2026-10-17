@@ -2,16 +2,14 @@
 
 import { I18n } from "../i18n.slint";
 import { Theme, Button } from "../primitives/primitives.slint";
-import { StudioScripts } from "studio-scripts.slint";
 import { StudioAiPage } from "studio-ai.slint";
-import { StudioSessionPanel } from "studio-session.slint";
-import { StudioBrowserPanel } from "studio-browser.slint";
+import { StudioBrowser, StudioBrowserPanel } from "studio-browser.slint";
 import { StudioPagesPanel } from "studio-pages.slint";
 import { StudioOpenTalkingPage } from "studio-opentalking.slint";
 import { StudioLivePage } from "studio-live.slint";
 import { StudioBulkPanel } from "studio-bulk.slint";
 import { StudioPublishPanel } from "studio-publish.slint";
-import { ScriptLibrary } from "studio-scripts.slint";
+import { StudioScripts, ScriptLibrary } from "studio-scripts.slint";
 import { ProductionStudio, StudioProduction, StudioRunList } from "studio-production.slint";
 import { Floword } from "../theme/floword.slint";
 import { Glyph, Icon } from "../icons.slint";
@@ -39,7 +37,9 @@ export global StudioBridge {
     // 0 unchecked, 1 reachable JSON, 2 unavailable, 3 invalid response.
     in-out property <int> promax-state;
     in-out property <int> artcraft-state;
+    in-out property <int> nexora-state;
     callback check-services();
+    callback start-nexora();
     in-out property <[StudioWorkflowRow]> workflows;
     in-out property <bool> workflows-loading;
     in-out property <bool> workflow-worker-busy;
@@ -85,6 +85,7 @@ export global StudioBridge {
 }
 
 export component StudioPage inherits VerticalLayout {
+    min-width: 0px;
     in property <length> viewport-height: 720px;
     in property <StudioRoute> route;
     callback choose-project();
@@ -97,27 +98,73 @@ export component StudioPage inherits VerticalLayout {
     spacing: 12px;
     alignment: start;
 
-    HorizontalLayout {
-        spacing: 16px;
-        alignment: space-between;
-        VerticalLayout {
-            spacing: 3px;
-            HorizontalLayout {
-                spacing: 7px;
-                Rectangle {
-                    width: 7px; height: 7px; border-radius: 3.5px; background: Floword.cyan;
-                    y: (parent.height - self.height) / 2;
+    Rectangle {
+      min-width: 0px;
+      min-height: project-header.preferred-height;
+      project-header := FlexboxLayout {
+        spacing: 12px;
+        alignment: start;
+
+        FlexboxLayout {
+            spacing: 10px;
+            alignment: start;
+            min-width: 0px;
+            preferred-width: 560px;
+            horizontal-stretch: 1;
+
+            Text { text: "Studio project"; color: Floword.muted; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+
+            Rectangle {
+                background: Floword.field;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Floword.line-bright;
+                height: 32px;
+                HorizontalLayout {
+                    padding-left: 10px; padding-right: 10px;
+                    spacing: 8px;
+                    alignment: center;
+                    Text { text: "Không gắn với project"; color: Floword.text; font-size: 11.5px; vertical-alignment: center; }
+                    Text { text: "▼"; color: Floword.muted; font-size: 9px; vertical-alignment: center; }
                 }
-                Text { text: "OBSIDIAN MOTION STUDIO · NEON GRID V2"; color: Floword.cyan; font-size: 10.5px; font-weight: 700; letter-spacing: 0.8px; }
             }
-            Text { text: StudioBridge.title(root.route); color: Floword.text; font-size: 22px; font-weight: 700; wrap: word-wrap; }
+
+            Rectangle {
+                background: Floword.field;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Floword.line;
+                height: 32px;
+                min-width: 130px;
+                HorizontalLayout {
+                    padding-left: 10px; padding-right: 10px;
+                    alignment: start;
+                    Text { text: "Tên project mới"; color: Floword.muted; font-size: 11.5px; vertical-alignment: center; }
+                }
+            }
+
+            StudioButton { label: "Tạo project"; compact: true; primary: true; clicked => { root.choose-project(); } }
+            StudioButton { label: "Tải lại"; compact: true; clicked => { StudioBridge.check-services(); } }
         }
-        Rectangle { horizontal-stretch: 1; }
-        HorizontalLayout {
-            spacing: 8px;
-            alignment: center;
-            StudioButton { label: "← " + I18n.t("start.projects"); clicked => { root.back(); } }
+
+        FlexboxLayout {
+            spacing: 10px;
+            alignment: start;
+
+            FlexboxLayout {
+                spacing: 6px;
+                alignment: start;
+                Text { text: "📑 Page"; color: Floword.text; font-size: 11.5px; font-weight: 600; vertical-alignment: center; }
+                Text { text: "No pages created"; color: #F59E0B; font-size: 11.5px; vertical-alignment: center; }
+                Text { text: "/"; color: Floword.muted; font-size: 11.5px; vertical-alignment: center; }
+                Text { text: "+ Thêm Page"; color: Floword.cyan; font-size: 11.5px; font-weight: 600; vertical-alignment: center; }
+            }
+
+            StudioButton { label: "⚙️ Cấu Hình"; compact: true; clicked => { root.navigate(StudioRoute.settings); } }
+            StudioButton { label: "💾 Lưu"; compact: true; primary: true; }
+            StudioButton { label: "← " + I18n.t("start.projects"); compact: true; clicked => { root.back(); } }
         }
+    }
     }
     if root.route == StudioRoute.overview: VerticalLayout {
         spacing: 20px;
@@ -216,6 +263,179 @@ export component StudioPage inherits VerticalLayout {
             StudioMetric { label: I18n.t("nativeStudio.workflow"); value: StudioBridge.workflows-state == 1 && !StudioBridge.workflows-loading ? "\{StudioBridge.workflows.length}" : "—"; }
             StudioMetric { label: I18n.t("productionStudio.scripts"); value: ScriptLibrary.loaded ? "\{ScriptLibrary.rows.length}" : "4 Mẫu"; }
             StudioMetric { label: "Kênh Hoạt Động"; value: "\{StudioChannels.rows.length}"; }
+        }
+
+        // Module Pipeline DAG (6 Node Stages)
+        Rectangle {
+            background: Floword.surface;
+            border-radius: 16px;
+            border-width: 1px;
+            border-color: Floword.line-bright;
+            clip: true;
+
+            VerticalLayout {
+                padding: 18px;
+                spacing: 12px;
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Rectangle {
+                            width: 8px; height: 8px; border-radius: 4px; background: Floword.warning;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text { text: "SƠ ĐỒ QUY TRÌNH SẢN XUẤT 6 CHẶNG (MODULE PIPELINE DAG)"; color: Floword.warning; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; }
+                    }
+
+                    Text { text: "Bấm vào từng chặng để chuyển thẳng đến màn hình cấu hình"; color: Floword.muted; font-size: 12px; }
+                }
+
+                // Grid 6 Chặng Node Stages
+                HorizontalLayout {
+                    spacing: 12px;
+
+                    // Node 1: Ý tưởng & Kịch bản
+                    Rectangle {
+                        background: Floword.field;
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: Floword.cyan;
+                        padding: 12px;
+                        horizontal-stretch: 1;
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            HorizontalLayout {
+                                Text { text: "STAGE 01"; color: Floword.cyan; font-size: 10px; font-weight: 700; }
+                                Rectangle { horizontal-stretch: 1; }
+                                Text { text: "● Xong"; color: Floword.success; font-size: 10px; font-weight: 600; }
+                            }
+                            Text { text: "Ý Tưởng & Kịch Bản"; color: Floword.text; font-size: 13px; font-weight: 700; }
+                            Text { text: "Nhập đề tài, AI mở rộng phân cảnh kịch bản."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
+                            Rectangle { vertical-stretch: 1; }
+                            StudioButton { label: "Mở Kịch Bản"; clicked => { root.navigate(StudioRoute.scripts); } }
+                        }
+                    }
+
+                    // Node 2: OmniRoute AI Gateway
+                    Rectangle {
+                        background: Floword.field;
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: Floword.warning;
+                        padding: 12px;
+                        horizontal-stretch: 1;
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            HorizontalLayout {
+                                Text { text: "STAGE 02"; color: Floword.warning; font-size: 10px; font-weight: 700; }
+                                Rectangle { horizontal-stretch: 1; }
+                                Text { text: "● Sẵn sàng"; color: Floword.success; font-size: 10px; font-weight: 600; }
+                            }
+                            Text { text: "OmniRoute Gateway"; color: Floword.text; font-size: 13px; font-weight: 700; }
+                            Text { text: "Định tuyến 160+ LLMs, Circuit Breaker tự động."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
+                            Rectangle { vertical-stretch: 1; }
+                            StudioButton { label: "Cấu hình Keys"; clicked => { root.navigate(StudioRoute.keys); } }
+                        }
+                    }
+
+                    // Node 3: Giọng đọc & Avatar
+                    Rectangle {
+                        background: Floword.field;
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: Floword.violet;
+                        padding: 12px;
+                        horizontal-stretch: 1;
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            HorizontalLayout {
+                                Text { text: "STAGE 03"; color: Floword.violet; font-size: 10px; font-weight: 700; }
+                                Rectangle { horizontal-stretch: 1; }
+                                Text { text: "● Chạy"; color: Floword.cyan; font-size: 10px; font-weight: 600; }
+                            }
+                            Text { text: "Giọng Đọc & Avatar"; color: Floword.text; font-size: 13px; font-weight: 700; }
+                            Text { text: "TTS Sherpa AI, tạo MC ảo Lip-sync đồng bộ."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
+                            Rectangle { vertical-stretch: 1; }
+                            StudioButton { label: "Mở OpenTalking"; clicked => { root.navigate(StudioRoute.opentalking); } }
+                        }
+                    }
+
+                    // Node 4: Dựng Timeline
+                    Rectangle {
+                        background: Floword.field;
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: Floword.line-bright;
+                        padding: 12px;
+                        horizontal-stretch: 1;
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            HorizontalLayout {
+                                Text { text: "STAGE 04"; color: Floword.muted; font-size: 10px; font-weight: 700; }
+                                Rectangle { horizontal-stretch: 1; }
+                                Text { text: "○ Chờ"; color: Floword.muted; font-size: 10px; }
+                            }
+                            Text { text: "Dựng Timeline"; color: Floword.text; font-size: 13px; font-weight: 700; }
+                            Text { text: "Tự động xóa khoảng lặng, cắt ghép bắt nhịp nhạc."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
+                            Rectangle { vertical-stretch: 1; }
+                            StudioButton { label: "Vào Timeline"; clicked => { root.back(); } }
+                        }
+                    }
+
+                    // Node 5: Hiệu ứng GPU & Phụ đề
+                    Rectangle {
+                        background: Floword.field;
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: Floword.line-bright;
+                        padding: 12px;
+                        horizontal-stretch: 1;
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            HorizontalLayout {
+                                Text { text: "STAGE 05"; color: Floword.muted; font-size: 10px; font-weight: 700; }
+                                Rectangle { horizontal-stretch: 1; }
+                                Text { text: "○ Chờ"; color: Floword.muted; font-size: 10px; }
+                            }
+                            Text { text: "Hiệu Ứng & Phụ Đề"; color: Floword.text; font-size: 13px; font-weight: 700; }
+                            Text { text: "123+ GPU Shaders, Whisper Auto Captions."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
+                            Rectangle { vertical-stretch: 1; }
+                            StudioButton { label: "Xưởng Phim"; clicked => { root.navigate(StudioRoute.production); } }
+                        }
+                    }
+
+                    // Node 6: Render 4K & Nexora
+                    Rectangle {
+                        background: Floword.field;
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: Floword.line-bright;
+                        padding: 12px;
+                        horizontal-stretch: 1;
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            HorizontalLayout {
+                                Text { text: "STAGE 06"; color: Floword.muted; font-size: 10px; font-weight: 700; }
+                                Rectangle { horizontal-stretch: 1; }
+                                Text { text: "○ Chờ"; color: Floword.muted; font-size: 10px; }
+                            }
+                            Text { text: "Render 4K & Đăng Bài"; color: Floword.text; font-size: 13px; font-weight: 700; }
+                            Text { text: "FFmpeg native GPU, Nexora tự động đăng tải."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
+                            Rectangle { vertical-stretch: 1; }
+                            StudioButton { label: "Xuất Bản"; clicked => { root.navigate(StudioRoute.publish); } }
+                        }
+                    }
+                }
+            }
         }
 
         // Quick Launch Console Cards Grid
@@ -379,7 +599,7 @@ export component StudioPage inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: center;
-                    Text { text: "ArtCraft Media (30000):"; color: Floword.muted; font-size: 12px; }
+                    Text { text: "OmniRoute AI (20128):"; color: Floword.muted; font-size: 12px; }
                     Text {
                         text: StudioBridge.artcraft-state == 1 ? "Sẵn sàng" : "Chưa kết nối";
                         color: StudioBridge.artcraft-state == 1 ? Floword.success : Floword.warning;
@@ -675,22 +895,20 @@ export component StudioPage inherits VerticalLayout {
         }
     }
     }
-    if root.route == StudioRoute.settings: StudioSessionPanel { }
+    if root.route == StudioRoute.settings: StudioBrowserPanel { }
     if root.route == StudioRoute.channels: StudioPagesPanel { }
     if root.route == StudioRoute.settings: StudioCard {
-        StudioHeading { title: I18n.t("nativeStudio.connections"); glyph: Glyph.settings; }
-        Text { text: I18n.t("productionStudio.migrationNotice"); color: Floword.muted; wrap: word-wrap; }
+        StudioHeading { title: "Kết Nối Hệ Sinh Thái Dịch Vụ Local"; glyph: Glyph.settings; }
         Text {
-            text: I18n.t("productionStudio.connectionScope");
+            text: "Quản lý trạng thái kết nối trực tiếp đến 3 dịch vụ nền tảng: Promax Backend, OmniRoute Gateway và Nexora Browser.";
             color: Floword.muted;
-            font-size: 12px;
             wrap: word-wrap;
         }
         HorizontalLayout {
-            spacing: 20px;
+            spacing: 24px;
             HorizontalLayout {
                 spacing: 8px;
-                Text { text: "Promax (43100):"; color: Floword.muted; font-size: 13px; }
+                Text { text: "Promax Backend:"; color: Floword.muted; font-size: 13px; }
                 Text {
                     text: StudioBridge.status-label(StudioBridge.promax-state);
                     color: StudioBridge.promax-state == 1 ? Floword.success : Floword.warning;
@@ -699,20 +917,35 @@ export component StudioPage inherits VerticalLayout {
             }
             HorizontalLayout {
                 spacing: 8px;
-                Text { text: "ArtCraft (30000):"; color: Floword.muted; font-size: 13px; }
+                Text { text: "OmniRoute local:"; color: Floword.muted; font-size: 13px; }
                 Text {
                     text: StudioBridge.status-label(StudioBridge.artcraft-state);
                     color: StudioBridge.artcraft-state == 1 ? Floword.success : Floword.warning;
                     font-size: 13px; font-weight: 600;
                 }
             }
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "Nexora Local API:"; color: Floword.muted; font-size: 13px; }
+                Text {
+                    text: StudioBridge.status-label(StudioBridge.nexora-state);
+                    color: StudioBridge.nexora-state == 1 ? Floword.success : Floword.warning;
+                    font-size: 13px; font-weight: 600;
+                }
+            }
         }
         HorizontalLayout {
+            spacing: 12px;
             StudioButton {
-                label: StudioBridge.checking ? I18n.t("productionStudio.checking") : I18n.t("productionStudio.checkServices");
+                label: StudioBridge.checking ? "Đang kiểm tra..." : "Kiểm tra kết nối dịch vụ";
                 enabled: !StudioBridge.checking;
                 primary: true;
                 clicked => { StudioBridge.check-services(); }
+            }
+            StudioButton {
+                label: "Khởi động / Kết nối Nexora";
+                enabled: !StudioBrowser.busy;
+                clicked => { StudioBridge.start-nexora(); }
             }
             Rectangle { horizontal-stretch: 1; }
         }

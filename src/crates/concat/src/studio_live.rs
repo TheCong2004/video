@@ -3,7 +3,10 @@
 
 use crate::{
     i18n::t,
-    ui::{App, StudioAi, StudioLive, StudioLiveCommentRow, StudioOpenTalking, StudioProducts},
+    ui::{
+        App, LiveOutputWindow, StudioAi, StudioLive, StudioLiveCommentRow, StudioOpenTalking,
+        StudioProducts,
+    },
 };
 use concat_studio::live::{LiveFrame, LiveFrameKind};
 use concat_studio::live_runtime::{
@@ -11,6 +14,7 @@ use concat_studio::live_runtime::{
 };
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::{
+    cell::RefCell,
     collections::{HashSet, VecDeque},
     sync::{
         Arc, Mutex,
@@ -18,6 +22,10 @@ use std::{
     },
     time::{Duration, Instant},
 };
+
+thread_local! {
+    static LIVE_OUTPUT_WINDOW: RefCell<Option<LiveOutputWindow>> = RefCell::new(None);
+}
 
 type RuntimeSlot = Arc<Mutex<Option<LiveRuntime>>>;
 type ReplyModel = Arc<Mutex<Option<String>>>;
@@ -74,9 +82,37 @@ pub(crate) fn play_tts(
         .and_then(|()| std::io::Write::flush(&mut file))
         .map_err(|_| "could not write temporary speech audio")?;
     drop(file);
-    playback
-        .speak_file_once(&path)
-        .map_err(|_| "Concat could not play speech audio")
+    if playback.speak_file_once(&path).is_ok() {
+        return Ok(());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let script = format!(
+            "Add-Type -AssemblyName presentationCore; $p = New-Object System.Windows.Media.MediaPlayer; $p.Open([System.Uri]'{}'); $p.Play(); Start-Sleep -Seconds 3; $p.Close()",
+            path.to_string_lossy().replace('\\', "/")
+        );
+        let res = std::process::Command::new("powershell")
+            .creation_flags(CREATE_NO_WINDOW)
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                &script,
+            ])
+            .output();
+        if let Ok(out) = res {
+            if out.status.success() {
+                return Ok(());
+            }
+        }
+    }
+
+    Err("Concat could not play speech audio")
 }
 
 fn public_error(error: LiveRuntimeError) -> slint::SharedString {
@@ -95,11 +131,83 @@ fn public_error(error: LiveRuntimeError) -> slint::SharedString {
 fn set_status(weak: &slint::Weak<App>, status: LiveRuntimeStatus) {
     let _ = weak.upgrade_in_event_loop(move |app| {
         let live = app.global::<StudioLive>();
+        let is_connected = status.state == "connected";
         live.set_state(status.state.into());
         if let Some(code) = status.error_code {
-            live.set_status(code.into());
+            live.set_status(connector_error(&code).into());
+        } else if is_connected {
+            live.set_status("".into());
         }
     });
+}
+
+fn connector_error(code: &str) -> String {
+    let explanation = match code {
+        "USEROFFLINEERROR" => {
+            "Kênh này hiện không LIVE. Kiểm tra lại @username hoặc đợi kênh bắt đầu phát."
+        }
+        "INVALIDRESPONSECOMPOSITEERROR" => {
+            "Không lấy được phòng LIVE từ TikTok. Kiểm tra mạng và thử Kiểm tra phòng lại."
+        }
+        "SIGNAPIERROR" => "Không kết nối được dịch vụ ký TikTok LIVE. Đây không phải lỗi model AI.",
+        "PREMIUM_FEATURE_REQUIRED" => "Dịch vụ TikTok yêu cầu quyền trả phí cho thao tác này.",
+        "SIGNATURERATELIMITERROR" => {
+            "Dịch vụ TikTok đang giới hạn lượt kết nối. Hãy đợi rồi thử lại."
+        }
+        "CONNECTTIMEOUTERROR" => "Hết thời gian kết nối TikTok LIVE. Hãy thử lại.",
+        "LIVE_RECONNECT_SCHEDULED" | "LIVE_RECONNECTING" => {
+            "Mất kết nối tạm thời; đang tự nối lại TikTok LIVE."
+        }
+        _ => "Kết nối TikTok LIVE gặp lỗi.",
+    };
+    format!("{explanation} [{code}]")
+}
+
+/// Explicit --smoke opt-in: exercise the real UI callbacks and cross-thread
+/// delivery. Never enables AI, TTS, product automation or sends a chat message.
+pub(crate) fn smoke_connection(app: &App, username: &str) -> Result<(), slint::PlatformError> {
+    let connected = std::rc::Rc::new(std::cell::Cell::new(false));
+    let completed = std::rc::Rc::new(std::cell::Cell::new(false));
+    let weak = app.as_weak();
+    let saw_connection = connected.clone();
+    let finished = completed.clone();
+    let deadline = Instant::now() + Duration::from_secs(55);
+    let timer = slint::Timer::default();
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(40),
+        move || {
+            let Some(app) = weak.upgrade() else {
+                let _ = slint::quit_event_loop();
+                return;
+            };
+            let live = app.global::<StudioLive>();
+            let state = live.get_state();
+            if state == "connected" && !saw_connection.get() {
+                saw_connection.set(true);
+                live.invoke_disconnect();
+            } else if saw_connection.get() && state == "stopped" && !live.get_busy() {
+                finished.set(true);
+                let _ = slint::quit_event_loop();
+            } else if state == "failed" || Instant::now() >= deadline {
+                let _ = slint::quit_event_loop();
+            }
+        },
+    );
+    app.global::<StudioLive>().invoke_connect(username.into());
+    slint::run_event_loop_until_quit()?;
+    drop(timer);
+    if completed.get() {
+        println!("LIVE_UI_SMOKE=PASS");
+        log::info!(
+            "LIVE_UI_SMOKE=PASS: callback -> worker -> UI connected -> disconnect -> UI stopped; no posting"
+        );
+        Ok(())
+    } else {
+        Err(slint::PlatformError::Other(
+            "LIVE_UI_SMOKE_FAILED: no connected/stopped round trip".into(),
+        ))
+    }
 }
 
 fn frame_line(frame: &LiveFrame) -> Option<String> {
@@ -163,7 +271,9 @@ fn live_event(frame: &LiveFrame) -> Option<(String, String, String, String, Stri
         "like" => {
             let count = payload
                 .and_then(|p| p.get("count").and_then(serde_json::Value::as_u64))
-                .or_else(|| payload.and_then(|p| p.get("likeCount").and_then(serde_json::Value::as_u64)))
+                .or_else(|| {
+                    payload.and_then(|p| p.get("likeCount").and_then(serde_json::Value::as_u64))
+                })
                 .unwrap_or(1);
             format!("Đã thả {count} tim ủng hộ phiên live")
         }
@@ -172,7 +282,9 @@ fn live_event(frame: &LiveFrame) -> Option<(String, String, String, String, Stri
         _ => {
             let text = payload
                 .and_then(|p| p.get("content").and_then(serde_json::Value::as_str))
-                .or_else(|| payload.and_then(|p| p.get("comment").and_then(serde_json::Value::as_str)))
+                .or_else(|| {
+                    payload.and_then(|p| p.get("comment").and_then(serde_json::Value::as_str))
+                })
                 .unwrap_or("");
             text.chars().take(500).collect::<String>()
         }
@@ -218,13 +330,7 @@ fn synthesize_and_play(
     text: &str,
     voice: &str,
 ) -> Result<(), &'static str> {
-    let tts_client = concat_host::studio_opentalking::OpenTalkingClient::new(
-        &std::env::var("CONCAT_ARTCRAFT_ORIGIN")
-            .unwrap_or_else(|_| "http://127.0.0.1:30000".into()),
-    )
-    .map_err(|_| "OpenTalking service unavailable")?;
-    let audio = tts_client
-        .synthesize_reply(text, voice)
+    let audio = crate::studio_opentalking::synthesize_speech_robust(text, voice)
         .map_err(|_| "OpenTalking speech synthesis failed")?;
     play_tts(playback, audio)
 }
@@ -242,7 +348,7 @@ fn generate_and_send_reply(
         .ok()
         .and_then(|model| model.clone())
         .ok_or("AI model not selected")?;
-    let client = crate::studio_session::client().map_err(|_| "Promax session unavailable")?;
+    let client = crate::studio_local_ai::client().map_err(|_| "OmniRoute local unavailable")?;
     let answer = client
         .ai_ask(&model, &make_reply_prompt(username, comment))
         .map_err(|_| "Promax AI reply failed")?;
@@ -252,14 +358,13 @@ fn generate_and_send_reply(
         .ok()
         .and_then(|voice| voice.clone())
         .ok_or("OpenTalking voice not selected")?;
-    let tts_client = concat_host::studio_opentalking::OpenTalkingClient::new(
-        &std::env::var("CONCAT_ARTCRAFT_ORIGIN")
-            .unwrap_or_else(|_| "http://127.0.0.1:30000".into()),
-    )
-    .map_err(|_| "OpenTalking service unavailable")?;
-    let audio = tts_client
-        .synthesize_reply(&reply, &voice)
-        .map_err(|_| "OpenTalking speech synthesis failed")?;
+    let audio = match crate::studio_opentalking::synthesize_speech_robust(&reply, &voice) {
+        Ok(a) => a,
+        Err(_) => {
+            log::warn!("Speech synthesis failed for reply");
+            return Ok((reply, false));
+        }
+    };
     runtime
         .lock()
         .map_err(|_| "LIVE runtime unavailable")?
@@ -291,7 +396,7 @@ fn monitor(
     let spawned = std::thread::Builder::new()
         .name("concat-tiktok-live-events".into())
         .spawn(move || {
-            let mut last_state = String::new();
+            let mut last_status = None;
             let mut seen = HashSet::new();
             let mut seen_order = VecDeque::new();
             loop {
@@ -321,17 +426,42 @@ fn monitor(
                                     }
                                 }
                                 if frame.kind == LiveFrameKind::Result {
-                                    if frame.value.get("operation").and_then(serde_json::Value::as_str) == Some("inspect") {
-                                        let is_live = frame.value.get("isLive").and_then(serde_json::Value::as_bool).unwrap_or(false);
-                                        let username = frame.value.get("username").and_then(serde_json::Value::as_str).unwrap_or("kênh");
-                                        let room_id = frame.value.get("roomId").and_then(serde_json::Value::as_str).unwrap_or("");
+                                    if frame
+                                        .value
+                                        .get("operation")
+                                        .and_then(serde_json::Value::as_str)
+                                        == Some("inspect")
+                                    {
+                                        let is_live = frame
+                                            .value
+                                            .get("isLive")
+                                            .and_then(serde_json::Value::as_bool)
+                                            .unwrap_or(false);
+                                        let username = frame
+                                            .value
+                                            .get("username")
+                                            .and_then(serde_json::Value::as_str)
+                                            .unwrap_or("kênh");
+                                        let room_id = frame
+                                            .value
+                                            .get("roomId")
+                                            .and_then(serde_json::Value::as_str)
+                                            .unwrap_or("");
                                         let msg = if is_live {
-                                            format!("Kênh @{username}: 🔴 Đang phát trực tiếp{}", if room_id.is_empty() { "".into() } else { format!(" (Phòng ID: {room_id})") })
+                                            format!(
+                                                "Kênh @{username}: 🔴 Đang phát trực tiếp{}",
+                                                if room_id.is_empty() {
+                                                    "".into()
+                                                } else {
+                                                    format!(" (Phòng ID: {room_id})")
+                                                }
+                                            )
                                         } else {
                                             format!("Kênh @{username}: ⚪ Hiện không LIVE")
                                         };
                                         let _ = weak.upgrade_in_event_loop(move |app| {
-                                            app.global::<StudioLive>().set_inspection_result(msg.into());
+                                            app.global::<StudioLive>()
+                                                .set_inspection_result(msg.into());
                                         });
                                     }
                                 }
@@ -411,15 +541,19 @@ fn monitor(
                                                 }
                                                 let comments = hist
                                                     .iter()
-                                                    .map(|(eid, k, un, cnt, tm)| StudioLiveCommentRow {
-                                                        event_id: eid.clone().into(),
-                                                        kind: k.clone().into(),
-                                                        username: un.clone().into(),
-                                                        content: cnt.clone().into(),
-                                                        time: tm.clone().into(),
+                                                    .map(|(eid, k, un, cnt, tm)| {
+                                                        StudioLiveCommentRow {
+                                                            event_id: eid.clone().into(),
+                                                            kind: k.clone().into(),
+                                                            username: un.clone().into(),
+                                                            content: cnt.clone().into(),
+                                                            time: tm.clone().into(),
+                                                        }
                                                     })
                                                     .collect::<Vec<_>>();
-                                                live.set_comments(ModelRc::new(VecModel::from(comments)));
+                                                live.set_comments(ModelRc::new(VecModel::from(
+                                                    comments,
+                                                )));
                                             }
 
                                             let status = if spoken {
@@ -460,13 +594,15 @@ fn monitor(
                         }
                         let comments = history
                             .iter()
-                            .map(|(event_id, kind, username, content, time)| StudioLiveCommentRow {
-                                event_id: event_id.clone().into(),
-                                kind: kind.clone().into(),
-                                username: username.clone().into(),
-                                content: content.clone().into(),
-                                time: time.clone().into(),
-                            })
+                            .map(
+                                |(event_id, kind, username, content, time)| StudioLiveCommentRow {
+                                    event_id: event_id.clone().into(),
+                                    kind: kind.clone().into(),
+                                    username: username.clone().into(),
+                                    content: content.clone().into(),
+                                    time: time.clone().into(),
+                                },
+                            )
                             .collect::<Vec<_>>();
                         let _ = weak.upgrade_in_event_loop(move |app| {
                             let live = app.global::<StudioLive>();
@@ -474,15 +610,17 @@ fn monitor(
                         });
                     }
                 }
-                let terminal =
-                    matches!(status.state.as_str(), "disconnected" | "stopped" | "failed");
-                if status.state != last_state || !lines.is_empty() {
-                    last_state = status.state.clone();
+                let terminal = matches!(status.state.as_str(), "stopped" | "failed");
+                if last_status.as_ref() != Some(&status) || !lines.is_empty() {
+                    last_status = Some(status.clone());
                     let _ = weak.upgrade_in_event_loop(move |app| {
                         let live = app.global::<StudioLive>();
+                        let is_connected = status.state == "connected";
                         live.set_state(status.state.into());
                         if let Some(code) = status.error_code {
-                            live.set_status(code.into());
+                            live.set_status(connector_error(&code).into());
+                        } else if is_connected {
+                            live.set_status("".into());
                         }
                         if !lines.is_empty() {
                             let mut history = live.get_events().to_string();
@@ -508,7 +646,10 @@ fn monitor(
                         app.global::<StudioLive>().set_auto_reply(false);
                     });
                 }
-                if terminal || weak.upgrade().is_none() {
+                // Weak::upgrade() always returns None off the UI thread. Using
+                // it here stopped the monitor before connect() could finish.
+                // Only stop for a terminal session or a terminated event loop.
+                if terminal || weak.upgrade_in_event_loop(|_| {}).is_err() {
                     break;
                 }
                 std::thread::sleep(std::time::Duration::from_millis(80));
@@ -520,6 +661,7 @@ fn monitor(
 }
 
 pub(crate) fn bind(app: &App) {
+    crate::studio_live_video::bind(app);
     let runtime: RuntimeSlot = Arc::new(Mutex::new(None));
     let auto_reply = Arc::new(AtomicBool::new(false));
     let reply_model: ReplyModel = Arc::new(Mutex::new(None));
@@ -552,18 +694,65 @@ pub(crate) fn bind(app: &App) {
                     if guard.is_none() {
                         *guard = Some(LiveRuntime::new(LiveRuntimeConfig::discover()?));
                     }
-                    guard
+                    let runtime = guard
                         .as_ref()
-                        .ok_or(LiveRuntimeError::ProcessStateUnknown)?
-                        .inspect(&user)
+                        .ok_or(LiveRuntimeError::ProcessStateUnknown)?;
+                    let request = runtime.inspect(&user)?;
+                    // Inspect is asynchronous JSONL, not a successful room lookup
+                    // merely because writing to stdin succeeded.
+                    let deadline = Instant::now() + Duration::from_secs(45);
+                    while Instant::now() < deadline {
+                        if let Some(frame) = runtime.try_next_frame()? {
+                            if frame
+                                .value
+                                .get("requestId")
+                                .and_then(serde_json::Value::as_str)
+                                == Some(request.as_str())
+                                && matches!(
+                                    frame.kind,
+                                    LiveFrameKind::Result | LiveFrameKind::CommandError
+                                )
+                            {
+                                return Ok(frame);
+                            }
+                        } else {
+                            std::thread::sleep(Duration::from_millis(40));
+                        }
+                    }
+                    Err(LiveRuntimeError::ReadyTimeout)
                 })();
                 let _ = weak.upgrade_in_event_loop(move |app| {
                     let live = app.global::<StudioLive>();
                     live.set_busy(false);
                     match result {
-                        Ok(()) => {
-                            live.set_inspection_result(format!("Kênh @{user}: Đang kiểm tra...").into());
-                            live.set_status("".into());
+                        Ok(frame) => {
+                            if frame.kind == LiveFrameKind::CommandError {
+                                let code = frame
+                                    .value
+                                    .get("code")
+                                    .and_then(serde_json::Value::as_str)
+                                    .unwrap_or("ROOM_INSPECT_FAILED");
+                                live.set_inspection_result("".into());
+                                live.set_status(connector_error(code).into());
+                            } else {
+                                let online = frame
+                                    .value
+                                    .get("isLive")
+                                    .and_then(serde_json::Value::as_bool)
+                                    .unwrap_or(false);
+                                live.set_inspection_result(
+                                    format!(
+                                        "Kênh @{user}: {}",
+                                        if online {
+                                            "Đang LIVE"
+                                        } else {
+                                            "Hiện không LIVE"
+                                        }
+                                    )
+                                    .into(),
+                                );
+                                live.set_status("".into());
+                            }
                         }
                         Err(err) => {
                             live.set_status(public_error(err));
@@ -680,33 +869,31 @@ pub(crate) fn bind(app: &App) {
         }
         let ai = app.global::<StudioAi>();
         let index = usize::try_from(ai.get_model_index()).ok();
-        let model = ai
-            .get_models_loaded()
-            .then(|| {
-                index
-                    .and_then(|index| ai.get_models().row_data(index))
-                    .map(|model| model.to_string())
+        let model = index
+            .and_then(|index| ai.get_models().row_data(index))
+            .map(|model| model.to_string())
+            .filter(|model| !model.trim().is_empty())
+            .or_else(|| {
+                ai.get_models()
+                    .row_data(0)
+                    .map(|m| m.to_string())
+                    .filter(|m| !m.trim().is_empty())
             })
-            .flatten();
-        let Some(model) = model.filter(|model| !model.trim().is_empty()) else {
-            live.set_status(t("studioLive.autoReplyNeedsModel").into());
-            return;
-        };
+            .unwrap_or_else(|| "gemini/gemini-2.5-flash".to_string());
         let talking = app.global::<StudioOpenTalking>();
         let voice_index = usize::try_from(talking.get_voice_index()).ok();
-        let voice = talking
-            .get_catalogs_loaded()
-            .then(|| {
-                voice_index
-                    .and_then(|index| talking.get_voices().row_data(index))
-                    .map(|voice| voice.id.to_string())
+        let voice = voice_index
+            .and_then(|index| talking.get_voices().row_data(index))
+            .map(|voice| voice.id.to_string())
+            .filter(|voice| voice.contains(':'))
+            .or_else(|| {
+                talking
+                    .get_voices()
+                    .row_data(0)
+                    .map(|v| v.id.to_string())
+                    .filter(|v| v.contains(':'))
             })
-            .flatten()
-            .filter(|voice| voice.contains(':'));
-        let Some(voice) = voice else {
-            live.set_status(t("studioLive.autoReplyNeedsVoice").into());
-            return;
-        };
+            .unwrap_or_else(|| "edge:vi-VN-HoaiMyNeural".to_string());
         if let Ok(mut selected) = selected_model.lock() {
             *selected = Some(model);
         }
@@ -720,22 +907,24 @@ pub(crate) fn bind(app: &App) {
 
     // Toggle product checkboxes
     let weak = app.as_weak();
-    app.global::<StudioLive>().on_toggle_auto_product_reply(move || {
-        if let Some(app) = weak.upgrade() {
-            let live = app.global::<StudioLive>();
-            let next = !live.get_auto_product_reply();
-            live.set_auto_product_reply(next);
-        }
-    });
+    app.global::<StudioLive>()
+        .on_toggle_auto_product_reply(move || {
+            if let Some(app) = weak.upgrade() {
+                let live = app.global::<StudioLive>();
+                let next = !live.get_auto_product_reply();
+                live.set_auto_product_reply(next);
+            }
+        });
 
     let weak = app.as_weak();
-    app.global::<StudioLive>().on_toggle_auto_product_rotation(move || {
-        if let Some(app) = weak.upgrade() {
-            let live = app.global::<StudioLive>();
-            let next = !live.get_auto_product_rotation();
-            live.set_auto_product_rotation(next);
-        }
-    });
+    app.global::<StudioLive>()
+        .on_toggle_auto_product_rotation(move || {
+            if let Some(app) = weak.upgrade() {
+                let live = app.global::<StudioLive>();
+                let next = !live.get_auto_product_rotation();
+                live.set_auto_product_rotation(next);
+            }
+        });
 
     // Disconnect callback
     let weak = app.as_weak();
@@ -850,21 +1039,28 @@ pub(crate) fn bind(app: &App) {
                 .ok()
                 .and_then(|index| ai.get_models().row_data(index))
                 .map(|value| value.to_string())
-                .filter(|value| !value.trim().is_empty());
-            let Some(selected_model) = selected_model else {
-                live.set_status(t("studioLive.autoReplyNeedsModel").into());
-                return;
-            };
+                .filter(|value| !value.trim().is_empty())
+                .or_else(|| {
+                    ai.get_models()
+                        .row_data(0)
+                        .map(|m| m.to_string())
+                        .filter(|m| !m.trim().is_empty())
+                })
+                .unwrap_or_else(|| "gemini/gemini-2.5-flash".to_string());
             let talking = app.global::<StudioOpenTalking>();
             let selected_voice = usize::try_from(talking.get_voice_index())
                 .ok()
                 .and_then(|index| talking.get_voices().row_data(index))
                 .map(|value| value.id.to_string())
-                .filter(|value| value.contains(':'));
-            let Some(selected_voice) = selected_voice else {
-                live.set_status(t("studioLive.autoReplyNeedsVoice").into());
-                return;
-            };
+                .filter(|value| value.contains(':'))
+                .or_else(|| {
+                    talking
+                        .get_voices()
+                        .row_data(0)
+                        .map(|v| v.id.to_string())
+                        .filter(|v| v.contains(':'))
+                })
+                .unwrap_or_else(|| "edge:vi-VN-HoaiMyNeural".to_string());
             if let Ok(mut value) = model.lock() {
                 *value = Some(selected_model);
             }
@@ -1064,6 +1260,55 @@ pub(crate) fn bind(app: &App) {
             app.global::<StudioLive>().set_active_tab(tab);
         }
     });
+
+    // Toggle output window callback for TikTok LIVE Studio
+    let weak = app.as_weak();
+    app.global::<StudioLive>().on_toggle_output_window(move || {
+        let Some(app) = weak.upgrade() else { return };
+        let live = app.global::<StudioLive>();
+
+        LIVE_OUTPUT_WINDOW.with(|cell| {
+            let mut guard = cell.borrow_mut();
+            if let Some(existing) = guard.take() {
+                let _ = existing.hide();
+                live.set_output_window_open(false);
+                live.set_status("Đã đóng cửa sổ Concat LIVE Output".into());
+            } else {
+                match LiveOutputWindow::new() {
+                    Ok(win) => {
+                        let _ = win.show();
+                        *guard = Some(win);
+                        live.set_output_window_open(true);
+                        live.set_status("Đã mở cửa sổ Concat LIVE Output. Vào TikTok LIVE Studio chọn nguồn cửa sổ này.".into());
+                    }
+                    Err(e) => {
+                        live.set_status(format!("Không thể mở cửa sổ đầu ra: {}", e).into());
+                    }
+                }
+            }
+        });
+        sync_output(&app);
+    });
+}
+
+pub(crate) fn sync_output(app: &App) {
+    LIVE_OUTPUT_WINDOW.with(|cell| {
+        if let Some(window) = cell.borrow().as_ref() {
+            let source = app.global::<StudioLive>();
+            let output = window.global::<StudioLive>();
+            output.set_video_frame(source.get_video_frame());
+            output.set_motion_title(source.get_motion_title());
+            output.set_displayed_subtitle(source.get_displayed_subtitle());
+            output.set_is_speaking(source.get_is_speaking());
+            output.set_pinned_title(source.get_pinned_title());
+            output.set_pinned_price(source.get_pinned_price());
+            window.global::<StudioOpenTalking>().set_avatar_preview(app.global::<StudioOpenTalking>().get_avatar_preview());
+        }
+    });
+}
+
+pub(crate) fn output_frame() -> Option<slint::Image> {
+    LIVE_OUTPUT_WINDOW.with(|cell| cell.borrow().as_ref().map(|w| w.global::<StudioLive>().get_video_frame()))
 }
 
 #[cfg(test)]

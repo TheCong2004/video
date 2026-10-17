@@ -19,10 +19,17 @@
 
 #[cfg(feature = "chatterbox")]
 pub mod chatterbox;
+pub mod audio_analysis;
 pub mod transcribe;
+pub mod transcript;
 pub mod tts;
 
+pub use audio_analysis::{
+    detect_beats, detect_scene_cuts, detect_silent_spans, rms_envelope, BeatAnalysis,
+    SceneCut, SilenceCompressionPlan, SilenceParams, SilenceSpan,
+};
 pub use transcribe::Transcriber;
+pub use transcript::{TranscriptWord, SubtitleCue, is_filler, filler_indices, find_silence_gaps, compute_cut_ranges, map_source_cuts_to_timeline, segment_subtitles};
 pub use tts::Speech;
 
 /// Whether the voices ask for the machine's own accelerator: CoreML, the

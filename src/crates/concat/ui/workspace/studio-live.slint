@@ -18,9 +18,19 @@ export struct StudioLiveCommentRow {
 }
 
 export global StudioLive {
+    in-out property <image> video-frame;
+    in-out property <string> motion-title;
+    in-out property <string> motion-status;
+    in-out property <bool> motion-loading;
+    in-out property <bool> motion-playing;
+    callback choose-motion();
+    callback use-builtin-motion();
+    callback stop-motion();
+    callback select-avatar-motion(int);
     in-out property <string> username;
     in-out property <string> message;
     in-out property <string> state: "stopped";
+    out property <bool> session-active: state == "starting" || state == "connecting" || state == "connected" || state == "degraded" || state == "disconnected" || state == "stopping";
     in-out property <string> status;
     in-out property <string> events;
     in-out property <string> inspection-result;
@@ -35,7 +45,7 @@ export global StudioLive {
     in-out property <bool> auto-product-reply;
     in-out property <bool> auto-product-rotation;
     in-out property <bool> is-speaking;
-    in-out property <string> displayed-subtitle: "Chào mừng bạn đến với phiên Live! Hãy nhập bình luận hoặc chọn sản phẩm để AI bắt đầu giới thiệu.";
+    in-out property <string> displayed-subtitle: "";
     in-out property <bool> show-products;
     in-out property <bool> show-settings;
     in-out property <string> pinned-title;
@@ -55,6 +65,8 @@ export global StudioLive {
     callback next-product();
     callback speak-pinned-product();
     callback set-tab(tab: int);
+    in-out property <bool> output-window-open: false;
+    callback toggle-output-window();
 }
 
 component LiveCheckbox inherits Rectangle {
@@ -468,20 +480,20 @@ export component StudioLivePage inherits VerticalLayout {
                 label: "Kênh TikTok (@username):";
                 placeholder: "@ten_kenh_tiktok";
                 value: StudioLive.username;
-                enabled: !StudioLive.busy && StudioLive.state != "connected";
+                enabled: !StudioLive.busy && !StudioLive.session-active;
                 edited(text) => { StudioLive.username = text; }
             }
 
             HorizontalLayout {
                 spacing: 6px;
-                if StudioLive.state != "connected" && StudioLive.state != "connecting" && StudioLive.state != "stopping": StudioButton {
+                if !StudioLive.session-active: StudioButton {
                     compact: true;
                     label: "Kiểm tra phòng";
                     enabled: !StudioLive.busy && StudioLive.username != "";
                     clicked => { StudioLive.inspect(StudioLive.username); }
                 }
 
-                if StudioLive.state != "connected" && StudioLive.state != "connecting" && StudioLive.state != "stopping": StudioButton {
+                if !StudioLive.session-active: StudioButton {
                     compact: true;
                     label: StudioLive.busy ? "Đang kết nối…" : "Kết nối Live";
                     primary: true;
@@ -489,7 +501,7 @@ export component StudioLivePage inherits VerticalLayout {
                     clicked => { StudioLive.connect(StudioLive.username); }
                 }
 
-                if StudioLive.state == "connected" || StudioLive.state == "connecting" || StudioLive.state == "stopping": StudioButton {
+                if StudioLive.session-active: StudioButton {
                     compact: true;
                     label: StudioLive.busy ? "Đang ngắt…" : "Ngắt kết nối";
                     enabled: !StudioLive.busy;
@@ -530,11 +542,11 @@ export component StudioLivePage inherits VerticalLayout {
 
             Rectangle { height: 1px; background: Floword.line; }
 
-            StudioHeading { title: "2. NHÂN VẬT & GIỌNG ĐỌC"; glyph: Glyph.film; font-size: 12.5px; icon-size: 15px; }
+            StudioHeading { title: "2. CHỌN NHÂN VẬT & CHUYỂN ĐỘNG LIVE"; glyph: Glyph.film; font-size: 12.5px; icon-size: 15px; }
 
-            // Avatar selection
+            // Avatar selection with motion video directly embedded
             VerticalLayout {
-                spacing: 3px;
+                spacing: 4px;
                 Text { text: I18n.t("studioOpenTalking.avatar"); color: Floword.text; font-size: 11.5px; font-weight: 600; }
                 Select {
                     options: StudioOpenTalking.avatar-options;
@@ -544,6 +556,43 @@ export component StudioLivePage inherits VerticalLayout {
                     background: Floword.field;
                     border-color: Floword.line;
                     enabled: !StudioOpenTalking.busy;
+                    changed(index) => {
+                        StudioLive.select-avatar-motion(index);
+                        StudioOpenTalking.select-avatar(index);
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    StudioButton {
+                        compact: true;
+                        label: "+ Thêm video / clip từ máy";
+                        enabled: !StudioLive.motion-loading;
+                        clicked => { StudioLive.choose-motion(); }
+                    }
+                    StudioButton {
+                        compact: true;
+                        label: StudioLive.motion-playing ? "Dừng video" : "Phát lại video";
+                        enabled: !StudioLive.motion-loading;
+                        clicked => {
+                            if StudioLive.motion-playing {
+                                StudioLive.stop-motion();
+                            } else {
+                                StudioLive.select-avatar-motion(StudioOpenTalking.avatar-index);
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: StudioLive.motion-title != ""
+                        ? "🎬 Đang chạy video nhân vật: " + StudioLive.motion-title
+                        : "Chọn nhân vật ở trên để tự động chạy video chuyển động chờ.";
+                    color: StudioLive.motion-playing ? Floword.success : Floword.muted;
+                    font-size: 10.5px;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: "Clip chạy lặp, tắt tiếng gốc. Mắt, mặt và tay chân dùng chuyển động trong clip; chưa khớp môi theo câu AI mới.";
+                    color: Floword.warning; wrap: word-wrap; font-size: 10px;
                 }
             }
 
@@ -593,6 +642,33 @@ export component StudioLivePage inherits VerticalLayout {
                     clicked => { StudioOpenTalking.refresh(); StudioAi.load-models(); }
                 }
             }
+
+            Rectangle { height: 1px; background: Floword.line; }
+
+            // 3. LIVE OUTPUT WINDOW FOR TIKTOK LIVE STUDIO
+            VerticalLayout {
+                spacing: 6px;
+                StudioHeading { title: "3. CỬA SỔ PHÁT TIKTOK LIVE"; glyph: Glyph.sparkle; font-size: 12.5px; icon-size: 15px; }
+                Text {
+                    text: "Mở cửa sổ phát chuyên dụng tỉ lệ 9:16 để TikTok LIVE Studio bắt hình sạch (không dính giao diện).";
+                    color: Floword.muted;
+                    font-size: 10.5px;
+                    wrap: word-wrap;
+                }
+                StudioButton {
+                    primary: !StudioLive.output-window-open;
+                    label: StudioLive.output-window-open ? "Đóng Cửa Sổ Đầu Ra (Đang mở)" : "Mở Cửa Sổ Đầu Ra (TikTok LIVE)";
+                    clicked => { StudioLive.toggle-output-window(); }
+                }
+                Text {
+                    text: StudioLive.output-window-open
+                        ? "Đang mở 'Concat LIVE Output'. Trong TikTok LIVE Studio: Thêm nguồn -> Quay màn hình cửa sổ -> Chọn 'Concat LIVE Output'."
+                        : "Trong TikTok LIVE Studio: Thêm nguồn -> Quay màn hình cửa sổ -> Chọn 'Concat LIVE Output' sau khi mở.";
+                    color: StudioLive.output-window-open ? Floword.success : Floword.muted;
+                    font-size: 10px;
+                    wrap: word-wrap;
+                }
+            }
         }
 
         // ---------------------------------------------------------------------
@@ -612,11 +688,22 @@ export component StudioLivePage inherits VerticalLayout {
                 height: 290px;
                 clip: true;
 
-                // High Definition 3D Live Streamer Background
-                Image {
+                // Virtual Host Avatar Display (Dynamic preview or default avatar)
+                if StudioLive.video-frame.width > 0: Image {
+                    width: 100%; height: 100%;
+                    source: StudioLive.video-frame;
+                    image-fit: contain;
+                }
+                if StudioLive.video-frame.width <= 0 && StudioOpenTalking.avatar-preview.width > 0: Image {
                     width: 100%;
                     height: 100%;
-                    source: @image-url("../assets/studio-live.jpg");
+                    source: StudioOpenTalking.avatar-preview;
+                    image-fit: contain;
+                }
+                if StudioLive.video-frame.width <= 0 && StudioOpenTalking.avatar-preview.width <= 0: Image {
+                    width: 100%;
+                    height: 100%;
+                    source: @image-url("../../assets/avatars/mc-newscaster.png");
                     image-fit: cover;
                 }
 
@@ -682,7 +769,7 @@ export component StudioLivePage inherits VerticalLayout {
                                 alignment: center;
                                 Icon { glyph: Glyph.sparkle; size: 11px; tint: Floword.cyan; }
                                 Text {
-                                    text: StudioOpenTalking.avatar-options.length > 0 && StudioOpenTalking.avatar-index < StudioOpenTalking.avatar-options.length
+                                    text: StudioLive.motion-playing ? StudioLive.motion-title : StudioOpenTalking.avatar-options.length > 0 && StudioOpenTalking.avatar-index < StudioOpenTalking.avatar-options.length
                                         ? StudioOpenTalking.avatar-options[StudioOpenTalking.avatar-index]
                                         : "Chưa chọn nhân vật";
                                     color: #ffffff;
@@ -690,6 +777,14 @@ export component StudioLivePage inherits VerticalLayout {
                                     font-weight: 600;
                                 }
                             }
+                        }
+
+                        // Output window button
+                        StudioButton {
+                            compact: true;
+                            primary: !StudioLive.output-window-open;
+                            label: StudioLive.output-window-open ? "LIVE Window: BẬT" : "Mở Cửa Sổ LIVE";
+                            clicked => { StudioLive.toggle-output-window(); }
                         }
                     }
 

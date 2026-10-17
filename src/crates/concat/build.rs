@@ -5,6 +5,7 @@
 //! the build for Settings > About.
 
 fn main() {
+    println!("cargo:rerun-if-changed=ui");
     // Fonts and images are compiled into the binary rather than read off disk
     // at run time.
     //

@@ -16,6 +16,10 @@ pub enum BrowserError {
     Stale,
     /// A lifecycle request may have succeeded; do not automatically repeat it.
     UnknownOutcome,
+    /// Local API requires its own token, not a Promax/cloud credential.
+    Authentication,
+    /// Nexora is present but its local API version is incompatible.
+    UnsupportedApi,
 }
 
 /// Profile identity without cookies, proxy passwords or filesystem paths.
@@ -32,6 +36,7 @@ pub struct BrowserProfile {
 /// A local client only. Never starts Nexora or owns browser child processes.
 pub struct BrowserClient {
     origin: String,
+    token: Option<String>,
 }
 
 impl BrowserClient {
@@ -56,7 +61,34 @@ impl BrowserClient {
         }
         Ok(Self {
             origin: url.as_str().trim_end_matches('/').into(),
+            token: None,
         })
+    }
+    /// Optional local bearer, scoped to numeric loopback with no redirects.
+    pub fn with_token(origin: &str, token: Option<String>) -> Result<Self, BrowserError> {
+        let mut client = Self::new(origin)?;
+        if token.as_ref().is_some_and(|s| {
+            s.is_empty() || s.len() > 8192 || !s.bytes().all(|b| b.is_ascii_graphic())
+        }) {
+            return Err(BrowserError::Configuration);
+        }
+        client.token = token;
+        Ok(client)
+    }
+    /// Confirm Nexora's actual runtime protocol, not just an arbitrary open port.
+    pub fn health(&self) -> Result<(), BrowserError> {
+        let value = self.request("GET", "/v1/runtime/health", None)?;
+        if value["protocol"] != "floword-production"
+            || value["protocolVersion"] != 1
+            || value["status"] != "READY"
+            || !matches!(
+                value["runtime"].as_str(),
+                Some("nexorabrowser" | "floword-nexora-runtime")
+            )
+        {
+            return Err(BrowserError::UnsupportedApi);
+        }
+        Ok(())
     }
 
     /// Read the canonical Chromium profile catalogue.
@@ -141,16 +173,23 @@ impl BrowserClient {
             .redirects(0)
             .timeout(Duration::from_secs(if body.is_some() { 25 } else { 8 }))
             .build();
-        let req = agent
+        let mut req = agent
             .request(method, &format!("{}{path}", self.origin))
             .set("Accept", "application/json");
+        if let Some(token) = &self.token {
+            req = req.set("Authorization", &format!("Bearer {token}"));
+        }
         let response = if let Some(body) = body {
             req.set("Content-Type", "application/json")
                 .send_bytes(&serde_json::to_vec(body).map_err(|_| BrowserError::Configuration)?)
         } else {
             req.call()
         };
-        let response = response.map_err(|_| BrowserError::Unavailable)?;
+        let response = response.map_err(|error| match error {
+            ureq::Error::Status(401 | 403, _) => BrowserError::Authentication,
+            ureq::Error::Status(404, _) => BrowserError::UnsupportedApi,
+            _ => BrowserError::Unavailable,
+        })?;
         if !matches!(response.status(), 200 | 201) {
             return Err(BrowserError::Unavailable);
         }
@@ -232,6 +271,31 @@ fn parse_profiles(value: &Value) -> Result<Vec<BrowserProfile>, BrowserError> {
 mod tests {
     use super::*;
     use std::{io::Write, net::TcpListener};
+    #[test]
+    fn bearer_is_scoped_to_loopback_and_auth_failure_is_explicit() {
+        assert!(
+            BrowserClient::with_token("https://cloud.example", Some("fixture".into())).is_err()
+        );
+        assert!(
+            BrowserClient::with_token("http://127.0.0.1:1", Some("bad\r\nheader".into())).is_err()
+        );
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let client = BrowserClient::with_token(
+            &format!("http://{}", listener.local_addr().unwrap()),
+            Some("local-fixture".into()),
+        )
+        .unwrap();
+        let worker = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut bytes = [0; 4096];
+            let count = stream.read(&mut bytes).unwrap();
+            let sent = String::from_utf8_lossy(&bytes[..count]).to_lowercase();
+            assert!(sent.contains("authorization: bearer local-fixture"));
+            stream.write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}").unwrap();
+        });
+        assert_eq!(client.profiles(), Err(BrowserError::Authentication));
+        worker.join().unwrap();
+    }
     fn lifecycle_fixture(
         stop: bool,
         reply: Value,

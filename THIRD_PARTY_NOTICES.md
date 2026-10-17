@@ -1,5 +1,17 @@
 # Third-party notices
 
+## OmniRoute local AI runtime
+
+The Windows development package includes OmniRoute 3.8.49 (MIT, copyright
+2026 diegosouzapw), from https://github.com/diegosouzapw/OmniRoute.
+Its license is included in `OmniRoute/LICENSE`; dependency notices remain in
+the bundled runtime. Concat's reproducible packaging hardening restores the
+management authentication requirement in the prebuilt shared module and its
+Webpack copies, and disables the machine-wide CLI-token bypass. See
+`scripts/harden-local-ai.mjs`. It does not disable authentication or copy
+developer credentials. The owning native supervisor stores runtime secrets
+with Windows DPAPI and launches only on loopback.
+
 ## FFmpeg
 
 Concat links FFmpeg's libraries - libavformat, libavcodec, libavfilter,
@@ -245,3 +257,14 @@ License. The still lives at `src/crates/concat-host/assets/card-still.jpg`
 and is embedded in the app; each card is the effect's own shader run over
 it on the GPU when the app first needs the card (`concat-host`'s
 `cards.rs`).
+
+## Optional AI Edit MCP adapter
+
+The Windows distribution includes the TypeScript Model Context Protocol SDK
+(`@modelcontextprotocol/sdk` 1.32.1, https://github.com/modelcontextprotocol/typescript-sdk)
+and Zod 4.6.7 (https://github.com/colinhacks/zod), both under MIT licences.
+Their original licence files and those of transitive dependencies are retained
+in `tools/ai-edit-mcp/node_modules`; exact versions are recorded in
+`tools/ai-edit-mcp/pnpm-lock.yaml`. The adapter uses the bundled Node runtime.
+These packages provide transport/schema validation, not an AI model or a
+ChatGPT/Gemini account. No user connection file or credential is bundled.

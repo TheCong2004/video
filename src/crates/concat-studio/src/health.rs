@@ -25,18 +25,46 @@ pub fn check_local(port: u16, route: &str) -> Reachability {
 }
 
 fn check_with_timeout(port: u16, route: &str, timeout: Duration) -> Reachability {
-    if port == 0 || !matches!(route, "/health" | "/health/ready") {
+    if port == 0
+        || !matches!(
+            route,
+            "/health" | "/health/ready" | "/api/health/ping" | "/v1/local/browser/profiles"
+        )
+    {
         return Reachability::InvalidResponse;
     }
+    check_url(&format!("http://127.0.0.1:{port}{route}"), timeout)
+}
+
+/// Reach the configured cloud backend, not a hardcoded localhost port. Sends
+/// no credential and never follows redirects. Health is not authentication.
+pub fn check_backend(origin: &str) -> Reachability {
+    let Ok(url) = url::Url::parse(origin) else {
+        return Reachability::InvalidResponse;
+    };
+    let local = matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "[::1]"));
+    if (url.scheme() != "https" && !(local && url.scheme() == "http"))
+        || url.host().is_none()
+        || url.path() != "/"
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return Reachability::InvalidResponse;
+    }
+    check_url(
+        &format!("{}/health", origin.trim_end_matches('/')),
+        Duration::from_secs(5),
+    )
+}
+
+fn check_url(address: &str, timeout: Duration) -> Reachability {
     let agent = ureq::AgentBuilder::new()
         .timeout(timeout)
         .redirects(0)
         .build();
-    let Ok(response) = agent
-        .get(&format!("http://127.0.0.1:{port}{route}"))
-        .set("Accept", "application/json")
-        .call()
-    else {
+    let Ok(response) = agent.get(address).set("Accept", "application/json").call() else {
         return Reachability::Unavailable;
     };
     if response.status() != 200 {
@@ -95,6 +123,23 @@ mod tests {
         let (port, worker) = fixture(response("200 OK", r#"{"status":"degraded"}"#));
         assert_eq!(check_local(port, "/health"), Reachability::Reachable);
         worker.join().expect("fixture finished");
+    }
+    #[test]
+    fn configured_backend_health_is_not_forced_to_localhost_or_sent_credentials() {
+        let (port, worker) = fixture(response("200 OK", r#"{"status":"ok"}"#));
+        assert_eq!(
+            check_backend(&format!("http://127.0.0.1:{port}")),
+            Reachability::Reachable
+        );
+        worker.join().unwrap();
+        for origin in [
+            "http://public.example",
+            "https://user:secret@example.test",
+            "https://example.test/private",
+            "https://example.test?token=secret",
+        ] {
+            assert_eq!(check_backend(origin), Reachability::InvalidResponse);
+        }
     }
 
     #[test]

@@ -46,6 +46,9 @@ export global StudioOpenTalking {
     callback stop(id: string);
     callback delete(id: string);
     callback import-video(id: string);
+    callback play-video(id: string);
+    callback use-live-video(id: string);
+    callback open-export-folder();
     callback select-avatar(int);
     callback select-voice(int);
     callback test-voice(int);
@@ -430,34 +433,6 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
             }
         }
 
-        // ENGINE OFFLINE NOTICE (if engine offline)
-        if StudioOpenTalking.engine-status == "OFFLINE": Rectangle {
-            background: Floword.danger.with-alpha(0.12);
-            border-radius: 12px;
-            border-width: 1px;
-            border-color: Floword.danger.with-alpha(0.35);
-            HorizontalLayout {
-                padding: 14px;
-                spacing: 12px;
-                alignment: space-between;
-
-                HorizontalLayout {
-                    spacing: 10px;
-                    alignment: center;
-                    Icon { glyph: Glyph.close; size: 18px; tint: Floword.danger; }
-                    VerticalLayout {
-                        spacing: 2px;
-                        Text { text: "Mô-đun OpenTalking Engine đang OFFLINE"; color: Floword.danger; font-size: 13px; font-weight: 700; }
-                        Text { text: "Vui lòng khởi động backend OpenTalking cục bộ (hoặc kiểm tra cổng dịch vụ), sau đó bấm 'Kết nối lại'."; color: Floword.muted; font-size: 12px; }
-                    }
-                }
-
-                StudioButton {
-                    label: "Kết nối lại Engine";
-                    clicked => { StudioOpenTalking.refresh(); }
-                }
-            }
-        }
 
         // 2-COLUMN WORKSPACE
         GridLayout {
@@ -541,11 +516,11 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                         image-fit: contain;
                     }
 
-                    // Glassmorphic dark gradient
+                    // Glassmorphic subtle edge vignette
                     Rectangle {
                         width: 100%;
                         height: 100%;
-                        background: @linear-gradient(180deg, #080D1B99 0%, #080D1B44 40%, #080D1BDD 100%);
+                        background: @linear-gradient(180deg, #080D1B40 0%, #00000000 35%, #00000000 65%, #080D1B99 100%);
                     }
 
                     VerticalLayout {
@@ -654,13 +629,13 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                     HorizontalLayout {
                         spacing: 8px;
                         Icon {
-                            glyph: StudioOpenTalking.script != "" ? Glyph.check : Glyph.close;
+                            glyph: Glyph.check;
                             size: 14px;
-                            tint: StudioOpenTalking.script != "" ? Floword.success : Floword.warning;
+                            tint: Floword.success;
                         }
                         Text {
-                            text: StudioOpenTalking.script != "" ? "Đã nhập nội dung kịch bản" : "Nội dung kịch bản đang để trống";
-                            color: StudioOpenTalking.script != "" ? Floword.text : Floword.muted;
+                            text: StudioOpenTalking.script != "" ? "Kịch bản: Đã nhập nội dung" : "Kịch bản tùy chọn: Để trống (Tự động tạo video cử động tự nhiên)";
+                            color: Floword.text;
                             font-size: 12px;
                         }
                     }
@@ -668,12 +643,14 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                     Text { text: I18n.t("studioOpenTalking.motionNote"); color: Floword.muted; wrap: word-wrap; font-size: 11px; }
 
                     StudioButton {
-                        label: StudioOpenTalking.busy ? "Đang xử lý kết xuất..." : "Bắt đầu tạo Video Người Ảo";
+                        label: StudioOpenTalking.busy ? "Đang xử lý kết xuất..."
+                            : StudioOpenTalking.script != "" ? "Bắt đầu tạo Video Khớp Lời Nói"
+                            : "Tạo Video Chuyển Động Chờ (Không cần kịch bản)";
                         primary: true;
                         enabled: !StudioOpenTalking.busy && StudioOpenTalking.catalogs-loaded
                             && StudioOpenTalking.avatar-options.length > 0 && StudioOpenTalking.voice-options.length > 0
-                            && StudioOpenTalking.model-options.length > 0 && StudioOpenTalking.script != "";
-                        clicked => { StudioOpenTalking.confirm-create = true; }
+                            && StudioOpenTalking.model-options.length > 0;
+                        clicked => { StudioOpenTalking.create(); }
                     }
                 }
             }
@@ -972,13 +949,25 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                         label: I18n.t("studioOpenTalking.stop"); enabled: !StudioOpenTalking.busy;
                         clicked => { StudioOpenTalking.stop-id = job.id; }
                     }
+                    if job.status == "completed": StudioButton {
+                        label: "▶ Xem video"; primary: true; enabled: !StudioOpenTalking.busy;
+                        clicked => { StudioOpenTalking.play-video(job.id); }
+                    }
+                    if job.status == "completed": StudioButton {
+                        label: "Dùng cho LIVE"; enabled: !StudioOpenTalking.busy;
+                        clicked => { StudioOpenTalking.use-live-video(job.id); root.navigate-to-live(); }
+                    }
+                    if job.status == "completed": StudioButton {
+                        label: "📁 Mở thư mục"; enabled: !StudioOpenTalking.busy;
+                        clicked => { StudioOpenTalking.open-export-folder(); }
+                    }
+                    if job.status == "completed": StudioButton {
+                        label: I18n.t("studioOpenTalking.importVideo"); enabled: !StudioOpenTalking.busy;
+                        clicked => { StudioOpenTalking.import-video(job.id); }
+                    }
                     if job.status == "completed" || job.status == "failed" || job.status == "cancelled": StudioButton {
                         label: I18n.t("studioOpenTalking.delete"); enabled: !StudioOpenTalking.busy;
                         clicked => { StudioOpenTalking.delete-id = job.id; }
-                    }
-                    if job.status == "completed": StudioButton {
-                        label: I18n.t("studioOpenTalking.importVideo"); primary: true; enabled: !StudioOpenTalking.busy;
-                        clicked => { StudioOpenTalking.import-video(job.id); }
                     }
                     Rectangle { horizontal-stretch: 1; }
                 }

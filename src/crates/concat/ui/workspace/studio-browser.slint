@@ -2,7 +2,7 @@
 import { I18n } from "../i18n.slint";
 import { Floword } from "../theme/floword.slint";
 import { Select } from "../primitives/primitives.slint";
-import { StudioCard, StudioHeading, StudioButton } from "studio-chrome.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
 
 export global StudioBrowser {
     in-out property <[string]> ids;
@@ -13,7 +13,15 @@ export global StudioBrowser {
     in-out property <string> status;
     in-out property <bool> confirm-open;
     in-out property <bool> confirm-stop;
+    in-out property <string> api-origin: "http://127.0.0.1:10108";
+    in-out property <string> executable;
+    in-out property <string> new-token;
+    in-out property <bool> token-present;
     callback refresh();
+    callback start();
+    callback choose-executable();
+    callback save-connection();
+    callback forget-token();
     callback open-grok();
     callback stop-profile();
 }
@@ -21,7 +29,26 @@ export global StudioBrowser {
 export component StudioBrowserPanel inherits StudioCard {
     StudioHeading { title: I18n.t("studioBrowser.title"); }
     Text { text: I18n.t("studioBrowser.scope"); color: Floword.muted; wrap: word-wrap; }
-    StudioButton { label: I18n.t("studioBrowser.refresh"); enabled: !StudioBrowser.busy; clicked => { StudioBrowser.refresh(); } }
+    HorizontalLayout {
+        spacing: 10px;
+        alignment: start;
+        Rectangle {
+            width: 8px; height: 8px; border-radius: 4px;
+            background: StudioBrowser.loaded && StudioBrowser.names.length > 0 ? Floword.success : Floword.cyan;
+            y: (parent.height - self.height) / 2;
+        }
+        Text {
+            text: StudioBrowser.loaded && StudioBrowser.names.length > 0
+                ? "Nexora đã tự động kết nối cục bộ (127.0.0.1:10108)"
+                : "Nexora: Tự động dò tìm nexorabrowser.exe và kết nối ngầm (127.0.0.1:10108)";
+            color: Floword.text; font-size: 13px; font-weight: 600;
+        }
+    }
+    HorizontalLayout {
+        spacing: 8px;
+        StudioButton { label: "Khởi động / Kết nối Nexora"; primary: true; enabled: !StudioBrowser.busy; clicked => { StudioBrowser.start(); } }
+        StudioButton { label: I18n.t("studioBrowser.refresh"); enabled: !StudioBrowser.busy; clicked => { StudioBrowser.refresh(); } }
+    }
     Select {
         options: StudioBrowser.names; current <=> StudioBrowser.index;
         placeholder: I18n.t("studioBrowser.choose"); height: 40px;

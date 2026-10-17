@@ -1,4 +1,4 @@
-param([switch]$CheckOnly, [switch]$TestAdapters, [switch]$TestAI, [switch]$RunBuilt)
+param([switch]$CheckOnly, [switch]$TestAdapters, [switch]$TestAI, [switch]$RunBuilt, [switch]$Build, [switch]$Release)
 
 $ErrorActionPreference = 'Stop'
 $concatRoot = Split-Path -Parent $PSScriptRoot
@@ -15,7 +15,8 @@ function Find-SingleDirectory([string]$Pattern, [string]$Description) {
 }
 
 try {
-    if (([int]$CheckOnly.IsPresent + [int]$TestAdapters.IsPresent + [int]$TestAI.IsPresent + [int]$RunBuilt.IsPresent) -gt 1) { throw 'Choose only one of -CheckOnly, -TestAdapters, -TestAI, or -RunBuilt.' }
+    $chosenCount = [int]$CheckOnly.IsPresent + [int]$TestAdapters.IsPresent + [int]$TestAI.IsPresent + [int]$RunBuilt.IsPresent + [int]$Build.IsPresent + [int]$Release.IsPresent
+    if ($chosenCount -gt 1) { throw 'Choose only one of -CheckOnly, -TestAdapters, -TestAI, -RunBuilt, -Build, or -Release.' }
     # Also prune before starting: a previous interrupted build may have left D full.
     try { & (Join-Path $PSScriptRoot 'cleanup-build.ps1') -Apply }
     catch { Write-Warning "Pre-build cleanup was not completed: $($_.Exception.Message)" }
@@ -61,9 +62,20 @@ try {
             if ($LASTEXITCODE -ne 0) { throw "AI/project tests failed with exit code $LASTEXITCODE." }
             & cargo test -p concat-host --lib session::tests
             if ($LASTEXITCODE -ne 0) { throw "Native Session tests failed with exit code $LASTEXITCODE." }
+            & cargo test -p concat-host --lib session::safety_tests
+            if ($LASTEXITCODE -ne 0) { throw "Session safety tests failed with exit code $LASTEXITCODE." }
             & cargo test -p concat-host --lib contact_sheet::tests
+            if ($LASTEXITCODE -ne 0) { throw "Contact sheet tests failed with exit code $LASTEXITCODE." }
+            & cargo test -p concat-speech --lib transcript::tests
+            if ($LASTEXITCODE -ne 0) { throw "Transcript tests failed with exit code $LASTEXITCODE." }
+            & cargo test -p concat-speech --lib audio_analysis::tests
+            if ($LASTEXITCODE -ne 0) { throw "Audio analysis tests failed with exit code $LASTEXITCODE." }
+            & cargo test -p concat-api --profile quick
+            if ($LASTEXITCODE -ne 0) { throw "Concat API and MCP bridge tests failed with exit code $LASTEXITCODE." }
         }
         elseif ($CheckOnly) { & cargo check -p concat }
+        elseif ($Build) { & cargo build -p concat --bin concat }
+        elseif ($Release) { & cargo build -p concat --bin concat --release }
         elseif ($RunBuilt) {
             $builtExe = Join-Path $sourceRoot 'target\debug\concat.exe'
             if (!(Test-Path -LiteralPath $builtExe -PathType Leaf)) { throw 'No built debug executable. Run the script without -RunBuilt to build it first.' }

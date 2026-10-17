@@ -18,6 +18,11 @@ use concat_project::{
 use serde::Serialize;
 
 use crate::projects;
+mod safety;
+pub use safety::{ActivityEntry, AgentLease, CheckpointInfo, EditActor, WorkSessionInfo};
+#[cfg(test)]
+#[path="session/safety_tests.rs"]
+mod safety_tests;
 
 /// One open project: its folder, its settings and its undo history.
 pub struct Session {
@@ -30,6 +35,7 @@ pub struct Session {
     upgraded: Vec<(String, String)>,
     /// The clips whose retired fields the open took off.
     retired: concat_project::RetiredFields,
+    safety: safety::SessionSafety,
 }
 
 /// What every mutating call returns: the authoritative state plus history
@@ -130,6 +136,7 @@ impl Session {
             editor,
             upgraded,
             retired,
+            safety: safety::SessionSafety::new(),
         })
     }
 
@@ -270,9 +277,28 @@ impl Session {
         gesture: Option<&str>,
         command: Command,
     ) -> Result<EditorView, String> {
+        if self.safety.is_write_locked_for_user() {
+            return Err("Session has active agent lease or history lock".into());
+        }
         let outcome = self
             .editor
             .apply_within(gesture, command)
+            .map_err(|error| error.to_string())?;
+        Ok(self.view_with(outcome.created_id))
+    }
+
+    /// Applies one edit command with a specific actor identity.
+    pub fn apply_with_actor(
+        &mut self,
+        command: Command,
+        actor: EditActor,
+    ) -> Result<EditorView, String> {
+        if !self.safety.can_actor_edit(&actor) {
+            return Err("Session has active agent lease or history lock".into());
+        }
+        let outcome = self
+            .editor
+            .apply_within(None, command)
             .map_err(|error| error.to_string())?;
         Ok(self.view_with(outcome.created_id))
     }
@@ -293,6 +319,104 @@ impl Session {
     pub fn redo(&mut self) -> EditorView {
         self.editor.redo();
         self.view()
+    }
+
+    /// Steps the history back one edit if history is not locked.
+    pub fn try_undo(&mut self) -> Result<EditorView, String> {
+        if self.safety.is_history_locked() {
+            return Err("History is locked".into());
+        }
+        Ok(self.undo())
+    }
+
+    /// Create an immutable checkpoint with an actor label.
+    pub fn create_checkpoint(
+        &mut self,
+        label: &str,
+        actor: EditActor,
+    ) -> Result<CheckpointInfo, String> {
+        self.safety.create_checkpoint(&self.editor, label, actor)
+    }
+
+    /// Restore to a named checkpoint as a native undo step.
+    pub fn restore_named_checkpoint(
+        &mut self,
+        id: u64,
+        actor: EditActor,
+    ) -> Result<bool, String> {
+        self.safety
+            .restore_named_checkpoint(&mut self.editor, id, actor)
+    }
+
+    /// Delete a named checkpoint.
+    pub fn delete_checkpoint(&mut self, id: u64) -> Result<(), String> {
+        self.safety.delete_checkpoint(id)
+    }
+
+    /// List all checkpoints currently stored.
+    pub fn checkpoints(&self) -> Vec<CheckpointInfo> {
+        self.safety.checkpoints()
+    }
+
+    /// Begin an agent work session.
+    pub fn begin_agent_work(
+        &mut self,
+        connection: &str,
+        title: &str,
+    ) -> Result<WorkSessionInfo, String> {
+        self.safety.begin_agent_work(connection, title)
+    }
+
+    /// End an agent work session for a given connection.
+    pub fn end_agent_work(&mut self, connection: &str) -> Result<(), String> {
+        self.safety.end_agent_work(connection)
+    }
+
+    /// Lock history from human edits or undo while an agent reviews.
+    pub fn lock_history(&mut self, connection: &str, reason: &str) -> Result<(), String> {
+        self.safety.lock_history(connection, reason)
+    }
+
+    /// Disconnect an agent, clearing its locks, work sessions, and leases.
+    pub fn disconnect_agent(&mut self, connection: &str) {
+        self.safety.disconnect_agent(connection);
+    }
+
+    /// Acquire exclusive write lease for an agent for a bounded duration.
+    pub fn acquire_agent_write(
+        &mut self,
+        connection: &str,
+        duration: std::time::Duration,
+    ) -> Result<AgentLease, String> {
+        self.safety.acquire_agent_write(connection, duration)
+    }
+
+    /// Commit an agent draft with lease and deduplication checks.
+    pub fn commit_agent_draft(
+        &mut self,
+        lease: &AgentLease,
+        op_id: &str,
+        draft: PreparedDraft,
+    ) -> Result<EditorView, DraftError> {
+        self.safety.validate_commit(lease, op_id)?;
+        let view = self.commit_draft(draft)?;
+        self.safety.record_agent_commit(lease, op_id);
+        Ok(view)
+    }
+
+    /// Retrieve recorded activities.
+    pub fn activities(&self) -> &[ActivityEntry] {
+        self.safety.activities()
+    }
+
+    /// Connection identifier of an active write lease, if any.
+    pub fn active_lease_connection(&self) -> Option<String> {
+        self.safety.active_lease_connection()
+    }
+
+    /// Expire current active write lease manually (for testing/timeout).
+    pub fn expire_agent_write(&mut self) {
+        self.safety.expire_agent_write();
     }
 
     /// Takes a new name, if there is one, and hands back what a save must

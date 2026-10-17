@@ -1,0 +1,191 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Floword } from "../theme/floword.slint";
+import { Glyph, Icon } from "../icons.slint";
+import { StudioLive } from "studio-live.slint";
+import { StudioOpenTalking } from "studio-opentalking.slint";
+
+export component LiveOutputWindow inherits Window {
+    title: "Concat LIVE Output";
+    width: 450px;
+    height: 800px;
+    no-frame: false;
+    background: #000000;
+
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000;
+        clip: true;
+
+        // Avatar Image / Host background (Portrait full height)
+        if StudioLive.video-frame.width > 0: Image {
+            width: 100%; height: 100%;
+            source: StudioLive.video-frame;
+            image-fit: contain;
+        }
+        if StudioLive.video-frame.width <= 0 && StudioOpenTalking.avatar-preview.width > 0: Image {
+            width: 100%;
+            height: 100%;
+            source: StudioOpenTalking.avatar-preview;
+            image-fit: contain;
+        }
+        if StudioLive.video-frame.width <= 0 && StudioOpenTalking.avatar-preview.width <= 0: Image {
+            width: 100%;
+            height: 100%;
+            source: @image-url("../../assets/avatars/mc-newscaster.png");
+            image-fit: cover;
+        }
+
+        // Cinematic gradient overlay
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: @linear-gradient(180deg, #00000099 0%, #00000000 25%, #00000000 70%, #000000ee 100%);
+        }
+
+        // Stream Overlay Content
+        VerticalLayout {
+            alignment: space-between;
+            padding: 16px;
+
+            // Top Status Bar
+            HorizontalLayout {
+                alignment: space-between;
+                spacing: 8px;
+
+                // Live Stream Pill
+                Rectangle {
+                    background: #e11d48ee;
+                    border-radius: 13px;
+                    height: 26px;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 6px;
+                        alignment: center;
+                        Rectangle {
+                            width: 7px;
+                            height: 7px;
+                            border-radius: 3.5px;
+                            background: #ffffff;
+                        }
+                        Text {
+                            text: "LIVE STREAM";
+                            color: #ffffff;
+                            font-size: 11px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // AI MC Host Badge
+                Rectangle {
+                    background: #000000cc;
+                    border-radius: 13px;
+                    border-width: 1px;
+                    border-color: #ffffff30;
+                    height: 26px;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 6px;
+                        alignment: center;
+                        Icon { glyph: Glyph.sparkle; size: 12px; tint: Floword.cyan; }
+                        Text {
+                            text: StudioLive.motion-title != "" ? StudioLive.motion-title : "Nhân vật LIVE";
+                            color: #ffffff;
+                            font-size: 11px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Bottom Subtitle & Pinned Product Box
+            VerticalLayout {
+                spacing: 12px;
+
+                // Pinned Product Banner (if pinned)
+                if StudioLive.pinned-title != "": Rectangle {
+                    background: #111827ee;
+                    border-radius: 10px;
+                    border-width: 1px;
+                    border-color: #38bdf888;
+                    HorizontalLayout {
+                        padding: 10px;
+                        spacing: 10px;
+                        Rectangle {
+                            width: 32px;
+                            height: 32px;
+                            border-radius: 6px;
+                            background: #0284c7;
+                            VerticalLayout {
+                                alignment: center;
+                                Icon { glyph: Glyph.sparkle; size: 16px; tint: #ffffff; }
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: StudioLive.pinned-title;
+                                color: #ffffff;
+                                font-size: 12px;
+                                font-weight: 700;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: StudioLive.pinned-price != "" ? StudioLive.pinned-price : "Đang ghim trực tiếp";
+                                color: #38bdf8;
+                                font-size: 11px;
+                                font-weight: 700;
+                            }
+                        }
+                    }
+                }
+
+                // Subtitle Box (only visible when AI is actually speaking)
+                if StudioLive.is-speaking && StudioLive.displayed-subtitle != "": Rectangle {
+                    background: #000000d0;
+                    border-radius: 12px;
+                    border-width: 1px;
+                    border-color: #ffffff25;
+
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 6px;
+                        HorizontalLayout {
+                            spacing: 6px;
+                            alignment: start;
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 6px;
+                                    height: 6px;
+                                    border-radius: 3px;
+                                    background: StudioLive.is-speaking ? Floword.success : Floword.muted;
+                                }
+                            }
+                            Text {
+                                text: StudioLive.is-speaking ? "AI đang phát biểu..." : "Đang lắng nghe phiên Live...";
+                                color: StudioLive.is-speaking ? Floword.success : Floword.muted;
+                                font-size: 10px;
+                                font-weight: 600;
+                            }
+                        }
+                        Text {
+                            text: StudioLive.displayed-subtitle;
+                            color: #ffffff;
+                            font-size: 13.5px;
+                            font-weight: 600;
+                            wrap: word-wrap;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

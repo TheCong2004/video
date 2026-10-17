@@ -207,8 +207,8 @@ pub fn parse_frame(bytes: &[u8]) -> Result<LiveFrame, LiveProtocolError> {
         Some("runtime.room") => {
             if !object.get("isLive").is_some_and(Value::is_boolean)
                 || !nullable_string(object, "roomId", 128)
-                || !nullable_string(object, "roomInfo", 4096)
-                || !nullable_string(object, "availableGifts", 4096)
+                || !nullable_string(object, "roomInfo", 65536)
+                || !nullable_string(object, "availableGifts", 65536)
             {
                 return Err(LiveProtocolError::UnsupportedFrame);
             }
@@ -287,13 +287,11 @@ fn nonempty_string(object: &Map<String, Value>, key: &str, max: usize) -> bool {
 }
 
 fn nullable_string(object: &Map<String, Value>, key: &str, max: usize) -> bool {
-    matches!(object.get(key), Some(Value::Null))
-        || object
-            .get(key)
-            .and_then(Value::as_str)
-            .is_some_and(|value| {
-                !value.is_empty() && value.len() <= max && !value.chars().any(char::is_control)
-            })
+    match object.get(key) {
+        None | Some(Value::Null) => true,
+        Some(Value::String(value)) => value.len() <= max,
+        _ => false,
+    }
 }
 
 fn is_scalar(value: &Value) -> bool {

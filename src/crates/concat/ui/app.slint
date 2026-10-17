@@ -48,6 +48,7 @@ import { StudioAi, StudioProviderRow } from "workspace/studio-ai.slint";
 import { AiEditing } from "workspace/ai-editing-pane.slint";
 import { StudioBrowser } from "workspace/studio-browser.slint";
 import { StudioSession } from "workspace/studio-session.slint";
+import { PaneScroll } from "workspace/pane.slint";
 import { StudioOpenTalking } from "workspace/studio-opentalking.slint";
 import { StudioLive, StudioLiveCommentRow } from "workspace/studio-live.slint";
 import { StudioProducts, StudioProductRow } from "workspace/studio-products.slint";
@@ -56,6 +57,7 @@ import { ProductionStudio, StudioRunRow } from "workspace/studio-production.slin
 import { StudioChannels, StudioPageRow } from "workspace/studio-pages.slint";
 import { StudioBulk, StudioBulkRowItem } from "workspace/studio-bulk.slint";
 import { StudioPublish, StudioPublishRowItem } from "workspace/studio-publish.slint";
+import { LiveOutputWindow } from "workspace/live-output-window.slint";
 import {
     ClipData, ClipField, ClipKeyData, ClipKind, ClipTextField, DropData, Keyframes,
     SelectedClipData, SelectedTransitionData, StageGuideData, StageItemData, TextAlignment, TimelineTabData,
@@ -90,6 +92,7 @@ export {
     TimelineTool, TrackData, TrackSize, MenuItemData, MenuRow, ExportData, ExportPhase, ModelData, SettingsData,
     ChipOption, RecentProjectData, StartData, SystemFactData, ToastData, ProjectSheetData,
     CaptionsSheetData, SpeechSheetData,
+    LiveOutputWindow,
 }
 
 export component App inherits Window {
@@ -624,6 +627,7 @@ export component App inherits Window {
             // drag region are all a desk's, and the phone shell's top bar
             // carries the two verbs that are not.
             if !root.phone: TitleBar {
+                auth-mode: false;
                 macos: root.macos;
                 minimal: root.on-start;
                 deep: root.on-start;

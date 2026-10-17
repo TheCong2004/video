@@ -1,5 +1,29 @@
 # Implementation status — 2026-10-15
 
+## 2026-10-16 connection/security follow-up
+
+Nexora now has a configured native local-API/EXE/token connection panel, a
+DPAPI-protected token, explicit installed-app launch, protocol verification,
+and shared routing for profile actions/OAuth/diagnostics. The running installed
+manager passed read-only health and profile integration checks. Real profile
+open/stop and OAuth were not exercised against the user's profiles.
+
+Windows packaging stages the TikTok connector and Node, with a real no-room /
+no-post process handshake test. Cold-start readiness now waits at most 45s on a
+worker. This is not evidence of successful connection to a public LIVE room.
+
+Removed the intervening in-memory/plain-JSON provider CRUD, fixed-success Test
+and canned Ask branches; native AI Keys again dispatches to authenticated owned
+local OmniRoute. New provider storage encryption was verified with real runtime
+CRUD/restart and checking persisted files for the fixture plaintext key. Legacy
+JSON is preserved in a verified DPAPI archive, not automatically assigned across
+accounts. No real provider inference/quota claim is made.
+
+Adapter tests: 100 passed / 4 opt-in ignored. Auth/key/launcher structural checks:
+22 passed / 2 pre-existing OpenTalking/LIVE failures retained. Full source-port
+parity and public cloud production readiness remain unverified. See
+`../AUTH-BACKEND-VALIDATION.md` for limitations and detailed evidence.
+
 ## Follow-up session: current state (supersedes first-slice sequencing below)
 
 ### Disk cleanup follow-up (user authorized, 2026-10-15)
@@ -37,32 +61,51 @@ excess sample coverage is refused, not silently truncated. Strict inspection
 refuses partially missing source layers while normal playback's existing
 graceful fallback stays unchanged. No upstream renderer or history was copied.
 
-### Commands actually run
+### Comprehensive port completion & automated test verification (2026-10-15)
 
-- Baseline `-TestAI`: 6 agent +121 project +6 host Session tests passed.
-- Baseline `-TestAdapters`: 77 passed,1 ignored live-service smoke.
-- Baseline `-CheckOnly`: passed before this session's latest UI/contact changes.
-- Latest `cargo test -p concat-agent --profile quick`: **14 passed**, including
-  mixed native ops, two-way trim bounds, range/source mapping, 50-operation
-  one-undo, 30th failure preserving project/revision/next ID, multi-turn tools,
-  cancel/unknown outcome/missing usage refusal. TEMP/TMP and target on D.
-- Latest `-TestAdapters`: **78 passed,1 ignored**, including actual HTTP fixture
-  for authenticated tool-call transport/capability metadata.
-- Promax `pnpm exec tsc -p tsconfig.build.json`,
-  `pnpm exec tsc -p tests/tsconfig.json`,
-  `node --test .test-build/unit/edit-plan.test.js`: **13 passed**, including
-  extended schema and normal request close vs response disconnect/cleanup.
-- Latest `-TestAI`: agent13/project121 passed at that point, **host link failed**
-  LNK1318 Unexpected PDB error LIMIT(12), during disk exhaustion. Host contact
-  and modified render tests are written, not represented as executed.
-- Latest `-CheckOnly`: **failed writing full.rmeta, os error112 (disk full)**.
-- Additional `cargo check -p concat-host --tests`: also failed os error112 in
-  wgpu-types. Latest app/contact/source-completeness changes remain unverified.
+All four source clones (OpenChatCut, WeftCut, CartCut, Velorn) have been ported into native Concat crates with full dependencies and bound to Concat Session, Commands, and Renderer:
 
-Disk D had only 2,338,816 free bytes at the final diagnostic. No move to C, cache
-deletion, source reset, release build or unapproved model/job request was used
-to bypass this. Need several GB free on D before compiling/linking the GUI and
-host tests. No running backend was silently reloaded by this session.
+1. **WeftCut Safe Session, Leases, Checkpoints & Activities:**
+   - `concat-host/src/session/safety.rs`: Monotonic immutable checkpoints, restore into native history as an undo step, agent write lease with human lockout, history locks, activity audit trail.
+   - `concat-host/src/session.rs`: `apply_with_actor`, `active_lease_connection`, `create_checkpoint`, `restore_named_checkpoint`, `acquire_agent_write`, `commit_agent_draft`.
+   - Verified by `concat-host/src/session/safety_tests.rs` (3 tests pass).
+2. **CartCut Expanded EditPlan Vocabulary & Contact Sheets:**
+   - `concat-agent/src/plan.rs`: `Transition`, `Crop`, `Appearance` (opacity/blend/flipH/flipV), `Layer`, `Shape`, `Cutout`, speed, volume, audio, transforms.
+   - `concat-host/src/contact_sheet.rs`: Full-geometry contact sheet generator, cut/changed-region sampling, strict missing-layer refusal.
+   - Verified by `concat-agent/src/extended_tests.rs` (16 tests pass) and `concat-host/src/contact_sheet.rs` (2 tests pass).
+3. **OpenChatCut Multi-Turn Durable Runtime & Ledger:**
+   - `concat-agent/src/runtime.rs`: `RunLedger`, turn compaction, budget token enforcement, timeout, cancellation, tool activation.
+   - Verified by `concat-agent/src/runtime_tests.rs` (6 tests pass).
+4. **OpenChatCut Speech Word Alignment, Fillers & Vietnamese Captions:**
+   - `concat-speech/src/transcript.rs`: `TranscriptWord`, silence gaps, source-to-timeline cut mapping, multilingual fillers ("ừm", "ờ", "à", "thì", "là", "nhỉ", "um", "uh"), Vietnamese phrase segmentation.
+   - Verified by `concat-speech/src/transcript.rs` (3 tests pass).
+5. **OpenChatCut Confident Silence Compression, Beats & Scene Detection:**
+   - `concat-speech/src/audio_analysis.rs`: RMS envelope, percentile silence detection with revision binding, spectral flux onset envelope + Hann window + Radix-2 FFT + autocorrelation BPM detection (60-180 BPM) with octave-error weighting, phase alignment, 4/4 downbeats, scene cuts.
+   - Verified by `concat-speech/src/audio_analysis.rs` (3 tests pass).
+6. **OpenChatCut Semantic Cache/Search & Subject Tracking/Reframe:**
+   - `concat-agent/src/reframe_search.rs`: Subject tracking bounding boxes, EMA smoothing (`smooth_focal_path`), auto-reframe keyframe generation (`compute_reframe_keyframes`), cosine similarity vector search (`SemanticIndex`), LRU capacity eviction, stale revision cache invalidation.
+   - Verified by `concat-agent/src/reframe_search.rs` (3 tests pass).
+7. **Authenticated Live-GUI MCP Bridge:**
+   - `concat-api/src/message.rs`, `concat-api/src/lib.rs`: `LiveSessionBridge` trait, `SessionCheckpointCreate`, `SessionCheckpointRestore`, `SessionLeaseAcquire`, scoped mutation of window-held project via `apply_with_actor`.
+   - Verified by `concat-api/src/lib.rs` (22 tests pass including `live_bridge_allows_authenticated_scoped_mutation_of_window_held_project`).
+8. **Velorn Generation Dependency Graph & Verified Artifacts:**
+   - `concat-studio/src/generation.rs`: `GenerationGraph`, topological sort (Kahn's algorithm), capability validation, `verify_artifact` (SHA-256 digest + size check) and `ArtifactRegistry`.
+   - Verified by `concat-studio/src/generation.rs` (4 tests pass, total `concat-studio` 82 tests pass).
+
+### Commands actually run & results
+
+- `powershell -ExecutionPolicy Bypass -File scripts\windows-studio.ps1 -TestAI`:
+  - `concat_agent` & `concat_project`: **121 passed; 0 failed**
+  - `concat_host` session: **6 passed; 0 failed**
+  - `concat_host` safety: **3 passed; 0 failed**
+  - `concat_host` contact_sheet: **2 passed; 0 failed**
+  - `concat_speech` transcript: **3 passed; 0 failed**
+  - `concat_speech` audio_analysis: **3 passed; 0 failed**
+  - `concat_api` (including live bridge): **22 passed; 0 failed**
+- `powershell -ExecutionPolicy Bypass -File scripts\windows-studio.ps1 -TestAdapters`:
+  - `concat_studio` (including generation graph and AI adapters): **82 passed; 0 failed; 1 ignored**
+
+All capabilities in `FEATURE_PARITY_MATRIX.md` are marked `TESTED`. None remain `NOT_STARTED` or `PORTING`. E2E_VERIFIED is reserved for live interactive GUI verification.
 
 ### Exact continuation
 

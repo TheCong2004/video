@@ -204,3 +204,39 @@ fn thirtieth_failed_operation_preserves_live_project_revision_and_next_id() {
         control.apply(next).unwrap().created_id
     );
 }
+
+#[test]
+fn cartcut_expanded_vocabulary_transitions_crop_appearance_layer_shape_cutout() {
+    let (mut editor, media, track) = fixture();
+    let before = editor.project().clone();
+    let proposal = compile(&editor, json!([
+        {"op":"place","mediaId":media,"trackId":track,"start":0.0,"ripple":false,"as":"main"},
+        {"op":"transition","clipId":"@main","transitionId":"cross-fade","duration":0.5},
+        {"op":"crop","clipId":"@main","left":0.1,"top":0.1,"right":0.1,"bottom":0.1},
+        {"op":"appearance","clipId":"@main","opacity":0.8,"blend":"screen","flipH":true,"flipV":false},
+        {"op":"cutout","clipId":"@main","enabled":true},
+        {"op":"layer","start":0.0,"duration":5.0,"effectId":"concat.warm","name":"Warm Look","as":"warmth"},
+        {"op":"shape","start":1.0,"duration":3.0,"name":"Badge","as":"badge"}
+    ])).unwrap();
+    let preview = proposal.draft().project().clone();
+    assert_eq!(editor.project(), &before);
+    let main_clip = preview.active().clips.iter().find(|c| c.media_id == media).unwrap();
+    assert!(main_clip.transition_in.is_some());
+    assert_eq!(main_clip.transition_in.as_ref().unwrap().id, "cross-fade");
+    assert_eq!(main_clip.transition_in.as_ref().unwrap().duration, 0.5);
+    assert!(main_clip.crop.is_some());
+    let crop = main_clip.crop.as_ref().unwrap();
+    assert_eq!(crop.left, 0.1);
+    assert_eq!(main_clip.opacity, 0.8);
+    assert_eq!(main_clip.blend, "screen");
+    assert!(main_clip.flip_h);
+    assert!(main_clip.cutout.is_some());
+    let layer_clip = preview.active().clips.iter().find(|c| c.kind == concat_project::model::ClipKind::Layer).unwrap();
+    assert_eq!(layer_clip.name, "Warm Look");
+    let shape_clip = preview.active().clips.iter().find(|c| c.kind == concat_project::model::ClipKind::Shape).unwrap();
+    assert_eq!(shape_clip.name, "Badge");
+    editor.commit_draft(proposal.into_draft()).unwrap();
+    assert_eq!(editor.project(), &preview);
+    editor.undo();
+    assert_eq!(editor.project(), &before);
+}

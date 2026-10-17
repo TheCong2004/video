@@ -51,8 +51,9 @@ use concat_project::Command;
 use concat_project::model::VideoSettings;
 
 pub use message::{
-    API_VERSION, ApiError, Dirs, Done, ErrorCode, Event, ExportSpec, Fill, PackageInfo, ParamInfo,
-    Picture, Reply, Request, Response, Started, VersionInfo, Written,
+    API_VERSION, ApiError, CheckpointReceipt, Dirs, Done, ErrorCode, Event, ExportSpec, Fill,
+    LeaseReceipt, PackageInfo, ParamInfo, Picture, Reply, Request, Response, Started, VersionInfo,
+    Written,
 };
 
 /// The export sheet's middle quality, and what an export gets when the
@@ -142,6 +143,41 @@ impl OpenProjects {
     }
 }
 
+/// A bridge between an external API/MCP transport and a live GUI-owned session,
+/// allowing external agents to inspect, lease, checkpoint, and mutate the project
+/// currently held by Holder::Window.
+pub trait LiveSessionBridge: Send + Sync {
+    /// True if the GUI window holds this project folder open.
+    fn is_live_held(&self, path: &str) -> bool;
+
+    /// Read the live editor view.
+    fn get_live_view(&self, path: &str) -> Result<EditorView, ApiError>;
+
+    /// Read the live document JSON.
+    fn get_live_document(&self, path: &str) -> Result<serde_json::Value, ApiError>;
+
+    /// Mutate the live session by applying an edit command.
+    fn apply_live_command(&self, path: &str, command: Command) -> Result<EditorView, ApiError>;
+
+    /// Undo in the live session.
+    fn undo_live(&self, path: &str) -> Result<EditorView, ApiError>;
+
+    /// Redo in the live session.
+    fn redo_live(&self, path: &str) -> Result<EditorView, ApiError>;
+
+    /// Save the live session to disk.
+    fn save_live(&self, path: &str, name: Option<&str>) -> Result<(), ApiError>;
+
+    /// Creates a named safety checkpoint in the live session.
+    fn create_checkpoint(&self, path: &str, name: &str, actor: Option<&str>) -> Result<CheckpointReceipt, ApiError>;
+
+    /// Restores a named safety checkpoint in the live session.
+    fn restore_checkpoint(&self, path: &str, id: u64, actor: Option<&str>) -> Result<EditorView, ApiError>;
+
+    /// Acquires an agent write lease with TTL on the live session.
+    fn acquire_lease(&self, path: &str, actor: &str, ttl_secs: u64) -> Result<LeaseReceipt, ApiError>;
+}
+
 /// The dispatcher: the open sessions and the services behind them.
 pub struct Api {
     dirs: AppDirs,
@@ -162,6 +198,8 @@ pub struct Api {
     jobs: Jobs,
     /// [`VersionInfo::capabilities`], in the order they were added.
     capabilities: Vec<String>,
+    /// Optional bridge to a live GUI-owned session for MCP mutations.
+    live_bridge: Option<Arc<dyn LiveSessionBridge>>,
 }
 
 impl Api {
@@ -186,6 +224,7 @@ impl Api {
             jobs: Jobs::default(),
             dirs,
             capabilities: CAPABILITIES.iter().map(|name| (*name).to_owned()).collect(),
+            live_bridge: None,
         }
     }
 
@@ -220,6 +259,23 @@ impl Api {
     /// round.
     pub fn share_open_projects(&mut self, open: OpenProjects) {
         self.open = open;
+    }
+
+    /// Injects a bridge to a live GUI-owned session, allowing authenticated
+    /// scoped MCP mutations directly into the open window.
+    pub fn set_live_bridge(&mut self, bridge: Arc<dyn LiveSessionBridge>) {
+        self.live_bridge = Some(bridge);
+        self.add_capability("live-bridge");
+        self.add_capability("mcp-mutation");
+    }
+
+    /// True if `path` is currently open and held in a live GUI window.
+    pub fn is_live(&self, path: &str) -> bool {
+        if let Some(bridge) = &self.live_bridge {
+            bridge.is_live_held(path)
+        } else {
+            false
+        }
     }
 
     /// Confines every write to `roots`: from here on a created project, an
@@ -303,26 +359,111 @@ impl Api {
                 name,
                 video,
             } => view(self.create(&location, &name, video.unwrap_or_default())?),
-            Request::ProjectOpen { path } => view(self.open(&path)?),
+            Request::ProjectOpen { path } => {
+                if let Some(bridge) = &self.live_bridge {
+                    if bridge.is_live_held(&path) {
+                        return view(bridge.get_live_view(&path)?);
+                    }
+                }
+                view(self.open(&path)?)
+            }
             Request::ProjectClose { path, save } => {
                 self.close(&path, save)?;
                 Ok(Reply::Done(Done {}))
             }
             Request::ProjectList => Ok(Reply::Projects(self.recents())),
-            Request::ProjectGet { path } => view(self.session(&path)?.view()),
+            Request::ProjectGet { path } => {
+                if let Some(bridge) = &self.live_bridge {
+                    if bridge.is_live_held(&path) {
+                        return view(bridge.get_live_view(&path)?);
+                    }
+                }
+                view(self.session(&path)?.view())
+            }
             Request::ProjectDocument { path } => {
+                if let Some(bridge) = &self.live_bridge {
+                    if bridge.is_live_held(&path) {
+                        return Ok(Reply::Document(bridge.get_live_document(&path)?));
+                    }
+                }
                 Ok(Reply::Document(self.session(&path)?.document()))
             }
             Request::ProjectSave { path, name } => {
+                if let Some(bridge) = &self.live_bridge {
+                    if bridge.is_live_held(&path) {
+                        bridge.save_live(&path, name.as_deref())?;
+                        return Ok(Reply::Done(Done {}));
+                    }
+                }
                 self.save(&path, name.as_deref())?;
                 Ok(Reply::Done(Done {}))
             }
             Request::ProjectSetVideo { path, video } => {
                 view(self.session_mut(&path)?.set_video(video).map_err(refused)?)
             }
-            Request::EditApply { path, command } => view(self.apply(&path, *command)?),
-            Request::EditUndo { path } => view(self.session_mut(&path)?.undo()),
-            Request::EditRedo { path } => view(self.session_mut(&path)?.redo()),
+            Request::EditApply { path, command } => {
+                if let Some(bridge) = &self.live_bridge {
+                    if bridge.is_live_held(&path) {
+                        return view(bridge.apply_live_command(&path, *command)?);
+                    }
+                }
+                view(self.apply(&path, *command)?)
+            }
+            Request::EditUndo { path } => {
+                if let Some(bridge) = &self.live_bridge {
+                    if bridge.is_live_held(&path) {
+                        return view(bridge.undo_live(&path)?);
+                    }
+                }
+                view(self.session_mut(&path)?.undo())
+            }
+            Request::EditRedo { path } => {
+                if let Some(bridge) = &self.live_bridge {
+                    if bridge.is_live_held(&path) {
+                        return view(bridge.redo_live(&path)?);
+                    }
+                }
+                view(self.session_mut(&path)?.redo())
+            }
+            Request::SessionCheckpointCreate { path, name, actor } => {
+                let act = actor.unwrap_or_else(|| "agent".to_string());
+                if let Some(bridge) = &self.live_bridge {
+                    if bridge.is_live_held(&path) {
+                        let cp = bridge.create_checkpoint(&path, &name, Some(&act))?;
+                        return Ok(Reply::Checkpoint(cp));
+                    }
+                }
+                let cp = self.session_mut(&path)?.create_checkpoint(&name, concat_host::session::EditActor::Agent { connection: act }).map_err(refused)?;
+                Ok(Reply::Checkpoint(CheckpointReceipt {
+                    id: cp.id,
+                    name: cp.label,
+                    created_at: cp.created_at,
+                }))
+            }
+            Request::SessionCheckpointRestore { path, id, actor } => {
+                let act = actor.unwrap_or_else(|| "agent".to_string());
+                if let Some(bridge) = &self.live_bridge {
+                    if bridge.is_live_held(&path) {
+                        return view(bridge.restore_checkpoint(&path, id, Some(&act))?);
+                    }
+                }
+                let _ = self.session_mut(&path)?.restore_named_checkpoint(id, concat_host::session::EditActor::Agent { connection: act }).map_err(refused)?;
+                view(self.session(&path)?.view())
+            }
+            Request::SessionLeaseAcquire { path, actor, ttl_secs } => {
+                let ttl = ttl_secs.unwrap_or(300);
+                if let Some(bridge) = &self.live_bridge {
+                    if bridge.is_live_held(&path) {
+                        let lease = bridge.acquire_lease(&path, &actor, ttl)?;
+                        return Ok(Reply::Lease(lease));
+                    }
+                }
+                let _lease = self.session_mut(&path)?.acquire_agent_write(&actor, std::time::Duration::from_secs(ttl)).map_err(refused)?;
+                Ok(Reply::Lease(LeaseReceipt {
+                    connection_id: actor,
+                    valid_for_secs: ttl,
+                }))
+            }
             Request::MediaProbe { path } => {
                 Ok(Reply::Media(media::probe(&path).map_err(ApiError::failed)?))
             }
@@ -1477,5 +1618,156 @@ mod tests {
             save: false,
         }));
         assert_eq!(open.holder(&path), None, "closing gives it back");
+    }
+
+    struct MockLiveBridge {
+        held_path: String,
+        session: Mutex<Session>,
+    }
+
+    impl LiveSessionBridge for MockLiveBridge {
+        fn is_live_held(&self, path: &str) -> bool {
+            key_of(path) == key_of(&self.held_path)
+        }
+        fn get_live_view(&self, path: &str) -> Result<EditorView, ApiError> {
+            if !self.is_live_held(path) {
+                return Err(not_open(path));
+            }
+            Ok(self.session.lock().unwrap().view())
+        }
+        fn get_live_document(&self, path: &str) -> Result<serde_json::Value, ApiError> {
+            if !self.is_live_held(path) {
+                return Err(not_open(path));
+            }
+            Ok(self.session.lock().unwrap().document())
+        }
+        fn apply_live_command(&self, path: &str, command: Command) -> Result<EditorView, ApiError> {
+            if !self.is_live_held(path) {
+                return Err(not_open(path));
+            }
+            let mut s = self.session.lock().unwrap();
+            let actor = match s.active_lease_connection() {
+                Some(conn) => concat_host::session::EditActor::Agent { connection: conn },
+                None => concat_host::session::EditActor::User,
+            };
+            s.apply_with_actor(command, actor).map_err(refused)
+        }
+        fn undo_live(&self, path: &str) -> Result<EditorView, ApiError> {
+            if !self.is_live_held(path) {
+                return Err(not_open(path));
+            }
+            Ok(self.session.lock().unwrap().undo())
+        }
+        fn redo_live(&self, path: &str) -> Result<EditorView, ApiError> {
+            if !self.is_live_held(path) {
+                return Err(not_open(path));
+            }
+            Ok(self.session.lock().unwrap().redo())
+        }
+        fn save_live(&self, path: &str, name: Option<&str>) -> Result<(), ApiError> {
+            if !self.is_live_held(path) {
+                return Err(not_open(path));
+            }
+            self.session.lock().unwrap().save(name).map_err(ApiError::failed)
+        }
+        fn create_checkpoint(&self, path: &str, name: &str, actor: Option<&str>) -> Result<CheckpointReceipt, ApiError> {
+            if !self.is_live_held(path) {
+                return Err(not_open(path));
+            }
+            let act = concat_host::session::EditActor::Agent { connection: actor.unwrap_or("agent").to_string() };
+            let cp = self.session.lock().unwrap().create_checkpoint(name, act).map_err(refused)?;
+            Ok(CheckpointReceipt {
+                id: cp.id,
+                name: cp.label,
+                created_at: cp.created_at,
+            })
+        }
+        fn restore_checkpoint(&self, path: &str, id: u64, actor: Option<&str>) -> Result<EditorView, ApiError> {
+            if !self.is_live_held(path) {
+                return Err(not_open(path));
+            }
+            let act = concat_host::session::EditActor::Agent { connection: actor.unwrap_or("agent").to_string() };
+            let mut s = self.session.lock().unwrap();
+            let _ = s.restore_named_checkpoint(id, act).map_err(refused)?;
+            Ok(s.view())
+        }
+        fn acquire_lease(&self, path: &str, actor: &str, ttl_secs: u64) -> Result<LeaseReceipt, ApiError> {
+            if !self.is_live_held(path) {
+                return Err(not_open(path));
+            }
+            let _ = self.session.lock().unwrap().acquire_agent_write(actor, std::time::Duration::from_secs(ttl_secs)).map_err(refused)?;
+            Ok(LeaseReceipt {
+                connection_id: actor.to_string(),
+                valid_for_secs: ttl_secs,
+            })
+        }
+    }
+
+    #[test]
+    fn live_bridge_allows_authenticated_scoped_mutation_of_window_held_project() {
+        let (mut api, scratch, _events) = api();
+        let path = project(&mut api, &scratch, "LiveMCP");
+        ok(api.dispatch(Request::ProjectClose {
+            path: path.clone(),
+            save: false,
+        }));
+
+        let open = OpenProjects::default();
+        api.share_open_projects(open.clone());
+        open.claim(&path, Holder::Window).expect("window holds it");
+
+        // Without bridge, window-held project is refused
+        let refused = err(api.dispatch(Request::ProjectOpen { path: path.clone() }));
+        assert_eq!(refused.code, ErrorCode::Refused);
+
+        // Inject live bridge
+        let info = projects::open(&path).expect("open info");
+        let live_session = Session::open_info(&info).expect("open live");
+        let bridge = Arc::new(MockLiveBridge {
+            held_path: path.clone(),
+            session: Mutex::new(live_session),
+        });
+        api.set_live_bridge(bridge);
+
+        // With bridge, ProjectOpen succeeds and returns live view
+        let open_reply = ok(api.dispatch(Request::ProjectOpen { path: path.clone() }));
+        let view_val = serde_json::to_value(open_reply).expect("json");
+        assert!(view_val.get("project").is_some());
+
+        // Lease acquire works on live session
+        let lease_reply = ok(api.dispatch(Request::SessionLeaseAcquire {
+            path: path.clone(),
+            actor: "agent-1".into(),
+            ttl_secs: Some(60),
+        }));
+        let lease_val = serde_json::to_value(lease_reply).expect("json");
+        assert_eq!(lease_val["connectionId"], "agent-1");
+
+        // Checkpoint create works on live session
+        let cp_reply = ok(api.dispatch(Request::SessionCheckpointCreate {
+            path: path.clone(),
+            name: "initial-state".into(),
+            actor: Some("agent-1".into()),
+        }));
+        let cp_val = serde_json::to_value(cp_reply).expect("json");
+        assert_eq!(cp_val["name"], "initial-state");
+
+        // Mutating live session via EditApply
+        let apply_view = view(ok(api.dispatch(Request::EditApply {
+            path: path.clone(),
+            command: Box::new(Command::AddTextClip {
+                track_id: None,
+                above: true,
+                start: 0.0,
+                duration: Some(5.0),
+                style: None,
+                offset_y: None,
+            }),
+        })));
+        assert_eq!(apply_view.project.active().clips.len(), 1);
+
+        // Undo on live session
+        let undo_view = view(ok(api.dispatch(Request::EditUndo { path: path.clone() })));
+        assert_eq!(undo_view.project.active().clips.len(), 0);
     }
 }

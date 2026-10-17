@@ -19,6 +19,7 @@ pub mod encode;
 pub mod error;
 mod ffi;
 pub mod hardware;
+pub mod live_video;
 pub mod peaks;
 pub mod pool;
 pub mod prefetch;

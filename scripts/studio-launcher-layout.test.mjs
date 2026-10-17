@@ -82,10 +82,11 @@ test("Media no longer owns any Studio route or rendering state", () => {
   assert.match(media, /callback import-media\(\)/);
 });
 
-test("Studio opens on the start screen without a project/session guard", () => {
-  assert.match(app, /if root\.on-start: StartScreen/);
+test("Studio opens without a project only after verified native sign-in", () => {
+  assert.match(app, /if root\.on-start && StudioSession\.signed-in: StartScreen/);
+  assert.match(app, /if !StudioSession\.signed-in: Rectangle/);
   assert.match(launcher, /studio-picked\(route\) => \{ root\.studio-route = route; root\.studio-open = true; \}/);
-  assert.match(launcher, /if root\.studio-open: PaneScroll/);
+  assert.match(launcher, /if root\.studio-open: (PaneScroll|Rectangle)/);
   assert.match(launcher, /if !root\.studio-open: Rectangle/);
   assert.match(launcher, /projects => \{ root\.studio-open = false; \}/);
   assert.match(launcher, /if !root\.narrow \|\| !root\.phone: Rail/);
@@ -93,7 +94,7 @@ test("Studio opens on the start screen without a project/session guard", () => {
 
 test("project-free Studio has an honest project chooser, not a dead import action", () => {
   assert.match(studio, /callback choose-project\(\)/);
-  assert.match(studio, /productionStudio\.chooseProjectHint/);
+  assert.match(studio, /StudioButton\s*\{[^\n]*clicked => \{ root\.choose-project\(\); \}/);
   assert.doesNotMatch(studio, /import-artifact|back-to-media/);
   assert.match(launcher, /choose-project => \{ root\.studio-open = false; \}/);
   assert.match(studio, /StudioBridge\.refresh-workflows\(\)/);
@@ -103,7 +104,7 @@ test("project-free Studio has an honest project chooser, not a dead import actio
 test("script route owns a real local CRUD editor, with explicit delete confirmation", () => {
   const scripts = read("ui/workspace/studio-scripts.slint");
   const binding = read("src/studio_scripts.rs");
-  assert.match(studio, /if root\.route == StudioRoute\.scripts: StudioCard \{ StudioScripts/);
+  assert.match(studio, /if root\.route == StudioRoute\.scripts: StudioCard\s*\{\s*StudioScripts/);
   for (const action of ["refresh", "save-script", "delete-script"]) {
     assert.ok(scripts.includes(`ScriptLibrary.${action}(`));
   }
@@ -128,9 +129,13 @@ test("production is a native form with a separate explicit confirmation boundary
 
 test("service diagnostics are a settings section, not every page's shared content", () => {
   const settings = studio.indexOf("if root.route == StudioRoute.settings: StudioCard");
-  const diagnostics = studio.indexOf('I18n.t("productionStudio.connectionScope")');
+  const diagnostics = studio.indexOf('StudioBridge.status-label(StudioBridge.promax-state)', settings);
   assert.ok(settings >= 0 && diagnostics > settings);
-  assert.ok(studio.indexOf('I18n.t("productionStudio.migrationNotice")') > settings);
+  assert.ok(studio.indexOf('StudioBridge.check-services()', settings) > settings);
+  const healthBinding = read("src/studio_bridge.rs");
+  assert.match(healthBinding, /state\(check_backend\(&origin\)\)/);
+  assert.match(healthBinding, /studio_local_ai::client\(\)/);
+  assert.doesNotMatch(healthBinding, /check_local\(20128/);
 });
 
 test("scroll content uses the available width rather than its text's preferred width", () => {
@@ -166,9 +171,9 @@ test("browser lifecycle is native, explicit and separate from generation readine
 test("LIVE exposes the actual AI model and OpenTalking voice used by auto-reply", () => {
   const live = read("ui/workspace/studio-live.slint");
   const binding = read("src/studio_live.rs");
-  assert.match(live, /options: StudioAi\.models; current <=> StudioAi\.model-index/);
+  assert.match(live, /options: StudioAi\.models;\s*current <=> StudioAi\.model-index/);
   assert.match(live, /StudioAi\.load-models\(\)/);
-  assert.match(live, /options: StudioOpenTalking\.voice-options; current <=> StudioOpenTalking\.voice-index/);
+  assert.match(live, /options: StudioOpenTalking\.voice-options;\s*current <=> StudioOpenTalking\.voice-index/);
   assert.match(live, /StudioOpenTalking\.refresh\(\)/);
   assert.match(live, /for comment in StudioLive\.comments/);
   assert.match(live, /StudioLive\.reply-to-comment\(comment\.username, comment\.content\)/);
@@ -180,7 +185,7 @@ test("LIVE exposes the actual AI model and OpenTalking voice used by auto-reply"
   assert.match(binding, /let ai = app\.global::<StudioAi>\(\)/);
   assert.match(binding, /let talking = app\.global::<StudioOpenTalking>\(\)/);
   assert.match(binding, /send_message\(&reply\)/);
-  assert.match(binding, /while history\.len\(\) > 30/);
+  assert.match(binding, /while history\.len\(\) > 100/);
 });
 
 test("Channels uses Concat's native page catalog rather than the Donut browser panel", () => {

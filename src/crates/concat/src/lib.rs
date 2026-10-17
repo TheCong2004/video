@@ -53,10 +53,12 @@ mod presets;
 mod source;
 mod studio;
 mod studio_ai;
+mod studio_local_ai;
 mod ai_editing;
 mod studio_bridge;
 mod studio_browser;
 mod studio_live;
+mod studio_live_video;
 mod studio_opentalking;
 mod studio_bulk;
 mod studio_pages;
@@ -1924,6 +1926,12 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // loop's end takes below, for the same reason - the engine's threads
     // are not waited on.
     if smoke {
+        if let Some(path) = std::env::var_os("CONCAT_LIVE_MOTION_SMOKE") {
+            studio_live_video::smoke(&app, path.into())?;
+        }
+        if let Ok(username) = std::env::var("CONCAT_LIVE_SMOKE_USERNAME") {
+            studio_live::smoke_connection(&app, &username)?;
+        }
         log::info!("smoke: ok");
         log::logger().flush();
         std::process::exit(0);
@@ -1948,6 +1956,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     );
 
     let result = app.run();
+    studio_local_ai::shutdown();
     drop(reader_sweep);
     log::info!("close: event loop exited (ok={})", result.is_ok());
     std::process::exit(0);

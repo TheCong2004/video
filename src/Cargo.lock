@@ -1154,6 +1154,7 @@ dependencies = [
  "rfd",
  "serde",
  "serde_json",
+ "sha2",
  "slint",
  "slint-build",
  "toml",
@@ -1360,6 +1361,7 @@ version = "0.2.7"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "hmac",
  "rand",
  "serde",
  "serde_json",

@@ -17,7 +17,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-const READY_TIMEOUT: Duration = Duration::from_secs(12);
+// Cold SDK loading plus antivirus scanning can exceed 12s on low-memory PCs.
+// Waiting remains bounded and occurs on the dedicated worker, never the UI.
+const READY_TIMEOUT: Duration = Duration::from_secs(45);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(3);
 const FRAME_QUEUE_CAPACITY: usize = 256;
 const REQUEST_COUNTER_LIMIT: u64 = u64::MAX - 1024;
@@ -116,7 +118,11 @@ impl LiveRuntimeConfig {
         let mut resource_roots = Vec::new();
         let mut source_connector_roots = Vec::new();
         for base in &bases {
+            resource_roots.push(base.clone());
             resource_roots.push(base.join("resources"));
+            if cfg!(debug_assertions) {
+                resource_roots.push(base.join(".deps"));
+            }
             resource_roots.push(base.join("artcraft/crates/desktop/artcraft/resources"));
             // In a local debug checkout, Concat and ArtCraft are siblings under
             // the same workspace root. Keep release discovery self-contained:
@@ -130,7 +136,13 @@ impl LiveRuntimeConfig {
             .or_else(|| {
                 resource_roots
                     .iter()
-                    .map(|root| root.join("node/node.exe"))
+                    .flat_map(|root| {
+                        [
+                            root.join("node/node.exe"),
+                            root.join("node.exe"),
+                            root.join("OmniRoute/node.exe"),
+                        ]
+                    })
                     .find(|path| path.is_file())
             })
             .or_else(find_node_on_path)
@@ -210,7 +222,7 @@ pub struct LiveRuntimeStatus {
     /// Public TikTok username, if a session was requested.
     pub username: Option<String>,
     /// Stable, sanitized failure code.
-    pub error_code: Option<&'static str>,
+    pub error_code: Option<String>,
 }
 
 struct Inner {
@@ -271,11 +283,11 @@ impl LiveRuntime {
             .lock()
             .map_err(|_| LiveRuntimeError::ProcessStateUnknown)?;
         match inner.status.state.as_str() {
-            "connecting" | "connected" | "degraded" => {
+            "connecting" | "connected" | "degraded" | "disconnected" => {
                 return Err(LiveRuntimeError::SessionAlreadyActive);
             }
             "starting" | "stopping" => return Err(LiveRuntimeError::RuntimeNotReady),
-            "ready" | "stopped" | "failed" | "disconnected" if inner.process_ready => {}
+            "ready" | "stopped" | "failed" if inner.process_ready => {}
             _ => return Err(LiveRuntimeError::RuntimeNotReady),
         }
         write_command(&mut inner, &command)?;
@@ -286,10 +298,15 @@ impl LiveRuntime {
     }
 
     /// Inspect a public username without opening a LIVE session.
-    pub fn inspect(&self, username: &str) -> Result<(), LiveRuntimeError> {
-        let command = self.command(|request_id| LiveCommand::Inspect {
-            request_id,
-            username: username.to_owned(),
+    /// Returns the request ID; callers must await its result/error frame.
+    pub fn inspect(&self, username: &str) -> Result<String, LiveRuntimeError> {
+        let mut request = String::new();
+        let command = self.command(|request_id| {
+            request = request_id.clone();
+            LiveCommand::Inspect {
+                request_id,
+                username: username.to_owned(),
+            }
         })?;
         self.ensure_process()?;
         let mut inner = self
@@ -299,7 +316,14 @@ impl LiveRuntime {
         if !inner.process_ready {
             return Err(LiveRuntimeError::RuntimeNotReady);
         }
-        write_command(&mut inner, &command)
+        if matches!(
+            inner.status.state.as_str(),
+            "connecting" | "connected" | "degraded" | "disconnected"
+        ) {
+            return Err(LiveRuntimeError::SessionAlreadyActive);
+        }
+        write_command(&mut inner, &command)?;
+        Ok(request)
     }
 
     /// Send a chat message only after the connector reports a connected session.
@@ -384,7 +408,7 @@ impl LiveRuntime {
             .map_err(|_| LiveRuntimeError::ProcessStateUnknown)?;
         if failed {
             inner.status.state = "degraded".into();
-            inner.status.error_code = Some("LIVE_RUNTIME_TERMINATION_FAILED");
+            inner.status.error_code = Some("LIVE_RUNTIME_TERMINATION_FAILED".into());
             inner.child = child;
             return Err(LiveRuntimeError::ProcessFailed);
         }
@@ -439,7 +463,7 @@ impl LiveRuntime {
                     }
                     Err(_) => {
                         inner.status.state = "degraded".into();
-                        inner.status.error_code = Some("LIVE_RUNTIME_PROCESS_STATE_UNKNOWN");
+                        inner.status.error_code = Some("LIVE_RUNTIME_PROCESS_STATE_UNKNOWN".into());
                         return Err(LiveRuntimeError::ProcessStateUnknown);
                     }
                 }
@@ -453,13 +477,19 @@ impl LiveRuntime {
             inner.generation
         };
 
-        let spawn = Command::new(&self.config.node)
+        let mut command = Command::new(&self.config.node);
+        command
             .arg(&self.config.entrypoint)
             .current_dir(&self.config.working_directory)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn();
+            .stderr(Stdio::null());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x08000000);
+        }
+        let spawn = command.spawn();
         let mut child = match spawn {
             Ok(child) => child,
             Err(_) => {
@@ -541,7 +571,7 @@ impl LiveRuntime {
             if inner.generation == generation {
                 inner.process_ready = false;
                 inner.status.state = "failed".into();
-                inner.status.error_code = Some(code);
+                inner.status.error_code = Some(code.into());
             }
         }
     }
@@ -609,7 +639,7 @@ fn read_runtime(
                 if let Ok(mut state) = inner.lock() {
                     if state.generation == generation {
                         state.status.state = "failed".into();
-                        state.status.error_code = Some("LIVE_RUNTIME_PROTOCOL_INVALID");
+                        state.status.error_code = Some("LIVE_RUNTIME_PROTOCOL_INVALID".into());
                     }
                 }
                 return;
@@ -620,14 +650,16 @@ fn read_runtime(
             Err(_) => {
                 if !ready_sent {
                     let _ = ready.send(Err(LiveRuntimeError::ProtocolInvalid));
-                }
-                if let Ok(mut state) = inner.lock() {
-                    if state.generation == generation {
-                        state.status.state = "failed".into();
-                        state.status.error_code = Some("LIVE_RUNTIME_PROTOCOL_INVALID");
+                    if let Ok(mut state) = inner.lock() {
+                        if state.generation == generation {
+                            state.status.state = "failed".into();
+                            state.status.error_code = Some("LIVE_RUNTIME_PROTOCOL_INVALID".into());
+                        }
                     }
+                    return;
                 }
-                return;
+                // Once ready, unknown or vendor metadata frames must not terminate the stream.
+                continue;
             }
         };
         if frame.kind == LiveFrameKind::Ready && !ready_sent {
@@ -643,6 +675,19 @@ fn read_runtime(
                 if let Ok(mut state) = inner.lock() {
                     if state.generation == generation {
                         state.status.state = status.to_owned();
+                        // Keep only bounded machine codes, never vendor messages or bodies.
+                        state.status.error_code = frame
+                            .value
+                            .get("code")
+                            .and_then(serde_json::Value::as_str)
+                            .filter(|code| {
+                                !code.is_empty()
+                                    && code.len() <= 80
+                                    && code.bytes().all(|b| {
+                                        b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_'
+                                    })
+                            })
+                            .map(str::to_owned);
                         if matches!(status, "disconnected" | "stopped" | "failed") {
                             state.status.username = None;
                         }
@@ -723,6 +768,48 @@ mod tests {
     };
 
     #[test]
+    fn reader_preserves_only_safe_error_codes_and_clears_them_on_reconnect() {
+        let runtime = LiveRuntime::new(LiveRuntimeConfig {
+            node: PathBuf::new(),
+            entrypoint: PathBuf::new(),
+            working_directory: PathBuf::new(),
+        });
+        let (frames, receiver) = mpsc::sync_channel(10);
+        let (ready, _) = mpsc::channel();
+        let input = concat!(
+            "{\"protocolVersion\":1,\"type\":\"runtime.status\",\"status\":\"failed\",\"code\":\"USEROFFLINEERROR\"}\n"
+        );
+        read_runtime(
+            input.as_bytes(),
+            Arc::clone(&runtime.inner),
+            0,
+            frames,
+            ready,
+        );
+        assert_eq!(
+            runtime.status().unwrap().error_code.as_deref(),
+            Some("USEROFFLINEERROR")
+        );
+        drop(receiver);
+        for code in ["private-token=secret", ""] {
+            let input = format!(
+                "{{\"protocolVersion\":1,\"type\":\"runtime.status\",\"status\":\"connected\",\"code\":{}}}\n",
+                serde_json::to_string(code).unwrap()
+            );
+            let (frames, _receiver) = mpsc::sync_channel(10);
+            let (ready, _) = mpsc::channel();
+            read_runtime(
+                input.as_bytes(),
+                Arc::clone(&runtime.inner),
+                0,
+                frames,
+                ready,
+            );
+            assert_eq!(runtime.status().unwrap().error_code, None);
+        }
+    }
+
+    #[test]
     fn resource_resolution_requires_only_expected_files() {
         let root = temp_root();
         let resources = root.join("resources");
@@ -775,7 +862,7 @@ const readline = require('readline');
 const line = (value) => process.stdout.write(JSON.stringify(value) + '\n');
 line({protocolVersion:1,type:'runtime.ready',runtime:'artcraft-tiktok-live',runtimeVersion:'test',nodeVersion:process.version});
 const input = readline.createInterface({input:process.stdin});
-input.on('line',(raw)=>{ const command=JSON.parse(raw); if(command.type==='start'){ line({protocolVersion:1,type:'runtime.status',status:'connected'}); } else if(command.type==='stop'){ line({protocolVersion:1,type:'runtime.status',status:'disconnected'}); } else if(command.type==='sendMessage'){ line({protocolVersion:1,type:'command.accepted',requestId:command.requestId}); } else if(command.type==='shutdown'){ process.exit(0); } });
+input.on('line',(raw)=>{ const command=JSON.parse(raw); if(command.type==='start'){ line({protocolVersion:1,type:'runtime.status',status:'connected'}); } else if(command.type==='stop'){ line({protocolVersion:1,type:'runtime.status',status:'stopped'}); } else if(command.type==='sendMessage'){ line({protocolVersion:1,type:'command.accepted',requestId:command.requestId}); } else if(command.type==='shutdown'){ process.exit(0); } });
 "#).expect("write connector fixture");
         let runtime =
             LiveRuntime::new(LiveRuntimeConfig::new(node, &entrypoint, &root).expect("config"));
@@ -791,7 +878,7 @@ input.on('line',(raw)=>{ const command=JSON.parse(raw); if(command.type==='start
             runtime.stop_session().expect("stop request").state,
             "stopping"
         );
-        wait_for_state(&runtime, "disconnected");
+        wait_for_state(&runtime, "stopped");
         assert_eq!(
             runtime
                 .start("creator")
@@ -806,6 +893,51 @@ input.on('line',(raw)=>{ const command=JSON.parse(raw); if(command.type==='start
         );
         assert_eq!(runtime.status().expect("stopped state").pid, None);
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    #[ignore = "explicit CONCAT_LIVE_TEST_USERNAME: joins public LIVE read-only, never sends messages"]
+    fn real_live_connects_through_native_supervisor_without_posting() {
+        let username = std::env::var("CONCAT_LIVE_TEST_USERNAME").expect("explicit username");
+        let runtime = LiveRuntime::new(LiveRuntimeConfig::discover().expect("discover runtime"));
+        runtime.start(&username).expect("send connect");
+        let deadline = Instant::now() + Duration::from_secs(45);
+        let mut connected = false;
+        while Instant::now() < deadline {
+            while runtime.try_next_frame().expect("validated frame").is_some() {}
+            let status = runtime.status().unwrap();
+            if status.state == "connected" {
+                connected = true;
+                break;
+            }
+            assert_ne!(
+                status.state, "failed",
+                "connection failed: {:?}",
+                status.error_code
+            );
+            thread::sleep(Duration::from_millis(40));
+        }
+        runtime.shutdown().expect("stop only owned runtime");
+        assert!(
+            connected,
+            "real public LIVE did not connect within deadline"
+        );
+        assert_eq!(runtime.status().unwrap().pid, None);
+    }
+
+    #[test]
+    #[ignore = "requires CONCAT_LIVE_TEST_RESOURCES; starts the real connector without joining TikTok or posting"]
+    fn packaged_connector_handshakes_without_joining_or_posting() {
+        let root = PathBuf::from(
+            std::env::var_os("CONCAT_LIVE_TEST_RESOURCES").expect("explicit packaged resources"),
+        );
+        let config = LiveRuntimeConfig::from_resources(&root, "node.exe")
+            .expect("bundled connector and Node");
+        let runtime = LiveRuntime::new(config);
+        runtime.ensure_process().expect("real connector handshake");
+        assert_eq!(runtime.status().unwrap().state, "ready");
+        runtime.shutdown().expect("only owned connector stops");
+        assert_eq!(runtime.status().unwrap().pid, None);
     }
 
     fn wait_for_state(runtime: &LiveRuntime, wanted: &str) {

@@ -145,9 +145,14 @@ impl ProductionPlan {
 pub struct WorkflowClient {
     origin: String,
     token: String,
+    local_ai: bool,
 }
 
 impl WorkflowClient {
+    /// Non-secret endpoint for native connection diagnostics.
+    pub fn endpoint_origin(&self) -> &str {
+        &self.origin
+    }
     /// Resolve a single YouTube source through Promax without downloading media.
     pub fn source_title(&self, source: &str) -> Result<String, WorkflowError> {
         let id = youtube_id(source).ok_or(WorkflowError::Configuration)?;
@@ -283,6 +288,16 @@ impl WorkflowClient {
         body: &serde_json::Value,
         timeout: Duration,
     ) -> Result<serde_json::Value, WorkflowError> {
+        if self.local_ai {
+            return crate::local_ai::request(
+                &self.origin,
+                &self.token,
+                method,
+                route,
+                body,
+                timeout,
+            );
+        }
         let agent = ureq::AgentBuilder::new()
             .timeout(timeout)
             .redirects(0)
@@ -353,7 +368,18 @@ impl WorkflowClient {
         Ok(Self {
             origin: parsed.as_str().trim_end_matches('/').to_owned(),
             token,
+            local_ai: false,
         })
+    }
+
+    /// An owned loopback gateway session. It cannot call cloud/workflow routes.
+    pub(crate) fn local_ai(origin: &str, cookie: String) -> Result<Self, WorkflowError> {
+        let mut client = Self::new(origin, Some(cookie))?;
+        if !client.origin.starts_with("http://127.0.0.1:") {
+            return Err(WorkflowError::Configuration);
+        }
+        client.local_ai = true;
+        Ok(client)
     }
 
     /// Read definitions visible to the current principal; never starts a run.
@@ -414,6 +440,16 @@ impl WorkflowClient {
         route: &str,
         timeout: Duration,
     ) -> Result<serde_json::Value, WorkflowError> {
+        if self.local_ai {
+            return crate::local_ai::request(
+                &self.origin,
+                &self.token,
+                "GET",
+                route,
+                &serde_json::Value::Null,
+                timeout,
+            );
+        }
         let agent = ureq::AgentBuilder::new()
             .timeout(timeout)
             .redirects(0)

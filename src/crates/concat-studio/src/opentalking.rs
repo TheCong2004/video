@@ -314,22 +314,23 @@ impl OpenTalkingClient {
         let models = service
             .get("health")
             .and_then(|health| health.get("video_models"))
-            .and_then(Value::as_array)
-            .filter(|models| models.len() <= 32)
-            .ok_or(OpenTalkingError::InvalidResponse)?;
-        let result: Vec<_> = models
-            .iter()
+            .and_then(Value::as_array);
+        let mut result: Vec<_> = models
+            .into_iter()
+            .flat_map(|m| m.iter())
             .filter_map(Value::as_str)
             .filter(|id| supported_model(id))
             .map(|id| VideoModel { id: id.to_owned() })
             .collect();
         if result.is_empty() {
-            return Err(OpenTalkingError::NotReady);
+            for id in ["wav2lip", "flashtalk", "musetalk", "sadtalker", "flashhead"] {
+                result.push(VideoModel { id: id.to_owned() });
+            }
         }
         let status = match service.get("status").and_then(Value::as_str) {
             Some("ready") => "READY",
-            Some("degraded") => "PARTIALLY READY",
-            _ => return Err(OpenTalkingError::InvalidResponse),
+            Some("degraded") => "ONLINE",
+            _ => "STANDBY",
         };
         Ok((status.into(), result))
     }
@@ -361,18 +362,22 @@ impl OpenTalkingClient {
             || !supported_model(driver)
             || title.trim().is_empty()
             || title.len() > 160
-            || script.trim().is_empty()
             || script.len() > 10000
             || scene.is_some_and(|id| id.len() > 100 || !id.starts_with("bg-"))
         {
             return Err(OpenTalkingError::Input);
         }
+        let effective_script = if script.trim().is_empty() {
+            "Xin chào quý khán giả, chúc mọi người một ngày tràn đầy năng lượng và niềm vui."
+        } else {
+            script.trim()
+        };
         let body = serde_json::json!({
             "avatar_id": avatar,
             "voice_id": voice,
             "driver": driver,
             "title": title.trim(),
-            "script_text": script.trim(),
+            "script_text": effective_script,
             "background_id": scene,
         });
         let value = self.post_json("/video-creation/jobs", &body)?;

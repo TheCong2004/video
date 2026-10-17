@@ -134,6 +134,9 @@ incremental = false
 incremental = true
 opt-level = 0
 codegen-units = 256
+# Generated Slint debug symbols can consume gigabytes on Windows. Keep the
+# reusable native engine cache, but do not emit window-crate PDB information.
+debug = 0
 
 [profile.test]
 incremental = false

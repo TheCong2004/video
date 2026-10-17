@@ -51,14 +51,15 @@ export component StudioHeading inherits HorizontalLayout {
 }
 
 export component StudioButton inherits Rectangle {
+    max-width: 4096px;
     in property <string> label;
     in property <bool> primary;
     in property <bool> enabled: true;
     in property <bool> compact: false;
     callback clicked();
-    min-height: root.compact ? 30px : 40px;
-    max-height: root.compact ? 30px : 40px;
-    min-width: caption.preferred-width + (root.compact ? 16px : 24px);
+    min-height: root.compact ? 34px : 40px;
+    max-height: root.compact ? 34px : 40px;
+    min-width: Math.min(180px, caption.preferred-width + (root.compact ? 16px : 24px));
     border-radius: root.compact ? 8px : 10px;
     border-width: 1px;
     border-color: focus.has-focus ? Floword.cyan
@@ -73,12 +74,16 @@ export component StudioButton inherits Rectangle {
     accessible-label: root.label;
     accessible-enabled: root.enabled;
     caption := Text {
+        x: 8px;
+        width: Math.max(0px, root.width - 16px);
+        height: root.height;
         text: root.label;
         color: root.primary ? Floword.on-accent : Floword.text;
         font-size: root.compact ? 12px : 13.5px;
         font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;
+        wrap: word-wrap;
     }
 
     focus := FocusScope {
@@ -96,6 +101,8 @@ export component StudioButton inherits Rectangle {
 }
 
 export component StudioField inherits Rectangle {
+    min-width: 0px;
+    max-width: 4096px;
     in property <string> label;
     in property <string> value;
     in property <string> placeholder;
@@ -104,16 +111,19 @@ export component StudioField inherits Rectangle {
     in property <bool> enabled: true;
     in property <bool> compact: false;
     callback edited(text: string);
+    in property <length> input-height: root.multiline ? 128px : root.compact ? 32px : 40px;
     property <string> draft;
     init => { root.draft = root.value; }
     changed value => { if root.secret || !input.has-focus { root.draft = root.value; } }
-    min-height: root.multiline ? 164px : (root.compact ? 56px : 78px);
-    max-height: root.multiline ? 164px : (root.compact ? 56px : 78px);
+    min-height: field-body.preferred-height;
+    max-height: field-body.preferred-height;
+    vertical-stretch: 0;
     background: transparent;
-    VerticalLayout {
+    field-body := VerticalLayout {
         spacing: root.compact ? 5px : 9px;
         Text { text: root.label; color: Floword.text; font-size: root.compact ? 12px : 14px; wrap: word-wrap; }
         Rectangle {
+            height: root.input-height;
             background: Floword.field;
             border-radius: root.compact ? 8px : 10px;
             border-width: 1px;
@@ -121,7 +131,7 @@ export component StudioField inherits Rectangle {
             animate border-color { duration: 140ms; easing: ease-in-out; }
             clip: true;
             input := TextInput {
-                x: 10px; y: root.compact ? 6px : 10px; width: parent.width - 20px; height: parent.height - (root.compact ? 12px : 20px);
+                x: 10px; y: root.compact ? 6px : 10px; width: Math.max(0px, parent.width - 20px); height: Math.max(0px, parent.height - (root.compact ? 12px : 20px));
                 text <=> root.draft;
                 single-line: !root.multiline;
                 input-type: root.secret ? password : text;
@@ -132,8 +142,9 @@ export component StudioField inherits Rectangle {
                 edited => { root.edited(self.text); }
             }
             if root.draft == "" && !input.has-focus: Text {
-                x: 10px; y: root.compact ? 6px : 10px; width: parent.width - 20px; height: parent.height - (root.compact ? 12px : 20px);
+                x: 10px; y: root.compact ? 6px : 10px; width: Math.max(0px, parent.width - 20px); height: Math.max(0px, parent.height - (root.compact ? 12px : 20px));
                 text: root.placeholder;
+                wrap: word-wrap;
                 color: Floword.muted;
                 font-size: root.compact ? 12px : 14px;
                 vertical-alignment: center;

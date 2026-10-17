@@ -3,7 +3,9 @@
 //! Bounded native editing vocabulary. Unsupported source-editor features
 //! fail decoding rather than silently becoming successful native edits.
 use concat_project::commands::{ClipMove, ClipPatch, TrimEdge};
-use concat_project::model::{Clip, ClipKind, KeyEase, KeyProperty, TextStyle};
+use concat_project::model::{
+    Clip, ClipKind, Crop, Cutout, CutoutMode, KeyEase, KeyProperty, Subject, TextStyle, Transition,
+};
 use concat_project::{Command, DraftError, Editor, PreparedDraft};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -149,6 +151,56 @@ enum Operation {
         duration: f64,
         #[serde(rename = "as")]
         alias: String,
+    },
+    Transition {
+        #[serde(rename = "clipId")]
+        clip_id: String,
+        #[serde(rename = "transitionId")]
+        transition_id: String,
+        duration: Option<f64>,
+    },
+    Crop {
+        #[serde(rename = "clipId")]
+        clip_id: String,
+        left: Option<f64>,
+        top: Option<f64>,
+        right: Option<f64>,
+        bottom: Option<f64>,
+    },
+    Appearance {
+        #[serde(rename = "clipId")]
+        clip_id: String,
+        opacity: Option<f64>,
+        blend: Option<String>,
+        #[serde(rename = "flipH")]
+        flip_h: Option<bool>,
+        #[serde(rename = "flipV")]
+        flip_v: Option<bool>,
+    },
+    Layer {
+        #[serde(rename = "trackId")]
+        track_id: Option<String>,
+        start: f64,
+        duration: f64,
+        #[serde(rename = "effectId")]
+        effect_id: String,
+        name: String,
+        #[serde(rename = "as")]
+        alias: String,
+    },
+    Shape {
+        #[serde(rename = "trackId")]
+        track_id: Option<String>,
+        start: f64,
+        duration: f64,
+        name: String,
+        #[serde(rename = "as")]
+        alias: String,
+    },
+    Cutout {
+        #[serde(rename = "clipId")]
+        clip_id: String,
+        enabled: bool,
     },
 }
 
@@ -757,6 +809,192 @@ impl EditPlan {
                         },
                         Some(alias),
                         format!("Title at {start:.3}s for {duration:.3}s"),
+                    )
+                }
+                Operation::Transition {
+                    clip_id,
+                    transition_id,
+                    duration,
+                } => {
+                    let id = resolve(&clip_id, &aliases)?;
+                    let item = clip(&scratch, &id)?;
+                    if transition_id.trim().is_empty() || transition_id.len() > 128 {
+                        return Err(invalid("invalid transition id"));
+                    }
+                    let d = duration.unwrap_or(1.0);
+                    bounded(d, MIN_DURATION, item.duration)?;
+                    (
+                        Command::UpdateClip {
+                            clip_id: id,
+                            patch: ClipPatch {
+                                transition_in: Some(Some(Transition {
+                                    id: transition_id.clone(),
+                                    duration: d,
+                                })),
+                                ..Default::default()
+                            },
+                        },
+                        None,
+                        format!("Add transition {transition_id} to {clip_id}"),
+                    )
+                }
+                Operation::Crop {
+                    clip_id,
+                    left,
+                    top,
+                    right,
+                    bottom,
+                } => {
+                    let id = resolve(&clip_id, &aliases)?;
+                    let item = clip(&scratch, &id)?;
+                    if matches!(item.kind, ClipKind::Audio) {
+                        return Err(invalid("audio cannot be cropped"));
+                    }
+                    for v in [left, top, right, bottom].into_iter().flatten() {
+                        bounded(v, 0.0, 0.9)?;
+                    }
+                    let c = Crop {
+                        left: left.unwrap_or(0.0),
+                        top: top.unwrap_or(0.0),
+                        right: right.unwrap_or(0.0),
+                        bottom: bottom.unwrap_or(0.0),
+                    }
+                    .tidy();
+                    (
+                        Command::UpdateClip {
+                            clip_id: id,
+                            patch: ClipPatch {
+                                crop: Some(Some(c)),
+                                ..Default::default()
+                            },
+                        },
+                        None,
+                        format!("Crop {clip_id}"),
+                    )
+                }
+                Operation::Appearance {
+                    clip_id,
+                    opacity,
+                    blend,
+                    flip_h,
+                    flip_v,
+                } => {
+                    let id = resolve(&clip_id, &aliases)?;
+                    let item = clip(&scratch, &id)?;
+                    if matches!(item.kind, ClipKind::Audio) {
+                        return Err(invalid("audio has no visual appearance"));
+                    }
+                    if let Some(op) = opacity {
+                        bounded(op, 0.0, 1.0)?;
+                    }
+                    if let Some(ref b) = blend {
+                        if !["", "normal", "multiply", "screen", "add", "lighten", "darken"]
+                            .contains(&b.as_str())
+                        {
+                            return Err(invalid("unsupported blend mode"));
+                        }
+                    }
+                    (
+                        Command::UpdateClip {
+                            clip_id: id,
+                            patch: ClipPatch {
+                                opacity,
+                                blend,
+                                flip_h,
+                                flip_v,
+                                ..Default::default()
+                            },
+                        },
+                        None,
+                        format!("Update appearance {clip_id}"),
+                    )
+                }
+                Operation::Layer {
+                    track_id,
+                    start,
+                    duration,
+                    effect_id,
+                    name,
+                    alias,
+                } => {
+                    check_alias(&alias, &aliases)?;
+                    time(start)?;
+                    bounded(duration, MIN_DURATION, MAX_TIME)?;
+                    time(start + duration)?;
+                    let track_id = track_id
+                        .map(|t| resolve(&t, &aliases))
+                        .transpose()?;
+                    if let Some(ref t) = track_id {
+                        track(&scratch, t)?;
+                    }
+                    if effect_id.trim().is_empty() || name.trim().is_empty() {
+                        return Err(invalid("invalid layer effect/name"));
+                    }
+                    (
+                        Command::AddLayerClip {
+                            track_id,
+                            start,
+                            duration: Some(duration),
+                            effect_id,
+                            name,
+                        },
+                        Some(alias),
+                        format!("Add layer at {start:.3}s"),
+                    )
+                }
+                Operation::Shape {
+                    track_id,
+                    start,
+                    duration,
+                    name,
+                    alias,
+                } => {
+                    check_alias(&alias, &aliases)?;
+                    time(start)?;
+                    bounded(duration, MIN_DURATION, MAX_TIME)?;
+                    time(start + duration)?;
+                    let track_id = track_id
+                        .map(|t| resolve(&t, &aliases))
+                        .transpose()?;
+                    if let Some(ref t) = track_id {
+                        track(&scratch, t)?;
+                    }
+                    if name.trim().is_empty() {
+                        return Err(invalid("invalid shape name"));
+                    }
+                    (
+                        Command::AddShapeClip {
+                            track_id,
+                            above: true,
+                            start,
+                            style: None,
+                            duration: Some(duration),
+                            name,
+                        },
+                        Some(alias),
+                        format!("Add shape at {start:.3}s"),
+                    )
+                }
+                Operation::Cutout { clip_id, enabled } => {
+                    let id = resolve(&clip_id, &aliases)?;
+                    let item = clip(&scratch, &id)?;
+                    if matches!(item.kind, ClipKind::Audio) {
+                        return Err(invalid("audio has no cutout"));
+                    }
+                    let cutout = if enabled {
+                        Some(Cutout {
+                            mode: CutoutMode::Auto,
+                            subject: Subject::Auto,
+                            feather: 0.005,
+                            strokes: Vec::new(),
+                        })
+                    } else {
+                        None
+                    };
+                    (
+                        Command::SetClipCutout { clip_id: id, cutout },
+                        None,
+                        format!("Set cutout on {clip_id}"),
                     )
                 }
             };

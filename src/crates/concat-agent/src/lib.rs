@@ -4,7 +4,13 @@
 //! Compilation uses the existing native editor, never another timeline engine.
 mod plan;
 pub use plan::{CompiledPlan, EditPlan, PlanError};
+pub mod reframe_search;
 pub mod runtime;
+pub use reframe_search::{
+    compute_reframe_keyframes, cosine_similarity, smooth_focal_path, DetectedKeyframe,
+    GeometrySegment, NormalizedRect, ReframeOptions, SearchMatch, SemanticEntry,
+    SemanticIndex, VisualZone,
+};
 
 #[cfg(test)]
 mod extended_tests;
