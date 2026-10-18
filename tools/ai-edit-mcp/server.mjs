@@ -78,7 +78,7 @@ export function createServer(call) {
     inputSchema: {}, annotations: { readOnlyHint: true, openWorldHint: false },
   }, () => respond({ action: 'status' }));
   server.registerTool('concat_propose_edit', {
-    description: 'Submit one draft using scope and EditPlan from concat_get_context. Never applies to live timeline: HUMAN must preview and approve in Concat. Do not submit another draft while one awaits approval. No automatic retries.',
+    description: 'Submit one native EditPlan using scope from concat_get_context. Concat validates the plan and current revision. If auto-apply is enabled in Concat, it applies the edit and returns applied=true; otherwise it creates a draft for human preview and approval. Never claim success unless the tool response says applied=true. Do not submit another plan while a draft is awaiting approval. No automatic retries.',
     inputSchema: { scope: z.string().min(1).max(128), plan: z.record(z.string(), z.unknown()) },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, ({ scope, plan }) => respond({ action: 'propose', scope, plan }));

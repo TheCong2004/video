@@ -1141,6 +1141,7 @@ dependencies = [
  "concat-media",
  "concat-project",
  "concat-server",
+ "concat-shorts",
  "concat-speech",
  "concat-studio",
  "concat-text",
@@ -1335,6 +1336,22 @@ dependencies = [
  "tonic",
  "tonic-prost",
  "tonic-prost-build",
+]
+
+[[package]]
+name = "concat-shorts"
+version = "0.2.7"
+dependencies = [
+ "concat-agent",
+ "concat-core",
+ "concat-host",
+ "concat-media",
+ "concat-project",
+ "concat-speech",
+ "concat-studio",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

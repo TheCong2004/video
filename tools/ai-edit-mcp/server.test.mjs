@@ -5,7 +5,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { callBridge, createServer, validateConnection } from './server.mjs';
 
-test('MCP initialization/tools/call reaches the bridge and never advertises approval', async () => {
+test('MCP tool call reaches Concat and describes the active apply policy', async () => {
   const requests=[];
   const server=createServer(async request => { requests.push(request); return {ok:true,applied:false}; });
   const client=new Client({name:'test',version:'1'});
@@ -15,12 +15,28 @@ test('MCP initialization/tools/call reaches the bridge and never advertises appr
     const list=await client.listTools();
     assert.deepEqual(list.tools.map(t=>t.name).sort(),['concat_get_context','concat_get_status','concat_propose_edit']);
     assert.equal(list.tools.some(t=>/approve|execute|shell/.test(t.name)),false);
+    assert.match(list.tools.find(t=>t.name==='concat_propose_edit').description,/auto-apply is enabled/);
     await client.callTool({name:'concat_get_context',arguments:{}});
     await client.callTool({name:'concat_propose_edit',arguments:{scope:'1:2',plan:{version:1}}});
     assert.deepEqual(requests,[{action:'context'},{action:'propose',scope:'1:2',plan:{version:1}}]);
     const invalid=await client.callTool({name:'concat_propose_edit',arguments:{scope:'',plan:{}}});
     assert.equal(invalid.isError,true);
     assert.equal(requests.length,2);
+  } finally { await client.close(); await server.close(); }
+});
+
+test('AI can observe a successful native apply from Concat response', async () => {
+  const server=createServer(async request => {
+    assert.equal(request.action,'propose');
+    return {ok:true,applied:true,count:2};
+  });
+  const client=new Client({name:'test',version:'1'});
+  const [a,b]=InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(a),client.connect(b)]);
+  try {
+    const result=await client.callTool({name:'concat_propose_edit',arguments:{scope:'1:2',plan:{version:1}}});
+    assert.equal(result.isError,false);
+    assert.equal(JSON.parse(result.content[0].text).applied,true);
   } finally { await client.close(); await server.close(); }
 });
 

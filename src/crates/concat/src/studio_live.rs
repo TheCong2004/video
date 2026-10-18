@@ -1302,13 +1302,19 @@ pub(crate) fn sync_output(app: &App) {
             output.set_is_speaking(source.get_is_speaking());
             output.set_pinned_title(source.get_pinned_title());
             output.set_pinned_price(source.get_pinned_price());
-            window.global::<StudioOpenTalking>().set_avatar_preview(app.global::<StudioOpenTalking>().get_avatar_preview());
+            window
+                .global::<StudioOpenTalking>()
+                .set_avatar_preview(app.global::<StudioOpenTalking>().get_avatar_preview());
         }
     });
 }
 
 pub(crate) fn output_frame() -> Option<slint::Image> {
-    LIVE_OUTPUT_WINDOW.with(|cell| cell.borrow().as_ref().map(|w| w.global::<StudioLive>().get_video_frame()))
+    LIVE_OUTPUT_WINDOW.with(|cell| {
+        cell.borrow()
+            .as_ref()
+            .map(|w| w.global::<StudioLive>().get_video_frame())
+    })
 }
 
 #[cfg(test)]

@@ -4,10 +4,10 @@
 //! Generation dependency graph, capability preflight, verified artifact import, and timeline assembly.
 //! Inspired by Velorn's flowAiSchema and auto-import pipeline, integrated natively with Concat.
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::fmt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt;
 
 /// Node types in the generation pipeline.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,7 +71,9 @@ impl fmt::Display for GraphError {
         match self {
             Self::NotFound(id) => write!(f, "Node not found: {id}"),
             Self::CycleDetected => write!(f, "Cycle detected in generation graph"),
-            Self::MissingDependency(id, dep) => write!(f, "Missing dependency: {id} depends on {dep}"),
+            Self::MissingDependency(id, dep) => {
+                write!(f, "Missing dependency: {id} depends on {dep}")
+            }
             Self::MissingCapability(cap) => write!(f, "Missing required model capability: {cap}"),
             Self::InvalidNode(msg) => write!(f, "Invalid node configuration: {msg}"),
         }
@@ -143,7 +145,10 @@ impl GenerationGraph {
     }
 
     /// Validates that all required capabilities are supported by advertised capabilities.
-    pub fn validate_capabilities(&self, available_capabilities: &HashSet<String>) -> Result<(), GraphError> {
+    pub fn validate_capabilities(
+        &self,
+        available_capabilities: &HashSet<String>,
+    ) -> Result<(), GraphError> {
         for node in self.nodes.values() {
             let req = match node.kind {
                 GenerationNodeKind::Prompt => continue,
@@ -196,7 +201,10 @@ impl fmt::Display for ArtifactError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ChecksumMismatch { expected, actual } => {
-                write!(f, "Checksum mismatch: expected {expected}, calculated {actual}")
+                write!(
+                    f,
+                    "Checksum mismatch: expected {expected}, calculated {actual}"
+                )
             }
             Self::EmptyPayload => write!(f, "Empty or invalid file payload"),
             Self::Duplicate => write!(f, "Duplicate artifact ignored"),
@@ -368,12 +376,19 @@ mod tests {
 
         // Mismatched checksum is refused
         assert!(matches!(
-            verify_artifact("vid1", "scene1.mp4", dummy_data, "bad_hash_0000", "video/mp4"),
+            verify_artifact(
+                "vid1",
+                "scene1.mp4",
+                dummy_data,
+                "bad_hash_0000",
+                "video/mp4"
+            ),
             Err(ArtifactError::ChecksumMismatch { .. })
         ));
 
         // Matching checksum succeeds
-        let artifact = verify_artifact("vid1", "scene1.mp4", dummy_data, &valid_sha256, "video/mp4").unwrap();
+        let artifact =
+            verify_artifact("vid1", "scene1.mp4", dummy_data, &valid_sha256, "video/mp4").unwrap();
         assert_eq!(artifact.size_bytes, dummy_data.len() as u64);
 
         // Deduplication in registry

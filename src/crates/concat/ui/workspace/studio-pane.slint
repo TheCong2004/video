@@ -15,11 +15,12 @@ import { Floword } from "../theme/floword.slint";
 import { Glyph, Icon } from "../icons.slint";
 import { StudioCard, StudioHeading, StudioButton, StudioField, StudioMetric } from "studio-chrome.slint";
 import { StudioChannels } from "studio-pages.slint";
+import { AutoShortsPage } from "auto-shorts.slint";
 
 // Launcher tools: available before a project exists; not part of MediaFilter.
 export enum StudioRoute {
     overview, production, opentalking, live, workflows, scripts, bulk,
-    jobs, channels, publish, history, settings, keys,
+    jobs, channels, publish, history, settings, keys, auto-shorts,
 }
 
 export struct StudioWorkflowRow {
@@ -70,6 +71,7 @@ export global StudioBridge {
 
     public pure function title(route: StudioRoute) -> string {
         return route == StudioRoute.overview ? I18n.t("productionStudio.overview")
+            : route == StudioRoute.auto-shorts ? "Auto Shorts"
             : route == StudioRoute.production ? I18n.t("productionStudio.production")
             : route == StudioRoute.opentalking ? I18n.t("studioOpenTalking.nav")
             : route == StudioRoute.live ? I18n.t("studioLive.nav")
@@ -98,7 +100,7 @@ export component StudioPage inherits VerticalLayout {
     spacing: 12px;
     alignment: start;
 
-    Rectangle {
+    if root.route != StudioRoute.auto-shorts: Rectangle {
       min-width: 0px;
       min-height: project-header.preferred-height;
       project-header := FlexboxLayout {
@@ -166,6 +168,7 @@ export component StudioPage inherits VerticalLayout {
         }
     }
     }
+    if root.route == StudioRoute.auto-shorts: AutoShortsPage { }
     if root.route == StudioRoute.overview: VerticalLayout {
         spacing: 20px;
 

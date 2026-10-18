@@ -178,7 +178,8 @@ pub(crate) fn bind(app: &App) {
         slint::SharedString::from("auto/reasoning:pro"),
         slint::SharedString::from("auto/best"),
     ];
-    app.global::<StudioAi>().set_models(ModelRc::new(VecModel::from(default_models)));
+    app.global::<StudioAi>()
+        .set_models(ModelRc::new(VecModel::from(default_models)));
     app.global::<StudioAi>().set_model_index(0);
     app.global::<StudioAi>().set_models_loaded(true);
 

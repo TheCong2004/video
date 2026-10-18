@@ -38,7 +38,7 @@ $liveResources=Join-Path $output 'resources\tiktok-live-connector'
 if($LASTEXITCODE -ge 8){throw 'Bundling TikTok runtime failed.'}
 New-Item -ItemType Directory -Path (Join-Path $output 'resources\node') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $localAi 'node.exe') -Destination (Join-Path $output 'resources\node\node.exe')
-& robocopy $mcp (Join-Path $output 'tools\ai-edit-mcp') /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XJ /XD (Join-Path $mcp 'node_modules\.pnpm') /XF '.env' '.env.*' '*.dpapi' '*.log' 'server.test.mjs' 'smoke-client.mjs' | Out-Null
+& robocopy $mcp (Join-Path $output 'tools\ai-edit-mcp') /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XJ /XD (Join-Path $mcp 'node_modules\.pnpm') /XF '.env' '.env.*' '*.dpapi' '*.log' '*.test.mjs' 'smoke-client.mjs' 'browser-native-client.mjs' 'live-chat-smoke.mjs' 'diagnose-chat.mjs' 'visible-window-smoke.mjs' | Out-Null
 if($LASTEXITCODE -ge 8){throw 'Bundling AI Edit MCP runtime failed.'}
 foreach($dir in @($ffmpeg[0].FullName,$ort[0].FullName,$sherpa)) {
     foreach($dll in Get-ChildItem -LiteralPath $dir -File -Filter '*.dll') {

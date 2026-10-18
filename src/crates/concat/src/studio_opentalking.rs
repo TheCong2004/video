@@ -13,9 +13,7 @@ use concat_host::studio_opentalking::{
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::sync::{LazyLock, Mutex};
 
-static CLOUD_JOBS: LazyLock<Mutex<Vec<VideoJob>>> = LazyLock::new(|| {
-    Mutex::new(Vec::new())
-});
+static CLOUD_JOBS: LazyLock<Mutex<Vec<VideoJob>>> = LazyLock::new(|| Mutex::new(Vec::new()));
 
 pub(crate) fn get_builtin_avatar_bytes(id: &str) -> Option<&'static [u8]> {
     match id {
@@ -55,14 +53,22 @@ pub fn ensure_job_video(id: &str) -> Option<std::path::PathBuf> {
 /// Use only the real job artifact. Never synthesize a demo in place of a
 /// missing result when the user sends a video to LIVE.
 pub(crate) fn resolve_live_video(id: &str) -> Result<std::path::PathBuf, &'static str> {
-    if id.is_empty() || id.len() > 128 || !id.bytes().all(|c| c.is_ascii_alphanumeric() || b"-_".contains(&c)) {
+    if id.is_empty()
+        || id.len() > 128
+        || !id
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b"-_".contains(&c))
+    {
         return Err("Mã video không hợp lệ.");
     }
     let dirs = concat_host::AppDirs::locate().map_err(|_| "Không mở được thư mục video.")?;
     let directory = dirs.data.join("opentalking-exports");
     let local = directory.join(format!("{id}.mp4"));
-    if local.is_file() { return Ok(local); }
-    client().map_err(|_| "Engine chưa kết nối. Hãy tải video về rồi chọn từ máy.")?
+    if local.is_file() {
+        return Ok(local);
+    }
+    client()
+        .map_err(|_| "Engine chưa kết nối. Hãy tải video về rồi chọn từ máy.")?
         .download_video(id, &directory)
         .map_err(|_| "Không tải được video của job. Hãy tải video về rồi chọn từ máy.")
 }
@@ -77,7 +83,12 @@ pub fn get_builtin_avatar_video_bytes(avatar: &str) -> Option<&'static [u8]> {
     }
 }
 
-pub fn create_job_video(id: &str, avatar: &str, script: &str, voice: &str) -> Option<std::path::PathBuf> {
+pub fn create_job_video(
+    id: &str,
+    avatar: &str,
+    script: &str,
+    voice: &str,
+) -> Option<std::path::PathBuf> {
     let dirs = concat_host::AppDirs::locate().ok()?;
     let export_dir = dirs.data.join("opentalking-exports");
     let _ = std::fs::create_dir_all(&export_dir);
@@ -108,11 +119,16 @@ pub fn create_job_video(id: &str, avatar: &str, script: &str, voice: &str) -> Op
                 .creation_flags(CREATE_NO_WINDOW)
                 .args([
                     "-y",
-                    "-loop", "1",
-                    "-i", &temp_avatar.to_string_lossy(),
-                    "-c:v", "libx264",
-                    "-t", "10",
-                    "-pix_fmt", "yuv420p",
+                    "-loop",
+                    "1",
+                    "-i",
+                    &temp_avatar.to_string_lossy(),
+                    "-c:v",
+                    "libx264",
+                    "-t",
+                    "10",
+                    "-pix_fmt",
+                    "yuv420p",
                     "-an", // HOÀN TOÀN KHÔNG CÓ TRACK AUDIO
                     &file_path.to_string_lossy(),
                 ])
@@ -144,17 +160,24 @@ pub fn create_job_video(id: &str, avatar: &str, script: &str, voice: &str) -> Op
         let _ = std::fs::write(&temp_audio, &audio.bytes);
 
         let python_candidates = [
-            std::path::PathBuf::from(r"d:\capcutpolot\artcraft\engines\opentalking\.venv\Scripts\python.exe"),
+            std::path::PathBuf::from(
+                r"d:\capcutpolot\artcraft\engines\opentalking\.venv\Scripts\python.exe",
+            ),
             std::path::PathBuf::from(r".\artcraft\engines\opentalking\.venv\Scripts\python.exe"),
             std::path::PathBuf::from("python"),
         ];
 
         let script_candidates = [
-            std::path::PathBuf::from(r"d:\capcutpolot\ConcatStudio-Portable\scripts\render_avatar_lipsync.py"),
+            std::path::PathBuf::from(
+                r"d:\capcutpolot\ConcatStudio-Portable\scripts\render_avatar_lipsync.py",
+            ),
             std::path::PathBuf::from(r"d:\capcutpolot\concat\scripts\render_avatar_lipsync.py"),
             std::env::current_exe()
                 .ok()
-                .and_then(|p| p.parent().map(|d| d.join("scripts").join("render_avatar_lipsync.py")))
+                .and_then(|p| {
+                    p.parent()
+                        .map(|d| d.join("scripts").join("render_avatar_lipsync.py"))
+                })
                 .unwrap_or_default(),
             std::path::PathBuf::from(r".\scripts\render_avatar_lipsync.py"),
         ];
@@ -177,9 +200,12 @@ pub fn create_job_video(id: &str, avatar: &str, script: &str, voice: &str) -> Op
                     .creation_flags(CREATE_NO_WINDOW)
                     .args([
                         sc.to_string_lossy().as_ref(),
-                        "--avatar", &avatar_source_param.to_string_lossy(),
-                        "--audio", &temp_audio.to_string_lossy(),
-                        "--output", &file_path.to_string_lossy(),
+                        "--avatar",
+                        &avatar_source_param.to_string_lossy(),
+                        "--audio",
+                        &temp_audio.to_string_lossy(),
+                        "--output",
+                        &file_path.to_string_lossy(),
                     ])
                     .output();
 
@@ -207,12 +233,18 @@ pub fn create_job_video(id: &str, avatar: &str, script: &str, voice: &str) -> Op
                         .creation_flags(CREATE_NO_WINDOW)
                         .args([
                             "-y",
-                            "-stream_loop", "-1",
-                            "-i", &v_path.to_string_lossy(),
-                            "-i", &temp_audio.to_string_lossy(),
-                            "-c:v", "libx264",
-                            "-c:a", "aac",
-                            "-b:a", "192k",
+                            "-stream_loop",
+                            "-1",
+                            "-i",
+                            &v_path.to_string_lossy(),
+                            "-i",
+                            &temp_audio.to_string_lossy(),
+                            "-c:v",
+                            "libx264",
+                            "-c:a",
+                            "aac",
+                            "-b:a",
+                            "192k",
                             "-shortest",
                             &file_path.to_string_lossy(),
                         ])
@@ -222,14 +254,22 @@ pub fn create_job_video(id: &str, avatar: &str, script: &str, voice: &str) -> Op
                         .creation_flags(CREATE_NO_WINDOW)
                         .args([
                             "-y",
-                            "-loop", "1",
-                            "-i", &temp_avatar.to_string_lossy(),
-                            "-i", &temp_audio.to_string_lossy(),
-                            "-c:v", "libx264",
-                            "-tune", "stillimage",
-                            "-c:a", "aac",
-                            "-b:a", "192k",
-                            "-pix_fmt", "yuv420p",
+                            "-loop",
+                            "1",
+                            "-i",
+                            &temp_avatar.to_string_lossy(),
+                            "-i",
+                            &temp_audio.to_string_lossy(),
+                            "-c:v",
+                            "libx264",
+                            "-tune",
+                            "stillimage",
+                            "-c:a",
+                            "aac",
+                            "-b:a",
+                            "192k",
+                            "-pix_fmt",
+                            "yuv420p",
                             "-shortest",
                             &file_path.to_string_lossy(),
                         ])
@@ -266,7 +306,9 @@ pub fn synthesize_speech_robust(
         }
     }
 
-    let clean_voice = voice_id.trim_start_matches("edge:").trim_start_matches("edge-tts:");
+    let clean_voice = voice_id
+        .trim_start_matches("edge:")
+        .trim_start_matches("edge-tts:");
     let temp_mp3 = std::env::temp_dir().join(format!("concat-tts-{}.mp3", std::process::id()));
 
     #[cfg(target_os = "windows")]
@@ -277,10 +319,14 @@ pub fn synthesize_speech_robust(
         let res = std::process::Command::new("python")
             .creation_flags(CREATE_NO_WINDOW)
             .args([
-                "-m", "edge_tts",
-                "--voice", clean_voice,
-                "--text", text,
-                "--write-media", &temp_mp3.to_string_lossy(),
+                "-m",
+                "edge_tts",
+                "--voice",
+                clean_voice,
+                "--text",
+                text,
+                "--write-media",
+                &temp_mp3.to_string_lossy(),
             ])
             .output();
 
@@ -317,7 +363,8 @@ pub fn synthesize_speech_robust(
             .args([
                 "-NoProfile",
                 "-NonInteractive",
-                "-ExecutionPolicy", "Bypass",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-Command",
                 &script,
             ])
@@ -375,14 +422,18 @@ pub(crate) fn default_opentalking_origin() -> String {
     if std::net::TcpStream::connect_timeout(
         &std::net::SocketAddr::from(([127, 0, 0, 1], 30000)),
         std::time::Duration::from_millis(150),
-    ).is_ok() {
+    )
+    .is_ok()
+    {
         return "http://127.0.0.1:30000".into();
     }
     // Check port 43100
     if std::net::TcpStream::connect_timeout(
         &std::net::SocketAddr::from(([127, 0, 0, 1], 43100)),
         std::time::Duration::from_millis(150),
-    ).is_ok() {
+    )
+    .is_ok()
+    {
         return "http://127.0.0.1:43100".into();
     }
     "http://127.0.0.1:30000".into()
@@ -565,9 +616,9 @@ fn default_cloud_scenes() -> Vec<Scene> {
 }
 
 fn default_cloud_models() -> Vec<VideoModel> {
-    vec![
-        VideoModel { id: "wav2lip-hd (Khuyên dùng)".into() },
-    ]
+    vec![VideoModel {
+        id: "wav2lip-hd (Khuyên dùng)".into(),
+    }]
 }
 
 fn execute(app: &App, action: Action) {
@@ -595,30 +646,48 @@ fn execute(app: &App, action: Action) {
                 let local_client = client().ok();
                 match action {
                     Action::RefreshJobs => {
-                        let mut jobs = local_client.as_ref().and_then(|c| c.jobs().ok()).unwrap_or_default();
+                        let mut jobs = local_client
+                            .as_ref()
+                            .and_then(|c| c.jobs().ok())
+                            .unwrap_or_default();
                         if jobs.is_empty() {
                             jobs = CLOUD_JOBS.lock().map(|g| g.clone()).unwrap_or_default();
                         }
                         Ok(Reply::Jobs(Ok(jobs)))
                     }
                     Action::Refresh => {
-                        let (avatars, voices, scenes, models_status, jobs) = if let Some(c) = local_client.as_ref() {
-                            let mut avs = c.avatars().unwrap_or_default();
-                            if avs.is_empty() { avs = default_cloud_avatars(); }
-                            let mut vcs = c.voices().unwrap_or_default();
-                            if vcs.is_empty() { vcs = default_cloud_voices(); }
-                            let mut scs = c.scenes().unwrap_or_default();
-                            if scs.is_empty() { scs = default_cloud_scenes(); }
-                            let ms = c.models_with_status().unwrap_or_else(|_| ("ONLINE".into(), default_cloud_models()));
-                            let mut jbs = c.jobs().unwrap_or_default();
-                            if jbs.is_empty() {
-                                jbs = CLOUD_JOBS.lock().map(|g| g.clone()).unwrap_or_default();
-                            }
-                            (avs, vcs, scs, ms, jbs)
-                        } else {
-                            let jbs = CLOUD_JOBS.lock().map(|g| g.clone()).unwrap_or_default();
-                            (default_cloud_avatars(), default_cloud_voices(), default_cloud_scenes(), ("ONLINE".into(), default_cloud_models()), jbs)
-                        };
+                        let (avatars, voices, scenes, models_status, jobs) =
+                            if let Some(c) = local_client.as_ref() {
+                                let mut avs = c.avatars().unwrap_or_default();
+                                if avs.is_empty() {
+                                    avs = default_cloud_avatars();
+                                }
+                                let mut vcs = c.voices().unwrap_or_default();
+                                if vcs.is_empty() {
+                                    vcs = default_cloud_voices();
+                                }
+                                let mut scs = c.scenes().unwrap_or_default();
+                                if scs.is_empty() {
+                                    scs = default_cloud_scenes();
+                                }
+                                let ms = c
+                                    .models_with_status()
+                                    .unwrap_or_else(|_| ("ONLINE".into(), default_cloud_models()));
+                                let mut jbs = c.jobs().unwrap_or_default();
+                                if jbs.is_empty() {
+                                    jbs = CLOUD_JOBS.lock().map(|g| g.clone()).unwrap_or_default();
+                                }
+                                (avs, vcs, scs, ms, jbs)
+                            } else {
+                                let jbs = CLOUD_JOBS.lock().map(|g| g.clone()).unwrap_or_default();
+                                (
+                                    default_cloud_avatars(),
+                                    default_cloud_voices(),
+                                    default_cloud_scenes(),
+                                    ("ONLINE".into(), default_cloud_models()),
+                                    jbs,
+                                )
+                            };
                         Ok(Reply::Refreshed(
                             Ok(avatars),
                             Ok(voices),
@@ -652,8 +721,19 @@ fn execute(app: &App, action: Action) {
                                 }
                             }
                         }
-                        let job_id = format!("job_{:08x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as u32).unwrap_or(0));
-                        let _ = create_job_video(&job_id, &avatar, if has_script { &script } else { "" }, &voice);
+                        let job_id = format!(
+                            "job_{:08x}",
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .map(|d| d.as_secs() as u32)
+                                .unwrap_or(0)
+                        );
+                        let _ = create_job_video(
+                            &job_id,
+                            &avatar,
+                            if has_script { &script } else { "" },
+                            &voice,
+                        );
                         let job = VideoJob {
                             id: job_id,
                             title: effective_title,
@@ -666,7 +746,10 @@ fn execute(app: &App, action: Action) {
                         if let Ok(mut lock) = CLOUD_JOBS.lock() {
                             lock.insert(0, job.clone());
                         }
-                        let all_jobs = CLOUD_JOBS.lock().map(|g| g.clone()).unwrap_or_else(|_| vec![job.clone()]);
+                        let all_jobs = CLOUD_JOBS
+                            .lock()
+                            .map(|g| g.clone())
+                            .unwrap_or_else(|_| vec![job.clone()]);
                         Ok(Reply::Created(job, Ok(all_jobs)))
                     }
                     Action::Stop(id) => {
@@ -697,7 +780,9 @@ fn execute(app: &App, action: Action) {
                         if let Some(c) = local_client.as_ref() {
                             let dirs = concat_host::AppDirs::locate()
                                 .map_err(|_| OpenTalkingError::Unavailable)?;
-                            if let Ok(path) = c.download_video(&id, &dirs.data.join("opentalking-exports")) {
+                            if let Ok(path) =
+                                c.download_video(&id, &dirs.data.join("opentalking-exports"))
+                            {
                                 return Ok(Reply::Imported(path, project_path));
                             }
                         }
@@ -729,7 +814,9 @@ fn execute(app: &App, action: Action) {
                         let mut messages = Vec::new();
                         state.set_catalogs_loaded(true);
                         state.set_engine_status("ONLINE".into());
-                        state.set_status("✅ Đã kết nối Promax Cloud Video AI · Sẵn sàng sản xuất video.".into());
+                        state.set_status(
+                            "✅ Đã kết nối Promax Cloud Video AI · Sẵn sàng sản xuất video.".into(),
+                        );
                         match avatar_result {
                             Ok(rows) => {
                                 let index =
@@ -806,7 +893,9 @@ fn execute(app: &App, action: Action) {
                             }
                             Err(error) => messages.push(message(error)),
                         }
-                        state.set_status("✅ Đã kết nối Promax Cloud Video AI · Sẵn sàng sản xuất video.".into());
+                        state.set_status(
+                            "✅ Đã kết nối Promax Cloud Video AI · Sẵn sàng sản xuất video.".into(),
+                        );
                         state.set_jobs_running(
                             state
                                 .get_jobs()
@@ -1051,21 +1140,22 @@ pub(crate) fn bind(app: &App) {
         }
     });
     let weak = app.as_weak();
-    app.global::<StudioOpenTalking>().on_open_export_folder(move || {
-        let Some(app) = weak.upgrade() else { return };
-        if let Ok(dirs) = concat_host::AppDirs::locate() {
-            let export_dir = dirs.data.join("opentalking-exports");
-            let _ = std::fs::create_dir_all(&export_dir);
-            #[cfg(target_os = "windows")]
-            {
-                let _ = std::process::Command::new("explorer")
-                    .arg(&export_dir)
-                    .spawn();
+    app.global::<StudioOpenTalking>()
+        .on_open_export_folder(move || {
+            let Some(app) = weak.upgrade() else { return };
+            if let Ok(dirs) = concat_host::AppDirs::locate() {
+                let export_dir = dirs.data.join("opentalking-exports");
+                let _ = std::fs::create_dir_all(&export_dir);
+                #[cfg(target_os = "windows")]
+                {
+                    let _ = std::process::Command::new("explorer")
+                        .arg(&export_dir)
+                        .spawn();
+                }
+                app.global::<StudioOpenTalking>()
+                    .set_status("📁 Đã mở thư mục video.".into());
             }
-            app.global::<StudioOpenTalking>()
-                .set_status("📁 Đã mở thư mục video.".into());
-        }
-    });
+        });
     let weak = app.as_weak();
     app.global::<StudioOpenTalking>().on_set_tab(move |tab| {
         if let Some(app) = weak.upgrade() {
@@ -1119,8 +1209,8 @@ pub(crate) fn bind(app: &App) {
                 .name("studio-voice-preview".into())
                 .spawn(move || {
                     let sample_text = "Xin chào, đây là giọng đọc thử nghiệm trong Concat Studio.";
-                    let result = synthesize_speech_robust(sample_text, &voice_id)
-                        .and_then(|audio| {
+                    let result =
+                        synthesize_speech_robust(sample_text, &voice_id).and_then(|audio| {
                             crate::studio_live::play_tts(&playback, audio)
                                 .map_err(|e| slint::SharedString::from(e))
                         });

@@ -260,12 +260,7 @@ impl SemanticIndex {
     }
 
     /// Queries the index using cosine similarity against the query embedding.
-    pub fn query(
-        &self,
-        query_embedding: &[f32],
-        top_k: usize,
-        min_score: f32,
-    ) -> Vec<SearchMatch> {
+    pub fn query(&self, query_embedding: &[f32], top_k: usize, min_score: f32) -> Vec<SearchMatch> {
         if query_embedding.is_empty() {
             return Vec::new();
         }
@@ -288,7 +283,11 @@ impl SemanticIndex {
             })
             .collect();
 
-        matches.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        matches.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         matches.truncate(top_k);
         matches
     }

@@ -34,7 +34,9 @@ pub fn trigger_avatar_motion(app: &App, index: i32) {
     let live = app.global::<StudioLive>();
     let talking = app.global::<StudioOpenTalking>();
     let avatars = talking.get_avatars();
-    let avatar_row = usize::try_from(index).ok().and_then(|i| avatars.row_data(i));
+    let avatar_row = usize::try_from(index)
+        .ok()
+        .and_then(|i| avatars.row_data(i));
     let (avatar_id, avatar_label) = match avatar_row {
         Some(row) => (row.id.to_string(), row.label.to_string()),
         None => ("mc-newscaster".to_string(), "MC An An".to_string()),
@@ -48,22 +50,24 @@ pub fn trigger_avatar_motion(app: &App, index: i32) {
         .name("live-video-avatar-motion".into())
         .spawn(move || {
             let result = (|| {
-                let dirs = concat_host::AppDirs::locate()
-                    .map_err(|_| "Không mở được thư mục video.")?;
+                let dirs =
+                    concat_host::AppDirs::locate().map_err(|_| "Không mở được thư mục video.")?;
                 let directory = dirs.data.join("live-motion");
-                std::fs::create_dir_all(&directory)
-                    .map_err(|_| "Không tạo được thư mục video.")?;
-                let path = if let Some(vbytes) = crate::studio_opentalking::get_builtin_avatar_video_bytes(&avatar_id) {
+                std::fs::create_dir_all(&directory).map_err(|_| "Không tạo được thư mục video.")?;
+                let path = if let Some(vbytes) =
+                    crate::studio_opentalking::get_builtin_avatar_video_bytes(&avatar_id)
+                {
                     let path = directory.join(format!("builtin-{}-v2.mp4", avatar_id));
                     if !path.is_file() {
-                        std::fs::write(&path, vbytes)
-                            .map_err(|_| "Không lưu được clip mẫu.")?;
+                        std::fs::write(&path, vbytes).map_err(|_| "Không lưu được clip mẫu.")?;
                     }
                     path
                 } else {
                     let path = directory.join(format!("builtin-{}-v2.mp4", avatar_id));
                     if !path.is_file() {
-                        if let Some(bytes) = crate::studio_opentalking::get_builtin_avatar_bytes(&avatar_id) {
+                        if let Some(bytes) =
+                            crate::studio_opentalking::get_builtin_avatar_bytes(&avatar_id)
+                        {
                             let temp_img = directory.join(format!("temp-{}.png", avatar_id));
                             let _ = std::fs::write(&temp_img, bytes);
                             let ffmpeg_path = std::env::current_exe()
@@ -79,11 +83,16 @@ pub fn trigger_avatar_motion(app: &App, index: i32) {
                                     .creation_flags(CREATE_NO_WINDOW)
                                     .args([
                                         "-y",
-                                        "-loop", "1",
-                                        "-i", &temp_img.to_string_lossy(),
-                                        "-c:v", "libx264",
-                                        "-t", "10",
-                                        "-pix_fmt", "yuv420p",
+                                        "-loop",
+                                        "1",
+                                        "-i",
+                                        &temp_img.to_string_lossy(),
+                                        "-c:v",
+                                        "libx264",
+                                        "-t",
+                                        "10",
+                                        "-pix_fmt",
+                                        "yuv420p",
                                         "-an",
                                         &path.to_string_lossy(),
                                     ])
@@ -97,7 +106,10 @@ pub fn trigger_avatar_motion(app: &App, index: i32) {
                 let final_path = if !path.is_file() {
                     let default_path = directory.join("builtin-newscaster-v1.mp4");
                     if !default_path.is_file() {
-                        let _ = std::fs::write(&default_path, include_bytes!("../assets/avatars/newscaster.mp4"));
+                        let _ = std::fs::write(
+                            &default_path,
+                            include_bytes!("../assets/avatars/newscaster.mp4"),
+                        );
                     }
                     default_path
                 } else {
@@ -164,11 +176,12 @@ pub(crate) fn bind(app: &App) {
     PLAYER.with(|slot| *slot.borrow_mut() = Some((player, timer)));
 
     let weak = app.as_weak();
-    app.global::<StudioLive>().on_select_avatar_motion(move |index| {
-        if let Some(app) = weak.upgrade() {
-            trigger_avatar_motion(&app, index);
-        }
-    });
+    app.global::<StudioLive>()
+        .on_select_avatar_motion(move |index| {
+            if let Some(app) = weak.upgrade() {
+                trigger_avatar_motion(&app, index);
+            }
+        });
 
     let weak = app.as_weak();
     app.global::<StudioLive>().on_use_builtin_motion(move || {

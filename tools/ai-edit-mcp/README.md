@@ -1,25 +1,55 @@
-# Concat AI Edit MCP
+# Concat AI Edit: connected chat browser and MCP
+
+**Chat web tự động → chọn ChatGPT/Gemini/Claude → Mở chat & kết nối project**
+launches an owned Chrome window (Edge fallback only if Chrome is absent) with a dedicated persistent profile per browser/provider. Log
+in there once and type in the chat. On your Send click, the browser adapter
+attaches current timeline IDs/timing and the native schema, then reads the
+correlated JSON response and submits it to Concat. It does not install global
+MCP settings or require an API key. The same native scope/schema checks and
+undoable commit apply. Disconnect or close Concat to revoke the bridge.
+
+The browser adapter uses the public page DOM, not a provider's official MCP
+integration. Login, quota and page changes can prevent it from working. It
+never bypasses login/CAPTCHA and does not read cookies or private endpoints.
+Only the dedicated window is controlled. Arbitrary existing browser tabs are
+not attached. Timeline context does not contain video frames/audio.
+
+The current ChatGPT guest/mobile textarea and `data-message-role` response
+markup are supported alongside the desktop editor. Connected status is emitted
+only after a DOM readiness + native context round trip. Informational questions
+use a message response and never create an edit. A page navigation rehydrates
+only the pending request ID/scope; it never replays the prompt or edit.
 
 MCP stdio adapter for the currently open Concat window. Windows local-user
 DPAPI connection; no model key or cloud login is copied into Concat.
 
-In AI Edit choose **AI bên ngoài → Bật MCP local → Lưu cấu hình MCP**.
-Merge the saved `mcpServers.concat` entry into a compatible local client's
-configuration (for example Gemini CLI), then reconnect the client. Do not
-overwrite unrelated settings. Keep Concat open; after disabling/re-enabling
-MCP, save the new per-run configuration again.
+For a separate MCP client choose **Nâng cao: dùng MCP client riêng → Bật MCP local**, then
+save the generated config and add the `mcpServers.concat` entry to a compatible
+local MCP client. Keep Concat open. The prompt is entered in that AI client,
+not duplicated in Concat. After disabling/re-enabling MCP, save the new per-run
+configuration again.
 
 Tools: `concat_get_context`, `concat_get_status`, `concat_propose_edit`.
-There is no approve, execute, arbitrary file read, shell, save or export tool.
-Proposals are compiled by the native editor and require human preview/approval
-in Concat. Undo reverses the whole approved draft.
+There is no arbitrary file read, shell, save, export or separate approve tool.
+When MCP is enabled, Concat turns on auto-apply by default. The native editor
+validates every proposal against the live project revision and strict edit
+schema before applying it as one undoable change. Turn off **AI tự áp dụng sau
+kiểm tra** in Concat to stage drafts for preview/approval instead. Undo reverses
+the whole applied edit.
 
-This is not a remote HTTPS MCP service for ChatGPT web. Use the context-file
-export/JSON draft import route for web AI. External clients use their own
-account/model permissions and quota; MCP does not supply a free model.
+This stdio server connects compatible local MCP clients; it is not a remote
+HTTPS MCP endpoint for ChatGPT web. External clients use their own account/model
+permissions and quota; MCP does not supply a free model. ChatGPT Desktop local
+plugin support depends on the ChatGPT client/account configuration; if that
+client does not accept local MCP tools, use a supported local stdio client or
+the dedicated browser adapter above.
 
-Development: Node >=18, `pnpm install --frozen-lockfile --ignore-scripts`,
-`pnpm test`. `.npmrc` uses hoisted dependencies so the Windows package can copy
+Development: Node >=22 for the browser adapter, `pnpm install --frozen-lockfile --ignore-scripts`,
+`pnpm test`; `pnpm test:browser` verifies the real installed browser/CDP against fulfilled local
+page fixtures for all three adapters without a provider call. The
+`browser-native-smoke` Rust example verifies the browser response automatically
+commits a native trim+title exactly once and one Undo restores the project.
+`.npmrc` uses hoisted dependencies so the Windows package can copy
 real module directories without junctions or the pnpm virtual store.
 
 See the bundled `AI_EDIT_EXTERNAL.md` for usage, tests and limitations.

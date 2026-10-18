@@ -44,3 +44,21 @@ All capabilities formerly listed as NOT_STARTED or PORTING have now been ported 
 | Generation graph & verified artifacts | Velorn `src/generation/graph.ts`, `artifacts.ts` | TESTED | `concat-studio/src/generation.rs`: DAG with Kahn's topological sort, capability check, SHA-256 verified artifact registry; 4 generation tests pass. |
 
 No capabilities remain at `NOT_STARTED` or `PORTING`. Real interactive GUI acceptance (`E2E_VERIFIED`) remains pending full interactive desktop GUI run.
+
+## HotClip-inspired Auto Shorts follow-up — 2026-10-18
+
+These are Concat-native additions inspired by the local HotClip source. They do
+not change the feature-port status above or claim pixel/behavior parity with
+HotClip. Status is limited to the evidence listed here.
+
+| Capability | Status | Evidence / remaining work |
+|---|---|---|
+| Evidence-bound highlight candidates | TESTED | `concat-agent/src/highlight.rs`: real transcript IDs/quotes and measured audio/visual signals; strict model selections resolve only to supplied IDs; unknown or unsupported moments need review. Unit tests pass. |
+| Native multi-range shorts draft and captions | TESTED | `concat-agent/src/shorts_plan.rs`: new native timeline, source ranges, stitched segments, real-time subtitle cues and one approved draft; model cannot mutate the live session. Unit tests pass. |
+| Source analysis and durable review queue | TESTED | `concat-shorts/src/analysis.rs`, `concat-studio/src/shorts_jobs.rs`: bounded decode/ASR/cache, real SRT/VTT sidecars, dedupe, OS process lock, retry/cancel/recovery and stable-folder intake. Agent/Studio and native tests pass. |
+| Native render, package and full-output QA | TESTED | `concat-shorts/src/output.rs`, `qa.rs`: actual Concat renderer exports MP4, cover, SRT, metadata and local posting copy into an atomic new folder; every output is decoded for QA. End-to-end exports passed on landscape-with-audio and portrait-silent fixtures. |
+| Concat Auto Shorts screen/controller | BUILT; GUI ACCEPTANCE PENDING | `concat/src/auto_shorts.rs`, `ui/workspace/auto-shorts.slint`: native route, real file pickers, analysis/review/search/sort, thumbnails, preview, stage/export and watch intake. Rust/controller and screen compilation are checked by the native app build; mouse-driven GUI acceptance is not claimed. |
+| Face-aware tracking and intelligent reframing | PARTIAL | Output uses a labelled static center-fill transform. It does not claim face/person tracking in this workflow. |
+| Word-level karaoke, diarization and editable vocabulary | MISSING | This slice keeps verified subtitle timings and human review; these HotClip-specific features remain outside the implementation. |
+| Automatic publishing to social platforms | NOT IMPLEMENTED | Publish Queue now reports local packs only. No successful upload is claimed without a configured official publisher. |
+| Real semantic provider quality | NOT E2E VERIFIED | Optional existing Promax AI route makes one explicitly requested structured call; no paid provider call was part of local tests. |

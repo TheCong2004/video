@@ -12,6 +12,7 @@ import { SearchField } from "../inspector/controls.slint";
 import { Select } from "../primitives/select.slint";
 import { Wave } from "../primitives/wave.slint";
 import { ContextMenu, MenuItemData } from "../primitives/context-menu.slint";
+import { AiEditingPane } from "ai-editing-pane.slint";
 
 // The library pane: a strip of pages across the top, then a narrow category
 // sidebar and the browsing area beside it. Media is the bin; Text adds a
@@ -1696,6 +1697,7 @@ export component MediaPane inherits Rectangle {
     changed jump-token => { root.tab = 0; }
 
     callback import-media();
+    callback ai-opened();
     callback filter-changed(filter: MediaFilter);
     /// The sort dropdown beside the import button picked a new order.
     callback sort-changed(index: int);
@@ -2089,6 +2091,33 @@ export component MediaPane inherits Rectangle {
                         }
                     }
 
+                    if root.tab == 7: CategoryRow {
+                        height: 32px;
+                        label: I18n.t("common.media");
+                        clicked => { root.tab = 0; }
+                    }
+                    // A primary destination, not a media filter or a second
+                    // independent right-hand dock. Keep it visible on all pages.
+                    Rectangle {
+                        height: 46px;
+                        border-radius: Theme.r-sm;
+                        background: root.tab == 7 ? Theme.field-active : ai-entry.has-hover ? Theme.field : Theme.panel;
+                        HorizontalLayout {
+                            padding-left: 6px; padding-right: 4px; spacing: 5px;
+                            Icon { glyph: Glyph.sparkle; size: 17px; tint: Theme.fg; }
+                            Text {
+                                text: "Trợ lý AI"; color: Theme.fg;
+                                font-size: Theme.fs-sm; font-weight: Theme.weight-title;
+                                vertical-alignment: center; wrap: word-wrap;
+                                horizontal-stretch: 1; min-width: 0px;
+                            }
+                        }
+                        ai-entry := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.tab = 7; root.ai-opened(); }
+                        }
+                    }
+
                     if root.tab == 1: VerticalLayout {
                         spacing: 1px;
                         CategoryHeading {
@@ -2239,6 +2268,7 @@ export component MediaPane inherits Rectangle {
             }
 
             pages := PaneScroll {
+                visible: root.tab != 7;
                 x: root.sidebar + 1px;
                 width: Math.max(0px, parent.width - root.sidebar - 1px);
                 height: parent.height;
@@ -2509,6 +2539,15 @@ export component MediaPane inherits Rectangle {
                     glyph: Glyph.slot;
                     text: I18n.t("mediaPane.noTemplatesYetMark");
                 }
+            }
+            // Keep the shared AI state/event pump alive while browsing media;
+            // changing library pages must never disconnect an active chat.
+            AiEditingPane {
+                x: root.sidebar + 1px; y: 0;
+                width: Math.max(0px, parent.width - root.sidebar - 1px);
+                height: parent.height;
+                visible: root.tab == 7;
+                embedded: true;
             }
         }
     }

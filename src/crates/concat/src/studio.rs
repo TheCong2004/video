@@ -2395,7 +2395,9 @@ impl Studio {
     ) -> Result<(), String> {
         self.flush_commit();
         let session = self.session.as_mut().ok_or("No project is open")?;
-        session.commit_draft(draft).map_err(|error| error.to_string())?;
+        session
+            .commit_draft(draft)
+            .map_err(|error| error.to_string())?;
         self.echo = None;
         self.last_commit = None;
         self.after_change();

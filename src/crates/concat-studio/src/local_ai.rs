@@ -686,7 +686,10 @@ mod tests {
                     assert_no_plain_key(&path);
                 } else {
                     let bytes = fs::read(&path).unwrap();
-                    assert!(!bytes.windows(needle.len()).any(|w| w == needle), "provider key must be encrypted on disk");
+                    assert!(
+                        !bytes.windows(needle.len()).any(|w| w == needle),
+                        "provider key must be encrypted on disk"
+                    );
                 }
             }
         }

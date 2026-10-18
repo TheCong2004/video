@@ -220,7 +220,12 @@ fn cartcut_expanded_vocabulary_transitions_crop_appearance_layer_shape_cutout() 
     ])).unwrap();
     let preview = proposal.draft().project().clone();
     assert_eq!(editor.project(), &before);
-    let main_clip = preview.active().clips.iter().find(|c| c.media_id == media).unwrap();
+    let main_clip = preview
+        .active()
+        .clips
+        .iter()
+        .find(|c| c.media_id == media)
+        .unwrap();
     assert!(main_clip.transition_in.is_some());
     assert_eq!(main_clip.transition_in.as_ref().unwrap().id, "cross-fade");
     assert_eq!(main_clip.transition_in.as_ref().unwrap().duration, 0.5);
@@ -231,9 +236,19 @@ fn cartcut_expanded_vocabulary_transitions_crop_appearance_layer_shape_cutout() 
     assert_eq!(main_clip.blend, "screen");
     assert!(main_clip.flip_h);
     assert!(main_clip.cutout.is_some());
-    let layer_clip = preview.active().clips.iter().find(|c| c.kind == concat_project::model::ClipKind::Layer).unwrap();
+    let layer_clip = preview
+        .active()
+        .clips
+        .iter()
+        .find(|c| c.kind == concat_project::model::ClipKind::Layer)
+        .unwrap();
     assert_eq!(layer_clip.name, "Warm Look");
-    let shape_clip = preview.active().clips.iter().find(|c| c.kind == concat_project::model::ClipKind::Shape).unwrap();
+    let shape_clip = preview
+        .active()
+        .clips
+        .iter()
+        .find(|c| c.kind == concat_project::model::ClipKind::Shape)
+        .unwrap();
     assert_eq!(shape_clip.name, "Badge");
     editor.commit_draft(proposal.into_draft()).unwrap();
     assert_eq!(editor.project(), &preview);

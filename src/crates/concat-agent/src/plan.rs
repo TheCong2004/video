@@ -888,8 +888,10 @@ impl EditPlan {
                         bounded(op, 0.0, 1.0)?;
                     }
                     if let Some(ref b) = blend {
-                        if !["", "normal", "multiply", "screen", "add", "lighten", "darken"]
-                            .contains(&b.as_str())
+                        if ![
+                            "", "normal", "multiply", "screen", "add", "lighten", "darken",
+                        ]
+                        .contains(&b.as_str())
                         {
                             return Err(invalid("unsupported blend mode"));
                         }
@@ -921,9 +923,7 @@ impl EditPlan {
                     time(start)?;
                     bounded(duration, MIN_DURATION, MAX_TIME)?;
                     time(start + duration)?;
-                    let track_id = track_id
-                        .map(|t| resolve(&t, &aliases))
-                        .transpose()?;
+                    let track_id = track_id.map(|t| resolve(&t, &aliases)).transpose()?;
                     if let Some(ref t) = track_id {
                         track(&scratch, t)?;
                     }
@@ -953,9 +953,7 @@ impl EditPlan {
                     time(start)?;
                     bounded(duration, MIN_DURATION, MAX_TIME)?;
                     time(start + duration)?;
-                    let track_id = track_id
-                        .map(|t| resolve(&t, &aliases))
-                        .transpose()?;
+                    let track_id = track_id.map(|t| resolve(&t, &aliases)).transpose()?;
                     if let Some(ref t) = track_id {
                         track(&scratch, t)?;
                     }
@@ -992,7 +990,10 @@ impl EditPlan {
                         None
                     };
                     (
-                        Command::SetClipCutout { clip_id: id, cutout },
+                        Command::SetClipCutout {
+                            clip_id: id,
+                            cutout,
+                        },
                         None,
                         format!("Set cutout on {clip_id}"),
                     )

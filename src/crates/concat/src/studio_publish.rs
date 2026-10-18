@@ -1,80 +1,81 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Native controls for Publish Queue workflow.
-
+//! Real local output inventory. No platform publisher is configured here.
 use crate::ui::{App, StudioPublish, StudioPublishRowItem};
+use concat_studio::shorts_jobs::{Queue, Stage};
 use slint::{ComponentHandle, ModelRc, VecModel};
+
+const NO_PUBLISHER: &str = "Chưa cấu hình nhà xuất bản. Các video bên dưới chỉ là tệp đã xuất trên máy, chưa được đăng lên nền tảng.";
 
 pub(crate) fn bind(app: &App) {
     let weak = app.as_weak();
     app.global::<StudioPublish>().on_refresh(move || {
         let Some(app) = weak.upgrade() else { return };
         let publish = app.global::<StudioPublish>();
+        if publish.get_busy() { return; }
         publish.set_busy(true);
-        let weak_app = app.as_weak();
+        let all = publish.get_platform_filter() == "all";
+        let weak = app.as_weak();
         std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(300));
-            let _ = weak_app.upgrade_in_event_loop(move |app| {
-                let publish = app.global::<StudioPublish>();
-                publish.set_busy(false);
-                let demo_items = vec![
-                    StudioPublishRowItem {
-                        id: "pub_demo_1".into(),
-                        title: "Cyberpunk 2099 Trailer".into(),
-                        page_name: "Kênh Công Nghệ AI".into(),
-                        platform: "tiktok".into(),
-                        status: "pending".into(),
-                        scheduled_time: "20:00 hôm nay".into(),
-                        error_message: "".into(),
-                    },
-                    StudioPublishRowItem {
-                        id: "pub_demo_2".into(),
-                        title: "Khám Phá Vũ Trụ 4K".into(),
-                        page_name: "Khoa Học Đời Sống".into(),
-                        platform: "youtube".into(),
-                        status: "scheduled".into(),
-                        scheduled_time: "08:30 ngày mai".into(),
-                        error_message: "".into(),
-                    },
-                ];
-                let filter = publish.get_platform_filter().to_string();
-                let filtered: Vec<_> = demo_items.into_iter().filter(|i| {
-                    if filter == "all" { true } else { i.platform.to_string() == filter }
-                }).collect();
-                publish.set_pending_count(filtered.len() as i32);
-                publish.set_items(ModelRc::new(VecModel::from(filtered)));
-                publish.set_status("Đã cập nhật hàng đợi đăng bài.".into());
+            let result = concat_host::dirs::AppDirs::locate().map_err(|_| ())
+                .and_then(|dirs| Queue::open(dirs.data.join("auto-shorts/jobs.json"), 200, 3).map_err(|_| ()))
+                .and_then(|queue| queue.list().map_err(|_| ()))
+                .map(|jobs| jobs.into_iter().filter(|job| job.stage == Stage::Completed)
+                    .flat_map(|job| job.outputs.into_iter().enumerate().filter_map(move |(index, path)| {
+                        // File validation and filename preparation belong to this worker.
+                        if !all || !path.is_file() { return None; }
+                        Some((format!("{}-{index}", job.id), path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default()))
+                    })).collect::<Vec<_>>());
+            let _ = weak.upgrade_in_event_loop(move |app| {
+                let state = app.global::<StudioPublish>();
+                state.set_busy(false);
+                state.set_pending_count(0);
+                let Ok(outputs) = result else {
+                    state.set_items(ModelRc::new(VecModel::default()));
+                    state.set_status("Không đọc được sổ tác vụ cục bộ; chưa xác nhận video nào. Chưa cấu hình nhà xuất bản.".into());
+                    return;
+                };
+                let items = outputs.into_iter().map(|(id, title)| {
+                        StudioPublishRowItem {
+                            id: id.into(),
+                            title: title.into(),
+                            page_name: "Chưa chọn kênh".into(), platform: "local".into(),
+                            status: "Đã xuất · chưa đăng".into(), scheduled_time: "Chưa lên lịch".into(),
+                            error_message: "".into(),
+                        }
+                    }).collect::<Vec<_>>();
+                state.set_items(ModelRc::new(VecModel::from(items)));
+                state.set_status(NO_PUBLISHER.into());
             });
         });
     });
-
     let weak = app.as_weak();
-    app.global::<StudioPublish>().on_approve(move |id| {
-        let Some(app) = weak.upgrade() else { return };
-        let publish = app.global::<StudioPublish>();
-        publish.set_status(format!("Đã duyệt xuất bản bài đăng {}", id).into());
+    app.global::<StudioPublish>().on_approve(move |_| {
+        if let Some(app) = weak.upgrade() {
+            app.global::<StudioPublish>()
+                .set_status(NO_PUBLISHER.into());
+        }
     });
-
     let weak = app.as_weak();
-    app.global::<StudioPublish>().on_post_now(move |id| {
-        let Some(app) = weak.upgrade() else { return };
-        let publish = app.global::<StudioPublish>();
-        publish.set_status(format!("Đang thực hiện đăng bài ngay cho {}", id).into());
+    app.global::<StudioPublish>().on_post_now(move |_| {
+        if let Some(app) = weak.upgrade() {
+            app.global::<StudioPublish>()
+                .set_status(NO_PUBLISHER.into());
+        }
     });
-
     let weak = app.as_weak();
-    app.global::<StudioPublish>().on_reject(move |id| {
-        let Some(app) = weak.upgrade() else { return };
-        let publish = app.global::<StudioPublish>();
-        publish.set_status(format!("Đã từ chối bài đăng {}", id).into());
+    app.global::<StudioPublish>().on_retry(move |_| {
+        if let Some(app) = weak.upgrade() {
+            app.global::<StudioPublish>()
+                .set_status(NO_PUBLISHER.into());
+        }
     });
-
     let weak = app.as_weak();
-    app.global::<StudioPublish>().on_retry(move |id| {
-        let Some(app) = weak.upgrade() else { return };
-        let publish = app.global::<StudioPublish>();
-        publish.set_status(format!("Đang thử lại đăng bài cho {}", id).into());
+    app.global::<StudioPublish>().on_reject(move |_| {
+        if let Some(app) = weak.upgrade() {
+            app.global::<StudioPublish>().set_status(
+                "Không có bài đăng từ xa để hủy. Tệp video trên máy được giữ nguyên.".into(),
+            );
+        }
     });
-
-    // Initial load
     app.global::<StudioPublish>().invoke_refresh();
 }

@@ -268,3 +268,16 @@ in `tools/ai-edit-mcp/node_modules`; exact versions are recorded in
 `tools/ai-edit-mcp/pnpm-lock.yaml`. The adapter uses the bundled Node runtime.
 These packages provide transport/schema validation, not an AI model or a
 ChatGPT/Gemini account. No user connection file or credential is bundled.
+# HotClip-derived Auto Shorts algorithms
+
+Native Auto Shorts grounding/quote resolution, signal-moment selection, quality
+gates and durable-watch concepts adapt HotClip source at
+https://github.com/xixihhhh/hotclip commit
+`4f4347d12c8a989d16be46aaeed7455d1f35f992`:
+`src/core/highlight/{match,moments,gate,detect,prompt}.ts`, `signals.ts`,
+`watch.ts`, `session-checkpoint.ts`, `atomic-output.ts`, `qa.ts` and
+`publish-pack.ts`. HotClip is licensed under AGPL-3.0. Its source is available at
+the linked repository; these native adaptations are distributed with Concat's
+AGPL source. No HotClip Electron runtime or complete dependency tree is bundled.
+Existing upstream author/copyright notices remain applicable. No new model
+weights are included by this integration.

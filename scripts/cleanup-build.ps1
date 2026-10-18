@@ -1,22 +1,49 @@
-param([switch]$Apply)
+param(
+    [switch]$Apply,
+    [string]$OwnedTempRoot,
+    [string]$OwnedPackageFile
+)
 
 # Only regenerable Concat build artifacts. Source, .deps, models, user projects
 # and third-party Cargo libraries are never candidates. Default is inspection.
 $ErrorActionPreference = 'Stop'
 $cleanupRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+$workspaceRoot = [IO.Path]::GetFullPath((Split-Path -Parent $cleanupRoot))
 $targetRoot = Join-Path $cleanupRoot 'src\target'
 $tempRoot = Join-Path $cleanupRoot '.runtime\native-temp'
+$ownedTempResolved = $null
+$ownedPackageResolved = $null
+if ($OwnedTempRoot) {
+    $ownedTempResolved = [IO.Path]::GetFullPath($OwnedTempRoot)
+    $ownedName = [IO.Path]::GetFileName($ownedTempResolved)
+    if ([IO.Path]::GetDirectoryName($ownedTempResolved) -ne $workspaceRoot -or
+        $ownedName -notmatch '^\.codex-ai-shorts-temp-[a-f0-9]{32}$') {
+        throw "Refusing unrecognized task temp root: $ownedTempResolved"
+    }
+}
+if ($OwnedPackageFile) {
+    $ownedPackageResolved = [IO.Path]::GetFullPath($OwnedPackageFile)
+    $expectedPackageDir = Join-Path $cleanupRoot 'dist\windows'
+    $packageName = [IO.Path]::GetFileName($ownedPackageResolved)
+    if ([IO.Path]::GetDirectoryName($ownedPackageResolved) -ne $expectedPackageDir -or
+        $packageName -notmatch '^ConcatStudio-AutoShorts-\d{8}-\d{6}\.zip$') {
+        throw "Refusing unrecognized task package file: $ownedPackageResolved"
+    }
+}
 $cutoff = [DateTime]::UtcNow.AddHours(-24)
 $scratchCutoff = [DateTime]::UtcNow.AddHours(-1)
 
 function Assert-CleanupPath([string]$Path) {
     $resolved = [IO.Path]::GetFullPath($Path)
     $allowed = $resolved.StartsWith($targetRoot + '\', [StringComparison]::OrdinalIgnoreCase) -or
-        $resolved.StartsWith($tempRoot + '\', [StringComparison]::OrdinalIgnoreCase)
+        $resolved.StartsWith($tempRoot + '\', [StringComparison]::OrdinalIgnoreCase) -or
+        ($ownedTempResolved -and $resolved -eq $ownedTempResolved) -or
+        ($ownedPackageResolved -and $resolved -eq $ownedPackageResolved)
     if (!$allowed) { throw "Refusing cleanup outside generated build/temp folders: $resolved" }
     # Reject junctions/symlinks in the full ancestry, not only the leaf.
     $ancestor = $resolved
-    while ($ancestor -and $ancestor.Length -ge $cleanupRoot.Length) {
+    $ancestorLimit = if ($ownedTempResolved -and $resolved -eq $ownedTempResolved) { $workspaceRoot } else { $cleanupRoot }
+    while ($ancestor -and $ancestor.Length -ge $ancestorLimit.Length) {
         if (Test-Path -LiteralPath $ancestor) {
             $item = Get-Item -LiteralPath $ancestor -Force
             if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
@@ -36,6 +63,7 @@ $busy = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
 if ($busy.Count) { Write-Host '[cleanup] skipped: a compiler/test process is active'; return }
 
 $candidates = [Collections.Generic.List[string]]::new()
+if (!$ownedTempResolved -and !$ownedPackageResolved) {
 foreach ($profile in @('debug','quick')) {
     $profileRoot = Join-Path $targetRoot $profile
     $incremental = Join-Path $profileRoot 'incremental'
@@ -95,6 +123,13 @@ if (Test-Path -LiteralPath $tempRoot) {
             $candidates.Add($dir.FullName)
         }
     }
+}
+}
+if ($ownedTempResolved -and (Test-Path -LiteralPath $ownedTempResolved)) {
+    $candidates.Add($ownedTempResolved)
+}
+if ($ownedPackageResolved -and (Test-Path -LiteralPath $ownedPackageResolved -PathType Leaf)) {
+    $candidates.Add($ownedPackageResolved)
 }
 
 [long]$removed = 0

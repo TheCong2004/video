@@ -51,6 +51,8 @@ export global Editor {
     /// A seat's dropdown was used: show this view in this seat, and leave
     /// every other seat alone.
     callback dock-set(seat: int, kind: PaneKind);
+    /// The library's AI destination replaces any standalone AI dock, not media.
+    callback ai-library-activated();
     /// The window's add-panel list was used. Where it lands is the layout's
     /// business, not the caller's — see `dock-add` in main.rs.
     callback dock-add(kind: PaneKind);

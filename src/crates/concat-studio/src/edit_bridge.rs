@@ -57,7 +57,8 @@ pub fn parse_external_draft(text: &str) -> Result<(String, Value), &'static str>
         }
     } else {
         text
-    }.trim();
+    }
+    .trim();
 
     let draft: Draft = serde_json::from_str(candidate)
         .or_else(|_| serde_json::from_str(text))

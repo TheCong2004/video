@@ -47,23 +47,24 @@ mod platform;
 /// `platform::publish_export`.
 #[cfg(any(target_os = "android", target_os = "ios"))]
 pub use platform::{ExportPublisher, FilePicker, install_export_publisher, install_file_picker};
+mod ai_editing;
+mod auto_shorts;
 mod panes;
 mod prefs;
 mod presets;
 mod source;
 mod studio;
 mod studio_ai;
-mod studio_local_ai;
-mod ai_editing;
 mod studio_bridge;
 mod studio_browser;
+mod studio_bulk;
 mod studio_live;
 mod studio_live_video;
+mod studio_local_ai;
 mod studio_opentalking;
-mod studio_bulk;
 mod studio_pages;
-mod studio_products;
 mod studio_production;
+mod studio_products;
 mod studio_publish;
 mod studio_scripts;
 mod studio_session;
@@ -216,6 +217,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     studio_products::bind(&app);
     studio_ai::bind(&app);
     ai_editing::bind(&app);
+    auto_shorts::bind(&app);
     studio_browser::bind(&app);
     studio_opentalking::bind(&app);
     studio_live::bind(&app);
@@ -587,6 +589,17 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         // for the window to widen again; every dock operation works on
         // whichever is showing.
         state.set_compact(width < studio::COMPACT_WIDTH);
+    }));
+    editor.on_ai_library_activated(on_dock!(|state| {
+        // Only retire duplicate standalone AI views. Session/bridge and all
+        // non-AI panels keep their state; the preview takes the released space.
+        loop {
+            let seats = state.dock_layout().seats;
+            if seats.len() <= 1 { break; }
+            let Some(seat) = seats.iter().find(|seat| seat.kind == PaneKind::AiEditing) else { break; };
+            let Some(path) = state.dock.leaf_path(seat.index.max(0) as usize) else { break; };
+            state.dock.remove_leaf(&path);
+        }
     }));
     editor.on_dock_set(on_dock!(|state, seat: i32, kind: PaneKind| {
         let Some(path) = state.dock.leaf_path(seat.max(0) as usize) else {
@@ -1956,6 +1969,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     );
 
     let result = app.run();
+    auto_shorts::shutdown();
     studio_local_ai::shutdown();
     drop(reader_sweep);
     log::info!("close: event loop exited (ok={})", result.is_ok());

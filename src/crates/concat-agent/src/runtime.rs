@@ -155,7 +155,13 @@ impl RunLedger {
     }
 
     /// Mark the run as failed or terminal with an error.
-    pub fn finish_error(&mut self, error: &RunError, tokens: u64, turns: u32, activity: Vec<String>) {
+    pub fn finish_error(
+        &mut self,
+        error: &RunError,
+        tokens: u64,
+        turns: u32,
+        activity: Vec<String>,
+    ) {
         self.tokens = tokens;
         self.turns = turns;
         self.activity = activity;

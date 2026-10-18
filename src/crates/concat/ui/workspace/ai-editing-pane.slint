@@ -9,13 +9,14 @@ import { PaneKind, PaneSwitcher } from "pane-switcher.slint";
 export global AiEditing {
     in-out property <string> prompt;
     in-out property <bool> external-mode: true;
-    in-out property <bool> auto-apply: true;
+    in-out property <bool> auto-apply: false;
     in-out property <string> selected-ai: "gemini";
     in-out property <bool> waiting-result: false;
     in-out property <bool> project-open;
     in-out property <string> project-info;
     in-out property <bool> bridge-enabled;
     in-out property <bool> bridge-busy;
+    in-out property <bool> web-connected;
     in-out property <string> mcp-config;
     in-out property <string> web-context;
     in-out property <string> web-result;
@@ -23,7 +24,7 @@ export global AiEditing {
     in-out property <bool> show-mcp;
     in-out property <bool> agent-mode: false;
     in-out property <float> max-turns: 6;
-    in-out property <string> status: "Gõ yêu cầu rồi chọn 1 trong 3 AI để tự động hoàn thành video trên Timeline.";
+    in-out property <string> status: "Mở chat để kết nối AI với project, rồi nhập yêu cầu chỉnh sửa ngay trong chat.";
     in-out property <[string]> changes;
     in-out property <bool> busy;
     in-out property <bool> ready;
@@ -36,9 +37,11 @@ export global AiEditing {
     callback save-mcp-config(); callback export-context(); callback import-plan();
     callback prepare-web-context(); callback submit-web-result(); callback open-web-chat(string);
     callback dispatch-ai(string);
+    callback connect-web-chat(string); callback disconnect-web-chat();
 }
 
 export component AiEditingPane inherits Rectangle {
+    in property <bool> embedded: false;
     in property <int> pane-seat;
     in property <bool> pane-removable: true;
     callback pane-picked(kind: PaneKind); callback pane-removed();
@@ -58,7 +61,7 @@ export component AiEditingPane inherits Rectangle {
         spacing: 8px; padding: 10px;
         HorizontalLayout {
             Text { text: "Trợ lý chỉnh sửa AI"; color: Theme.fg; font-size: Theme.fs; horizontal-stretch: 1; }
-            PaneSwitcher { kind: PaneKind.ai-editing; seat: root.pane-seat; removable: root.pane-removable;
+            if !root.embedded: PaneSwitcher { kind: PaneKind.ai-editing; seat: root.pane-seat; removable: root.pane-removable;
                 picked(kind) => { root.pane-picked(kind); } removed => { root.pane-removed(); }
             }
         }
@@ -68,7 +71,7 @@ export component AiEditingPane inherits Rectangle {
                 Text { text: AiEditing.project-info; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
                 HorizontalLayout {
                     spacing: 6px;
-                    Button { label: "Chat web / Browser"; block: true; primary: AiEditing.external-mode; enabled: !AiEditing.busy; clicked => { AiEditing.external-mode = true; } }
+                    Button { label: "Chat web tự động"; block: true; primary: AiEditing.external-mode; enabled: !AiEditing.busy; clicked => { AiEditing.external-mode = true; } }
                     Button { label: "API Gateway"; block: true; primary: !AiEditing.external-mode; enabled: !AiEditing.busy; clicked => { AiEditing.external-mode = false; } }
                 }
                 if !AiEditing.external-mode: VerticalLayout {
@@ -78,65 +81,57 @@ export component AiEditingPane inherits Rectangle {
                     Select { options: StudioAi.models; current <=> StudioAi.model-index; enabled: !AiEditing.busy && !StudioAi.busy; placeholder: "Chọn model đã cấu hình"; }
                     Text { text: StudioAi.status; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
                 }
-                Text { text: "1. Nhập yêu cầu chỉnh sửa:"; color: Theme.fg; font-size: Theme.fs; }
-                if AiEditing.project-info != "" : Text { text: "Đặt clip vào timeline trước khi yêu cầu cắt/chỉnh video."; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
-                StudioField { label: "Yêu cầu chỉnh sửa"; placeholder: "Ví dụ: Cắt 2 giây đầu clip, thêm tiêu đề Xin chào trong 3 giây."; multiline: true; input-height: 80px; compact: true; value: AiEditing.prompt; edited(text) => { AiEditing.prompt = text; } enabled: !AiEditing.busy; }
-                Text { text: "2. Chọn AI để Tự Động Xử Lý & Dựng Video:"; color: Theme.fg; font-size: Theme.fs; }
-                HorizontalLayout {
-                    spacing: 6px;
-                    Button {
-                        label: "🟢 ChatGPT";
-                        block: true;
-                        primary: AiEditing.selected-ai == "chatgpt";
-                        enabled: AiEditing.project-open && !AiEditing.busy && AiEditing.prompt != "";
-                        clicked => {
-                            AiEditing.selected-ai = "chatgpt";
-                            AiEditing.dispatch-ai("chatgpt");
-                            if AiEditing.external-mode {
-                                copy-buffer.select-all();
-                                copy-buffer.copy();
-                            }
-                        }
+                if AiEditing.external-mode: VerticalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: "Chọn AI rồi bấm Mở chat. Cửa sổ chat riêng sẽ kết nối project đang mở; nhập yêu cầu ở đó để AI chỉnh timeline tự động.";
+                        wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs;
+                    }
+                    if AiEditing.project-info != "": Text { text: "Cắt/chỉnh clip cần có clip trên timeline. AI chỉ nhận cấu trúc ID/thời gian, không tự xem nội dung hình hoặc âm thanh."; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Button { label: "ChatGPT"; block: true; primary: AiEditing.selected-ai == "chatgpt"; enabled: !AiEditing.bridge-busy; clicked => { AiEditing.selected-ai = "chatgpt"; } }
+                        Button { label: "Gemini"; block: true; primary: AiEditing.selected-ai == "gemini"; enabled: !AiEditing.bridge-busy; clicked => { AiEditing.selected-ai = "gemini"; } }
+                        Button { label: "Claude"; block: true; primary: AiEditing.selected-ai == "claude"; enabled: !AiEditing.bridge-busy; clicked => { AiEditing.selected-ai = "claude"; } }
                     }
                     Button {
-                        label: "🔵 Gemini";
-                        block: true;
-                        primary: AiEditing.selected-ai == "gemini";
-                        enabled: AiEditing.project-open && !AiEditing.busy && AiEditing.prompt != "";
-                        clicked => {
-                            AiEditing.selected-ai = "gemini";
-                            AiEditing.dispatch-ai("gemini");
-                            if AiEditing.external-mode {
-                                copy-buffer.select-all();
-                                copy-buffer.copy();
-                            }
-                        }
+                        label: AiEditing.bridge-busy ? "Đang kết nối…" : AiEditing.web-connected ? "Mở / chuyển cửa sổ chat đã kết nối" : "Mở chat & kết nối project";
+                        block: true; primary: true; enabled: AiEditing.project-open && !AiEditing.bridge-busy;
+                        clicked => { AiEditing.connect-web-chat(AiEditing.selected-ai); }
                     }
-                    Button {
-                        label: "🟣 Claude";
-                        block: true;
-                        primary: AiEditing.selected-ai == "claude";
-                        enabled: AiEditing.project-open && !AiEditing.busy && AiEditing.prompt != "";
-                        clicked => {
-                            AiEditing.selected-ai = "claude";
-                            AiEditing.dispatch-ai("claude");
-                            if AiEditing.external-mode {
-                                copy-buffer.select-all();
-                                copy-buffer.copy();
-                            }
-                        }
+                    Text { text: "Lần đầu cần đăng nhập AI trong cửa sổ riêng. Khi bạn bấm Gửi, Concat đính kèm cấu trúc timeline; khi AI trả thao tác hợp lệ, timeline tự cập nhật. Website thay đổi có thể cần cập nhật adapter."; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
+                    if AiEditing.web-connected: Button { label: "Ngắt kết nối chat"; block: true; clicked => { AiEditing.disconnect-web-chat(); } }
+                    Button { label: AiEditing.show-mcp ? "Ẩn kết nối MCP nâng cao" : "Nâng cao: dùng MCP client riêng"; block: true; clicked => { AiEditing.show-mcp = !AiEditing.show-mcp; } }
+                    if AiEditing.show-mcp: VerticalLayout {
+                        spacing: 6px;
+                        Button { label: AiEditing.bridge-enabled ? "Tắt MCP local" : "Bật MCP local"; block: true; enabled: !AiEditing.bridge-busy; clicked => { AiEditing.toggle-bridge(); } }
+                        if AiEditing.bridge-enabled: Button { label: "Lưu cấu hình MCP cho client"; block: true; clicked => { AiEditing.save-mcp-config(); } }
+                    }
+                }
+                if !AiEditing.external-mode: VerticalLayout {
+                    Text { text: "1. Nhập yêu cầu chỉnh sửa:"; color: Theme.fg; font-size: Theme.fs; }
+                    if AiEditing.project-info != "" : Text { text: "Đặt clip vào timeline trước khi yêu cầu cắt/chỉnh video."; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
+                    StudioField { label: "Yêu cầu chỉnh sửa"; placeholder: "Ví dụ: Cắt 2 giây đầu clip, thêm tiêu đề Xin chào trong 3 giây."; multiline: true; input-height: 80px; compact: true; value: AiEditing.prompt; edited(text) => { AiEditing.prompt = text; } enabled: !AiEditing.busy; }
+                    Text { text: "2. Chọn AI để Tự Động Xử Lý & Dựng Video:"; color: Theme.fg; font-size: Theme.fs; }
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Button { label: "🟢 ChatGPT"; block: true; primary: AiEditing.selected-ai == "chatgpt"; enabled: AiEditing.project-open && !AiEditing.busy && AiEditing.prompt != ""; clicked => { AiEditing.selected-ai = "chatgpt"; AiEditing.dispatch-ai("chatgpt"); } }
+                        Button { label: "🔵 Gemini"; block: true; primary: AiEditing.selected-ai == "gemini"; enabled: AiEditing.project-open && !AiEditing.busy && AiEditing.prompt != ""; clicked => { AiEditing.selected-ai = "gemini"; AiEditing.dispatch-ai("gemini"); } }
+                        Button { label: "🟣 Claude"; block: true; primary: AiEditing.selected-ai == "claude"; enabled: AiEditing.project-open && !AiEditing.busy && AiEditing.prompt != ""; clicked => { AiEditing.selected-ai = "claude"; AiEditing.dispatch-ai("claude"); } }
                     }
                 }
                 HorizontalLayout {
                     spacing: 6px;
                     Button {
-                        label: AiEditing.auto-apply ? "⚡ Tự động áp dụng vào Timeline: BẬT" : "Tự động áp dụng vào Timeline: TẮT (Chờ duyệt)";
+                        label: AiEditing.external-mode
+                            ? (AiEditing.auto-apply ? "⚡ AI tự áp dụng sau kiểm tra: BẬT" : "AI chỉ tạo bản nháp: TẮT tự áp dụng")
+                            : (AiEditing.auto-apply ? "⚡ Tự động áp dụng vào Timeline: BẬT" : "Tự động áp dụng: TẮT (chờ duyệt)");
                         block: true;
                         primary: AiEditing.auto-apply;
                         clicked => { AiEditing.auto-apply = !AiEditing.auto-apply; }
                     }
                 }
-                if AiEditing.waiting-result: VerticalLayout {
+                if AiEditing.waiting-result && !AiEditing.external-mode: VerticalLayout {
                     spacing: 6px;
                     Button {
                         label: "⚡ Lấy kết quả từ Web & Hoàn tất Video ngay";
@@ -160,39 +155,18 @@ export component AiEditingPane inherits Rectangle {
                         font-size: Theme.fs;
                     }
                 }
-                if AiEditing.external-mode: VerticalLayout {
+                if AiEditing.external-mode && !AiEditing.bridge-enabled: VerticalLayout {
                     spacing: 6px;
-                    HorizontalLayout {
-                        spacing: 6px;
-                        Button {
-                            label: AiEditing.web-import-open ? "Ẩn ô dán tay" : "Dán thủ công";
-                            block: true;
-                            clicked => { AiEditing.web-import-open = !AiEditing.web-import-open; }
-                        }
-                        Button {
-                            label: "Xuất context";
-                            block: true;
-                            enabled: AiEditing.project-open && !AiEditing.busy;
-                            clicked => { AiEditing.export-context(); }
-                        }
-                        Button {
-                            label: "Nhập file JSON";
-                            block: true;
-                            enabled: AiEditing.project-open && !AiEditing.busy && !AiEditing.ready;
-                            clicked => { AiEditing.import-plan(); }
-                        }
-                    }
+                    Button { label: AiEditing.web-import-open ? "Ẩn công cụ chuyển JSON thủ công" : "Nâng cao: nhập / xuất JSON thủ công"; block: true; clicked => { AiEditing.web-import-open = !AiEditing.web-import-open; } }
                     if AiEditing.web-import-open: VerticalLayout {
                         spacing: 6px;
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Button { label: "Xuất context"; block: true; enabled: AiEditing.project-open && !AiEditing.busy; clicked => { AiEditing.export-context(); } }
+                            Button { label: "Nhập file JSON"; block: true; enabled: AiEditing.project-open && !AiEditing.busy && !AiEditing.ready; clicked => { AiEditing.import-plan(); } }
+                        }
                         StudioField { label: "Dán JSON trả lời từ AI (Ctrl+V)"; multiline: true; compact: true; input-height: 72px; value: AiEditing.web-result; edited(text) => { AiEditing.web-result = text; } }
                         Button { label: "Kiểm tra và tạo bản nháp"; block: true; primary: true; enabled: !AiEditing.busy && !AiEditing.ready && AiEditing.web-result != ""; clicked => { AiEditing.submit-web-result(); } }
-                    }
-                    Button { label: AiEditing.show-mcp ? "Ẩn kết nối MCP" : "Nâng cao: kết nối MCP tự động"; block: true; clicked => { AiEditing.show-mcp = !AiEditing.show-mcp; } }
-                    if AiEditing.show-mcp: VerticalLayout {
-                        spacing: 6px;
-                        Text { text: "Client stdio (Gemini CLI/Codex) dùng tài khoản riêng. Đây không phải khung browser hay URL dán vào ChatGPT web."; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
-                        Button { label: AiEditing.bridge-enabled ? "Tắt kết nối MCP local" : AiEditing.bridge-busy ? "Đang mở MCP..." : "Bật kết nối MCP local"; block: true; enabled: !AiEditing.bridge-busy; clicked => { AiEditing.toggle-bridge(); } }
-                        if AiEditing.bridge-enabled: Button { label: "Lưu cấu hình MCP"; block: true; clicked => { AiEditing.save-mcp-config(); } }
                     }
                 }
                 if !AiEditing.external-mode: VerticalLayout {
@@ -202,8 +176,8 @@ export component AiEditingPane inherits Rectangle {
                 }
                 if AiEditing.busy: Button { label: "Hủy chờ / bỏ phản hồi"; clicked => { AiEditing.cancel(); } }
                 Text { text: AiEditing.status; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
-                Text { text: "3. Xem trước và duyệt"; color: Theme.fg; font-size: Theme.fs; }
-                Text { text: "AI không tự sửa timeline. Bản nháp phải đúng dự án/phiên bản hiện tại. Xem trước xong mới Áp dụng; Undo hoàn tác toàn bộ một lần."; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
+                Text { text: AiEditing.auto-apply ? "Thao tác AI trên project" : "Xem trước và duyệt"; color: Theme.fg; font-size: Theme.fs; }
+                Text { text: AiEditing.auto-apply ? "AI tự áp dụng thao tác hợp lệ vào timeline hiện tại. Ctrl+Z hoàn tác cả lần chỉnh sửa." : "Bản nháp cần đúng dự án/phiên bản hiện tại. Xem trước rồi Áp dụng; Undo hoàn tác toàn bộ một lần."; wrap: word-wrap; color: Theme.fg-muted; font-size: Theme.fs; }
                 for change in AiEditing.changes: Text { text: change; wrap: word-wrap; color: Theme.fg; font-size: Theme.fs; }
                 if AiEditing.ready: VerticalLayout {
                     spacing: 8px;

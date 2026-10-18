@@ -117,6 +117,7 @@ export component Seat inherits Rectangle {
             jump-token: Editor.media-jump-token;
 
             import-media => { Editor.import-media(); }
+            ai-opened => { Editor.ai-library-activated(); }
             filter-changed(filter) => { Editor.media-filter-changed(filter); }
             sort-changed(index) => { Editor.media-sort-changed(index); }
             floor-pressed => { Editor.blur(); }

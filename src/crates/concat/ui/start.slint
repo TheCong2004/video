@@ -790,6 +790,11 @@ component Rail inherits Rectangle {
                     clicked => { root.studio-picked(StudioRoute.production); }
                 }
                 RailItem {
+                    label: "Auto Shorts"; glyph: Glyph.film; compact: root.compact; enabled: root.enabled;
+                    current: root.studio-open && root.studio-route == StudioRoute.auto-shorts; studio-tone: true;
+                    clicked => { root.studio-picked(StudioRoute.auto-shorts); }
+                }
+                RailItem {
                     label: "Tạo Video MC (OpenTalking)"; glyph: Glyph.film; compact: root.compact; enabled: root.enabled;
                     current: root.studio-open && root.studio-route == StudioRoute.opentalking; studio-tone: true;
                     clicked => { root.studio-picked(StudioRoute.opentalking); }

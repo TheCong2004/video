@@ -336,6 +336,47 @@ impl WorkflowClient {
             .ok_or(AiError::UnknownOutcome)
     }
 
+    /// One explicit bounded structured-text request for grounded editing plans.
+    /// Uses the existing protected gateway; no automatic retry or mutation.
+    /// Callers must validate the returned proposal against native source evidence.
+    /// Dispatches the selected ID unchanged; `Answer::model` retains the actual
+    /// provider model, which can differ for router aliases or provider prefixes.
+    pub fn ai_structured(&self, model: &str, prompt: &str) -> Result<Answer, AiError> {
+        const LIMIT: usize = 128 * 1024;
+        if model.trim().is_empty()
+            || model.len() > 500
+            || model.chars().any(char::is_control)
+            || prompt.trim().is_empty()
+            || prompt.len() > LIMIT
+            || prompt.contains('\0')
+        {
+            return Err(AiError::Input);
+        }
+        let value = self.write_with_timeout(
+            "POST", "/api/v1/artcraft/ai/chat",
+            &json!({"model":model,"messages":[{"role":"user","content":prompt}],"stream":false,"maxTokens":4096,"temperature":0}),
+            std::time::Duration::from_secs(80),
+        ).map_err(submitted)?;
+        if value.to_string().len() > LIMIT
+            || value.get("finishReason").and_then(Value::as_str) != Some("stop")
+            || value
+                .get("refusal")
+                .is_some_and(|r| !r.is_null() && r.as_str() != Some(""))
+        {
+            return Err(AiError::UnknownOutcome);
+        }
+        let actual = text(&value, "model", 500, false).map_err(|_| AiError::UnknownOutcome)?;
+        let content = value
+            .get("content")
+            .and_then(Value::as_str)
+            .filter(|s| !s.trim().is_empty() && s.len() <= LIMIT && !s.contains('\0'))
+            .ok_or(AiError::UnknownOutcome)?;
+        Ok(Answer {
+            text: content.to_owned(),
+            model: actual,
+        })
+    }
+
     /// One explicit routed chat request. Does not claim to pin a provider key.
     pub fn ai_ask(&self, model: &str, prompt: &str) -> Result<Answer, AiError> {
         if model.trim().is_empty()
@@ -497,6 +538,49 @@ mod tests {
         assert!(req.starts_with("POST /api/v1/artcraft/ai/chat "));
         assert!(req.contains("\"stream\":false"));
         assert!(!req.contains("providerConnectionId"));
+    }
+    #[test]
+    fn structured_chat_dispatches_exact_model_and_preserves_resolved_receipt() {
+        let prompt = "grounded transcript ".repeat(1000);
+        let (client, worker) = fixture(
+            json!({"content":"{\"clips\":[]}","model":"resolved-provider-model","finishReason":"stop"}),
+            200,
+        );
+        let answer = client.ai_structured("auto/best-coding", &prompt).unwrap();
+        assert_eq!(answer.model, "resolved-provider-model");
+        assert_eq!(answer.text, "{\"clips\":[]}");
+        let request = worker.join().unwrap();
+        assert!(request.starts_with("POST /api/v1/artcraft/ai/chat "));
+        assert!(request.contains("Bearer fixture-token"));
+        let body: Value = serde_json::from_str(request.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+        assert_eq!(body["maxTokens"], 4096);
+        assert_eq!(body["model"], "auto/best-coding");
+        assert_eq!(body["temperature"], 0);
+        assert_eq!(body["messages"][0]["content"], prompt);
+    }
+    #[test]
+    fn structured_chat_rejects_invalid_model_truncation_and_oversized_content() {
+        for data in [
+            json!({"content":"{}","model":"","finishReason":"stop"}),
+            json!({"content":"{}","finishReason":"stop"}),
+            json!({"content":"{}","model":"exact","finishReason":"length"}),
+            json!({"content":"{}","model":"exact"}),
+            json!({"content":"x".repeat(128*1024+1),"model":"exact","finishReason":"stop"}),
+        ] {
+            let (client, worker) = fixture(data.clone(), 200);
+            assert_eq!(
+                client.ai_structured("exact", "plan"),
+                Err(AiError::UnknownOutcome),
+                "malformed structured response was misclassified: {data}"
+            );
+            worker.join().unwrap();
+        }
+        let client =
+            WorkflowClient::new("http://127.0.0.1:1", Some("fixture-token".into())).unwrap();
+        assert_eq!(
+            client.ai_structured("exact", &"x".repeat(128 * 1024 + 1)),
+            Err(AiError::Input)
+        );
     }
     #[test]
     fn tool_turn_uses_existing_authenticated_chat_and_preserves_tool_receipt() {

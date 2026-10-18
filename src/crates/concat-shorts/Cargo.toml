@@ -1,0 +1,22 @@
+[package]
+name = "concat-shorts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Grounded Auto Shorts orchestration over native Concat sessions"
+
+[dependencies]
+concat-core.workspace = true
+concat-agent.workspace = true
+concat-host.workspace = true
+concat-media.workspace = true
+concat-project.workspace = true
+concat-speech.workspace = true
+concat-studio.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+sha2 = "0.10"
+
+[lints]
+workspace = true
