@@ -15,8 +15,12 @@ const FILE: &str = "settings.json";
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Preferences {
-    /// The dark theme. `None` is the app's default, which is dark.
+    /// The dark theme. `None` uses the Kedi light appearance.
     pub dark: Option<bool>,
+    /// Launcher navigation: 0 automatic, 1 pinned open, 2 collapsed.
+    pub sidebar_mode: u8,
+    /// Reduce decorative motion. Absent uses the safe reduced-motion default.
+    pub reduced_motion: Option<bool>,
     /// The accent, by the lower-cased name the theme lists it under —
     /// "lime", "sky", ... — or as "#rrggbb" for a colour picked by hand.
     /// `None`, or a name no longer on the list, is the first one, which is
@@ -161,6 +165,26 @@ impl Preferences {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kedi_preferences_migrate_and_roundtrip_without_touching_editor_choices() {
+        let previous: Preferences =
+            serde_json::from_str(r#"{"dark":true,"accent":"sky","magnetic":true}"#).unwrap();
+        assert_eq!(previous.sidebar_mode, 0);
+        assert_eq!(previous.reduced_motion, None);
+        let updated = Preferences {
+            sidebar_mode: 2,
+            reduced_motion: Some(true),
+            ..previous
+        };
+        let restored: Preferences =
+            serde_json::from_str(&serde_json::to_string(&updated).unwrap()).unwrap();
+        assert_eq!(restored.sidebar_mode, 2);
+        assert_eq!(restored.reduced_motion, Some(true));
+        assert_eq!(restored.dark, Some(true));
+        assert_eq!(restored.accent.as_deref(), Some("sky"));
+        assert!(restored.magnetic);
+    }
 
     const NAMES: [&str; 3] = ["Lime", "Sky", "Violet"];
 

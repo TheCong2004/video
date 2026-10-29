@@ -25,4 +25,6 @@ New-Item -ItemType Directory -Path $corresponding -Force | Out-Null
 foreach($name in @('src','test','scripts','legal','package.json','pnpm-lock.yaml','pnpm-workspace.yaml','tsconfig.json','tsconfig.test.json','tsdown.config.ts','vitest.config.ts','LICENSE','README.md')) {
     Copy-Item -LiteralPath (Join-Path $ConnectorSourceRoot $name) -Destination $corresponding -Recurse -Force
 }
+& node (Join-Path $PSScriptRoot 'patch-live-controller.mjs') $target
+if($LASTEXITCODE -ne 0){throw 'Concat LIVE controller staging failed.'}
 Write-Output "LIVE_RUNTIME=$target"

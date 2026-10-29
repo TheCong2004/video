@@ -7,11 +7,12 @@ test('AI Edit exposes clear external/API modes and a real no-key import/export r
   for(const callback of ['toggle-bridge','save-mcp-config','export-context','import-plan']) assert.match(ui,new RegExp(`AiEditing\\.${callback}\\(\\)`));
   assert.match(ui,/external-mode: true/);
   assert.match(ui,/enabled: !AiEditing.busy && AiEditing.preview-ready/);
-  assert.match(ui,/không tự gửi video hoặc key/);
+  assert.match(ui,/Chỉ chia sẻ cấu trúc và thời gian trên timeline/);
+  assert.match(ui,/AI không tự xem hình hoặc nghe video/);
   const native=read('src/crates/concat/src/ai_editing.rs');
   assert.match(native,/plan\.compile\(&snapshot\)/);
   assert.match(native,/scope != format!/);
-  assert.ok(/stage_in_studio\(\s*app,\s*studio,\s*&scope/.test(native));
+  assert.ok(/stage_or_commit_draft\(\s*app,\s*studio,\s*models,\s*&scope/.test(native));
   assert.ok(native.includes('generation != import_generation'));
   assert.ok(native.includes('import_epoch != host::project_epoch()'));
   assert.doesNotMatch(native,/sign in through Studio settings/);
@@ -24,7 +25,7 @@ test('web handoff is explicit, updates typed prompts and never scrapes chat sess
   assert.match(ui,/edited\(text\) => \{ AiEditing\.web-result = text; \}/);
   assert.match(ui,/copy-buffer\.copy\(\)/);
   assert.match(native,/on_submit_web_result/);
-  assert.match(native,/parse_external_draft\(ui\.get_web_result\(\)\.as_str\(\)\)/);
+  assert.match(native,/let text = ui\.get_web_result\(\)\.to_string\(\);\s*let parsed = concat_studio::edit_bridge::parse_external_draft\(&text\)/);
   assert.match(native,/"chatgpt" => "https:\/\/chatgpt.com\/"/);
   assert.doesNotMatch(native,/document\.cookie|Runtime\.evaluate|chatgpt.com\/backend-api/);
 });

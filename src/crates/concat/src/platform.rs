@@ -22,6 +22,33 @@
 use std::path::PathBuf;
 
 use slint::PlatformError;
+
+/// Respect Windows' client-area animation accessibility setting. If the
+/// platform cannot answer, use the safe reduced-motion fallback.
+pub fn system_reduced_motion() -> bool {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            SPI_GETCLIENTAREAANIMATION, SystemParametersInfoW,
+        };
+        let mut enabled: windows_sys::core::BOOL = 0;
+        // SAFETY: this GET action writes exactly one BOOL to a valid local;
+        // no system settings are changed and no pointer is retained.
+        let read = unsafe {
+            SystemParametersInfoW(
+                SPI_GETCLIENTAREAANIMATION,
+                0,
+                (&mut enabled as *mut windows_sys::core::BOOL).cast(),
+                0,
+            )
+        };
+        read == 0 || enabled == 0
+    }
+    #[cfg(not(windows))]
+    {
+        true
+    }
+}
 // The winit backend, and so these, exist everywhere but Android, which
 // draws through Slint's android-activity backend and has no winit at all.
 #[cfg(not(target_os = "android"))]
@@ -177,11 +204,16 @@ impl CustomApplicationHandler for DropHandler {
     fn window_event(
         &mut self,
         _event_loop: &ActiveEventLoop,
-        _window_id: WindowId,
+        window_id: WindowId,
         winit_window: Option<&WinitWindow>,
         slint_window: Option<&slint::Window>,
         event: &WindowEvent,
     ) -> EventResult {
+        if crate::studio_ui_actions::blocks_input(window_id) && matches!(event,
+            WindowEvent::MouseInput {..}|WindowEvent::MouseWheel {..}|WindowEvent::Touch(..)|
+            WindowEvent::KeyboardInput {..}|WindowEvent::Ime(..)|WindowEvent::DroppedFile(..)|WindowEvent::CursorMoved {..}) {
+            return EventResult::PreventDefault;
+        }
         if !self.wayland_tried
             && let Some(window) = winit_window
         {

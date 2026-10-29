@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Theme } from "../theme/theme.slint";
+
+export component VideoTile inherits Rectangle {
+    in property <image> thumbnail;
+    in property <string> title;
+    in property <string> detail;
+    in property <string> duration;
+    in property <string> badge;
+    in property <bool> selected;
+    in property <bool> disabled;
+    in property <bool> selectable: true;
+    callback activated();
+    preferred-width: 190px; min-width: 155px; max-width: 240px;
+    min-height: 206px; max-height: 206px; preferred-height: 206px; vertical-stretch: 0;
+    border-radius: 12px; clip: true;
+    border-width: root.selected ? 2px : 1px;
+    border-color: root.selected ? Theme.accent : Theme.line;
+    background: root.selected ? Theme.field : Theme.panel;
+    opacity: root.disabled ? 0.65 : 1.0;
+    VerticalLayout {
+        padding: 7px; spacing: 5px;
+        Rectangle {
+            height: 116px; background: #101721; border-radius: 8px; clip: true;
+            Image { source: root.thumbnail; image-fit: contain; }
+            if root.thumbnail.width == 0: Text { text: "VIDEO"; color: #a6b0c0; horizontal-alignment: center; vertical-alignment: center; font-size: 13px; }
+            Rectangle {
+                x: 5px; y: parent.height - 24px; width: time-label.preferred-width + 10px; height: 20px; background: #000b; border-radius: 4px;
+                time-label := Text { text: root.duration == "" ? "Video" : root.duration; color: white; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; }
+            }
+            if root.selectable: Rectangle {
+                x: parent.width - 27px; y: 5px; width: 22px; height: 22px; border-radius: 5px;
+                background: root.selected ? Theme.accent : #0009; border-width: 1px; border-color: #fff9;
+                Text { text: root.selected ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; }
+            }
+        }
+        Text { text: root.title; color: Theme.fg; font-weight: 600; font-size: 12px; wrap: word-wrap; overflow: elide; height: 34px; }
+        Text { text: root.badge; color: root.disabled ? Theme.fg-muted : Theme.accent; font-size: 11px; overflow: elide; }
+        Text { text: root.detail; color: Theme.fg-muted; font-size: 10px; overflow: elide; }
+    }
+    TouchArea { enabled: !root.disabled; mouse-cursor: pointer; clicked => { root.activated(); } }
+    FocusScope { enabled: !root.disabled; key-pressed(event) => { if event.text == " " || event.text == "\n" { root.activated(); return EventResult.accept; } return EventResult.reject; } }
+}

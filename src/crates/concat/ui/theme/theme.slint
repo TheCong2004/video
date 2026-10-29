@@ -46,7 +46,17 @@ export global Theme {
     /// picks it (main.rs, `on_settings_theme_changed`), and every binding in
     /// the tree is a property read away from it, so the window retones in a
     /// frame without anything being rebuilt.
-    in-out property <bool> dark: true;
+    in-out property <bool> dark: false;
+    /// Static by default until the platform or Appearance setting opts in.
+    /// One motion preference shared by editor, launcher and Studio.
+    in-out property <bool> reduced-motion: true;
+    /// Platform accessibility preference, read once at startup.
+    in-out property <bool> system-reduced-motion: false;
+    out property <bool> motion-reduced: reduced-motion || system-reduced-motion;
+    out property <duration> motion-hover: motion-reduced ? 0ms : 160ms;
+    out property <duration> motion-press: motion-reduced ? 0ms : 100ms;
+    out property <duration> motion-tab: motion-reduced ? 0ms : 220ms;
+    out property <duration> motion-panel: motion-reduced ? 0ms : 260ms;
     /// Which of the palettes' accents the accent tokens are read from: an
     /// index into `accent-names`, and into each palette's `accents`.
     /// Settings > Appearance picks it (lib.rs, `on_settings_accent_changed`)
@@ -134,6 +144,20 @@ export global Theme {
     /// The dialog sheet, and nothing smaller. A modal is the largest rounded
     /// thing in the window and wants a corner to match.
     out property <length> r-xl: 16px;
+    // Spacious shell controls use the same shape scale without inflating
+    // dense timeline controls or changing their geometry.
+    out property <length> r-control: 12px;
+    out property <length> r-nav: 12px;
+    out property <length> r-card: 16px;
+    out property <length> r-card-large: 20px;
+    out property <length> r-dialog: 24px;
+    out property <length> fs-page-title: 24px;
+    out property <length> fs-section-title: 18px;
+    out property <length> fs-body: 14px;
+    out property <length> space-xs: 4px;
+    out property <length> space-sm: 8px;
+    out property <length> space-md: 16px;
+    out property <length> space-lg: 24px;
 
     // metrics
     out property <length> h: 28px;        // standard control height
@@ -169,6 +193,20 @@ export global Theme {
     out property <color> fg-muted: dark ? Dark.fg-muted : Light.fg-muted;
     out property <color> fg-dim: dark ? Dark.fg-dim : Light.fg-dim;
     out property <color> fg-hot: dark ? Dark.fg-hot : Light.fg-hot;
+
+    // Shared product brand: separate from user-selected editor accent.
+    out property <color> brand: dark ? Dark.brand : Light.brand;
+    out property <color> brand-hover: dark ? Dark.brand-hover : Light.brand-hover;
+    out property <color> brand-soft: dark ? Dark.brand-soft : Light.brand-soft;
+    out property <color> on-brand: dark ? Dark.on-brand : Light.on-brand;
+    out property <color> brand-yellow: dark ? Dark.brand-yellow : Light.brand-yellow;
+    out property <color> nav-selected: dark ? Dark.nav-selected : Light.nav-selected;
+    out property <color> nav-selected-ink: dark ? Dark.nav-selected-ink : Light.nav-selected-ink;
+    out property <color> line-soft: dark ? Dark.line-soft : Light.line-soft;
+    out property <color> success: dark ? Dark.success : Light.success;
+    out property <color> warning: dark ? Dark.warning : Light.warning;
+    out property <color> info: dark ? Dark.info : Light.info;
+    out property <color> violet: dark ? Dark.violet : Light.violet;
 
     // accents — the chosen row of the palette that is on, spread into the
     // four tokens the tree has always read.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
 //! Concat's editor window, in Slint.
@@ -28,7 +28,7 @@ use slint::private_unstable_api::re_exports::DataTransfer;
 // nothing in this file.
 #[allow(missing_docs)]
 mod ui {
-    slint::include_modules!();
+    pub use concat_ui::*;
 }
 
 mod chips;
@@ -49,25 +49,47 @@ mod platform;
 pub use platform::{ExportPublisher, FilePicker, install_export_publisher, install_file_picker};
 mod ai_editing;
 mod auto_shorts;
+mod auto_shorts_feedback;
 mod panes;
 mod prefs;
 mod presets;
 mod source;
 mod studio;
 mod studio_ai;
+mod studio_ai_control;
+mod studio_control_window;
+mod studio_ui_actions;
 mod studio_bridge;
 mod studio_browser;
+mod studio_web;
+mod studio_hotclip;
 mod studio_bulk;
+mod studio_video_library;
+mod studio_video_preview;
 mod studio_live;
+mod studio_kedi_live;
 mod studio_live_video;
+mod studio_live_director;
+mod studio_lipsync;
+mod studio_motion_generation;
 mod studio_local_ai;
 mod studio_opentalking;
+mod studio_promax_avatars;
 mod studio_pages;
 mod studio_production;
+mod studio_native_production;
+mod studio_scenes;
+mod studio_production_pages;
 mod studio_products;
 mod studio_publish;
+mod studio_control_production;
+mod studio_campaign;
 mod studio_scripts;
+mod studio_film;
 mod studio_session;
+mod studio_lux;
+mod studio_kedi_factory;
+mod studio_language;
 mod sysinfo;
 /// Native Wayland file drops, which winit does not report; see the module.
 #[cfg(target_os = "linux")]
@@ -212,18 +234,32 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     let app = App::new()?;
     studio_bridge::bind(&app);
     studio_scripts::bind(&app);
+    studio_film::bind(&app);
     studio_production::bind(&app);
+    studio_native_production::bind(&app);
+    studio_scenes::bind(&app);
     studio_pages::bind(&app);
     studio_products::bind(&app);
     studio_ai::bind(&app);
+    studio_ai_control::bind(&app);
+    studio_control_window::bind(&app);
     ai_editing::bind(&app);
     auto_shorts::bind(&app);
     studio_browser::bind(&app);
+    let _web_panel_timer = studio_web::bind(&app);
+    // Native Hotclip shares the editor engine; the old child host is QA-only.
+    let _hotclip_panel_timer = studio_hotclip::bind(&app, std::env::var_os("CONCAT_HOTCLIP_SMOKE").is_some());
     studio_opentalking::bind(&app);
+    studio_motion_generation::bind(&app);
+    studio_promax_avatars::bind(&app);
     studio_live::bind(&app);
     studio_bulk::bind(&app);
+    studio_video_library::bind(&app);
     studio_publish::bind(&app);
     studio_session::bind(&app);
+    studio_lux::bind(&app);
+    studio_kedi_factory::bind(&app);
+    studio_language::bind(&app);
     app.set_macos(platform::MACOS);
     // A phone wears the phone shell - see ui/phone/ - and its lanes keep
     // the playhead at their middle; the strip and the dock are the desk's.
@@ -238,8 +274,11 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     studio.set_phone(phone);
     studio.reload_packages(false);
     studio.watch_packages();
-    let dark = studio.prefs.dark.unwrap_or(true);
+    let dark = studio.prefs.dark.unwrap_or(false);
     app.global::<Theme>().set_dark(dark);
+    app.global::<Theme>().set_system_reduced_motion(platform::system_reduced_motion());
+    app.global::<ui::LauncherUi>().set_sidebar_mode(i32::from(studio.prefs.sidebar_mode.min(2)));
+    app.global::<Theme>().set_reduced_motion(studio.prefs.reduced_motion.unwrap_or(true));
     // The accent is remembered by name and the names live on the Theme
     // global, so the index is looked up there rather than kept in Rust too.
     // A remembered hex is a colour picked by hand, which is the slot past
@@ -1407,6 +1446,31 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     }));
     // The theme is one bool on the Theme global, and every colour in the
     // tree is a binding away from it; it is also remembered.
+    app.global::<ui::LauncherUi>().on_sidebar_mode_changed(|mode| {
+        Shell::with(|shell, app| {
+            let mode = mode.clamp(0, 2);
+            app.global::<ui::LauncherUi>().set_sidebar_mode(mode);
+            let mut studio = shell.studio.borrow_mut();
+            studio.prefs.sidebar_mode = mode as u8;
+            studio.prefs.save(&studio.host.dirs);
+        });
+    });
+    app.global::<ui::LauncherUi>().on_theme_changed(|dark| {
+        Shell::with(|shell, app| {
+            app.global::<Theme>().set_dark(dark);
+            let mut studio = shell.studio.borrow_mut();
+            studio.prefs.dark = Some(dark);
+            studio.prefs.save(&studio.host.dirs);
+        });
+    });
+    app.global::<ui::LauncherUi>().on_reduced_motion_changed(|reduced| {
+        Shell::with(|shell, app| {
+            app.global::<Theme>().set_reduced_motion(reduced);
+            let mut studio = shell.studio.borrow_mut();
+            studio.prefs.reduced_motion = Some(reduced);
+            studio.prefs.save(&studio.host.dirs);
+        });
+    });
     app.on_settings_theme_changed({
         move |dark| {
             log::info!("settings: theme {}", if dark { "dark" } else { "light" });
@@ -1939,6 +2003,33 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // loop's end takes below, for the same reason - the engine's threads
     // are not waited on.
     if smoke {
+        #[cfg(debug_assertions)]
+        studio_control_window::smoke_web_login_bridge()?;
+        if let Ok(profile) = std::env::var("CONCAT_DOWNLOAD_LIVE_SMOKE_PROFILE") {
+            studio_lux::live_smoke(&app, &profile)?;
+        }
+        #[cfg(debug_assertions)]
+        if std::env::var_os("CONCAT_STORYBOARD_SMOKE").is_some() {
+            studio_scenes::smoke(&app)?;
+        }
+        #[cfg(all(windows,debug_assertions))]
+        if std::env::var_os("CONCAT_HOTCLIP_SMOKE").is_some() {
+            studio_hotclip::smoke(&app)?;
+        }
+        #[cfg(debug_assertions)]
+        if std::env::var_os("CONCAT_VOICE_SELECTION_SMOKE").is_some() {
+            studio_live_director::smoke_voice_selection(&app)?;
+        }
+        #[cfg(all(windows, debug_assertions))]
+        if std::env::var_os("CONCAT_NEXPULSE_SMOKE").is_some() {
+            studio_web::smoke(&app)?;
+        }
+        if let Some(path) = std::env::var_os("CONCAT_LIVE_SYNCED_SMOKE") {
+            studio_live_video::smoke_synced(&app, path.into())?;
+        }
+        if let Some(path) = std::env::var_os("CONCAT_PROMAX_AVATAR_SMOKE_VIDEO") {
+            studio_promax_avatars::smoke(&app, path.into())?;
+        }
         if let Some(path) = std::env::var_os("CONCAT_LIVE_MOTION_SMOKE") {
             studio_live_video::smoke(&app, path.into())?;
         }
@@ -1946,6 +2037,8 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             studio_live::smoke_connection(&app, &username)?;
         }
         log::info!("smoke: ok");
+        concat_host::studio_local_avatars::shutdown();
+        studio_hotclip::shutdown();
         log::logger().flush();
         std::process::exit(0);
     }
@@ -1969,9 +2062,14 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     );
 
     let result = app.run();
+    studio_scenes::shutdown(&app);
+    studio_native_production::shutdown();
+    studio_hotclip::shutdown();
+    concat_host::studio_local_avatars::shutdown();
     auto_shorts::shutdown();
     studio_local_ai::shutdown();
     drop(reader_sweep);
     log::info!("close: event loop exited (ok={})", result.is_ok());
     std::process::exit(0);
 }
+

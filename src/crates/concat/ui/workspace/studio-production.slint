@@ -4,8 +4,9 @@ import { I18n } from "../i18n.slint";
 import { Select, NumberField } from "../primitives/primitives.slint";
 import { Floword } from "../theme/floword.slint";
 import { Glyph, Icon } from "../icons.slint";
-import { StudioCard, StudioHeading, StudioButton, StudioField, StudioMetric } from "studio-chrome.slint";
-import { StudioBrowserPanel } from "studio-browser.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField, StudioMetric, StudioStatus } from "studio-chrome.slint";
+import { StudioBrowserPanel, StudioBrowser } from "studio-browser.slint";
+import { SceneWorkspace, ProductionScenes } from "studio-scenes.slint";
 
 export struct StudioRunRow {
     id: string,
@@ -18,9 +19,25 @@ export struct StudioRunRow {
 }
 
 export global ProductionStudio {
+    in-out property <bool> pages-loaded;
+    in-out property <[string]> page-names: ["Chọn Page để sản xuất…"];
+    in-out property <int> page-index;
+    in-out property <string> page-summary;
+    in-out property <bool> local-running;
+    in-out property <bool> local-has-output;
+    in-out property <string> local-progress;
+    in-out property <string> local-image-status: "Chưa chạy";
+    in-out property <string> local-expand-status: "Chưa chạy";
+    in-out property <string> local-video-status: "Chưa chạy";
+    callback load-pages();
+    callback load-workflows();
+    callback apply-page(int);
+    callback cancel-local();
+    callback import-output();
     in-out property <[string]> workflow-ids;
     in-out property <[string]> workflow-names;
     in-out property <int> workflow-index;
+    out property <bool> native-workflow: self.workflow-index >= 0 && self.workflow-index < self.workflow-ids.length && self.workflow-ids[self.workflow-index] == "concat.native_production.v1";
     in-out property <string> brief;
     in-out property <string> sources;
     in-out property <float> scenes: 6;
@@ -28,6 +45,20 @@ export global ProductionStudio {
     in-out property <string> character-anchor;
     in-out property <string> visual-style;
     in-out property <string> motion-prompt;
+    in-out property <bool> research-enabled: true;
+    in-out property <string> script;
+    in-out property <string> asset-urls;
+    in-out property <string> image-prompt;
+    in-out property <string> expand-prompt;
+    in-out property <string> voice-id;
+    in-out property <int> voice-style-index;
+    in-out property <int> aspect-index;
+    in-out property <int> subtitle-index;
+    in-out property <int> transition-index;
+    in-out property <float> video-speed: 1;
+    in-out property <float> music-volume: 18;
+    in-out property <image> anchor-preview;
+    in-out property <string> anchor-label;
     in-out property <int> visual-engine-index: 0;
     in-out property <[string]> visual-engine-options: ["OmniRoute Video (AI Native)", "Grok Web Automation", "FAL Fast Generation"];
     in-out property <int> current-phase: 1;
@@ -49,6 +80,9 @@ export global ProductionStudio {
     callback start-run();
     callback cancel-run(id: string);
     callback resume-run(id: string);
+    callback choose-anchor();
+    callback clear-anchor();
+    callback export-settings();
     public function invalidate() { self.ready = false; self.confirm-start = false; }
 }
 
@@ -63,7 +97,7 @@ export component StudioRunList inherits VerticalLayout {
         Text { text: I18n.t("nativeStudio.noRuns"); color: Floword.muted; wrap: word-wrap; }
     }
     if !ProductionStudio.runs-loaded: StudioCard {
-        Text { text: I18n.t("nativeStudio.loadRunsHint"); color: Floword.muted; wrap: word-wrap; }
+        Text { text: "Chưa tải tác vụ. Dịch vụ quy trình chưa được cấu hình."; color: Floword.muted; wrap: word-wrap; }
     }
     for run in (root.history-only ? ProductionStudio.history-runs : ProductionStudio.runs): StudioCard {
         VerticalLayout {
@@ -121,313 +155,154 @@ export component StudioRunList inherits VerticalLayout {
 }
 
 export component StudioProduction inherits VerticalLayout {
-    spacing: 18px;
+    init => { if !ProductionStudio.pages-loaded && !ProductionStudio.busy { ProductionStudio.load-pages(); } }
+    min-width: 0px;
+    spacing: 16px;
+    alignment: start;
+    vertical-stretch: 0;
     property <bool> advanced-open: false;
-
-    // HERO BANNER WITH 3D ILLUSTRATION & BEGINNER GUIDE
-    Rectangle {
-        height: 160px;
-        border-radius: 16px;
-        clip: true;
-        background: Floword.surface;
-        border-width: 1px;
-        border-color: Floword.line-bright;
-
-        Image {
-            width: 100%;
-            height: 100%;
-            source: @image-url("../assets/studio-production.jpg");
-            image-fit: cover;
+    StudioCard {
+        if ProductionStudio.current-phase == 1: StudioHeading { title: "Page/hồ sơ Nexora"; }
+        if ProductionStudio.current-phase == 1: Text { text: "Chọn Page để dùng đúng preset, hồ sơ Nexora và thư mục video của kênh đó."; color: Floword.muted; wrap: word-wrap; }
+      FlexboxLayout {
+        min-width: 0px; spacing: 8px;
+        Select {
+            min-width: 0px;
+            preferred-width: 520px; horizontal-stretch: 1;
+            options: ProductionStudio.page-names; current <=> ProductionStudio.page-index;
+            enabled: !ProductionStudio.busy;
+            changed(index) => { ProductionStudio.apply-page(index); }
         }
-
-        // Dark gradient & glassmorphic overlay for maximum readability
-        Rectangle {
-            width: 100%;
-            height: 100%;
-            background: @linear-gradient(90deg, #080D1BEE 0%, #080D1BDD 45%, #080D1B77 75%, #080D1B22 100%);
+        StudioButton { label: "Tải lại danh sách Page"; compact: ProductionStudio.current-phase >= 2; enabled: !ProductionStudio.busy; clicked => { ProductionStudio.load-pages(); } }
+        StudioButton { label: StudioBrowser.busy ? "Đang mở Nexora…" : "Mở Nexora"; compact: ProductionStudio.current-phase >= 2; enabled: !StudioBrowser.busy && !ProductionStudio.busy; clicked => { StudioBrowser.start(); } }
+      }
+        if ProductionStudio.current-phase == 1: Text { text: ProductionStudio.page-summary; color: Floword.text; wrap: word-wrap; }
+        if StudioBrowser.status != "": Text { text: StudioBrowser.status; color: Floword.text; wrap: word-wrap; }
+    }
+    if ProductionStudio.current-phase != 7 && ProductionStudio.status != "": StudioStatus { label: ProductionStudio.status; tone: ProductionStudio.busy ? 4 : ProductionStudio.uncertain ? 2 : 0; }
+    // Configuration navigation, never simulated execution progress.
+    Text { text: "7 bước sản xuất · Chọn từng bước để thiết lập. Dữ liệu được giữ khi chuyển bước."; color: Floword.muted; wrap: word-wrap; }
+    FlexboxLayout {
+        min-width: 0px; spacing: 8px;
+        for title[index] in ["1. Nguồn & ý tưởng", "2. Kịch bản phân cảnh", "3. Tư liệu & bối cảnh", "4. Nhân vật & anchor", "5. Sinh hình & video", "6. Giọng nói & phụ đề", "7. Dựng & xuất"]: StudioButton {
+            label: title; primary: ProductionStudio.current-phase == index + 1;
+            clicked => { ProductionStudio.current-phase = index + 1; }
         }
-
-        HorizontalLayout {
-            padding-left: 28px;
-            padding-right: 28px;
-            padding-top: 20px;
-            padding-bottom: 20px;
-            alignment: space-between;
-
+    }
+    if ProductionStudio.current-phase == 1: StudioCard {
+        Text { text: "Thiết lập được gửi cho workflow đã chọn. Chỉ chạy khi Promax xác nhận có worker hỗ trợ; không tự dùng nhánh local thay thế."; color: Floword.muted; wrap: word-wrap; }
+        StudioHeading { title: "1. Nguồn & ý tưởng"; }
+        StudioField {
+            label: "Bạn muốn tạo video gì?"; placeholder: I18n.t("nativeStudio.briefExample"); multiline: true;
+            value: ProductionStudio.brief; enabled: !ProductionStudio.busy;
+            edited(text) => { ProductionStudio.brief = text; ProductionStudio.invalidate(); }
+        }
+        StudioField {
+            label: "Nguồn tham khảo"; value: ProductionStudio.sources; enabled: !ProductionStudio.busy;
+            placeholder: "Mỗi dòng một URL https://…"; multiline: true; input-height: 80px;
+            edited(text) => { ProductionStudio.sources = text; ProductionStudio.invalidate(); }
+        }
+        StudioButton { label: ProductionStudio.research-enabled ? "Khai thác nguồn / xu hướng: BẬT" : "Khai thác nguồn / xu hướng: TẮT"; enabled: !ProductionStudio.busy; clicked => { ProductionStudio.research-enabled = !ProductionStudio.research-enabled; ProductionStudio.invalidate(); } }
+        StudioButton { label: "Kiểm tra nguồn YouTube"; enabled: !ProductionStudio.busy && ProductionStudio.sources != ""; clicked => { ProductionStudio.check-source(); } }
+        FlexboxLayout {
+            min-width: 0px; spacing: 16px;
             VerticalLayout {
-                spacing: 8px;
-                alignment: center;
-                max-width: 680px;
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    Rectangle {
-                        background: Floword.violet.with-alpha(0.25);
-                        border-radius: 6px;
-                        border-width: 1px;
-                        border-color: Floword.violet;
-                        HorizontalLayout {
-                            padding-left: 8px;
-                            padding-right: 8px;
-                            padding-top: 3px;
-                            padding-bottom: 3px;
-                            spacing: 6px;
-                            Icon { glyph: Glyph.sparkle; size: 12px; tint: Floword.cyan; }
-                            Text { text: "XƯỞNG SẢN XUẤT VIDEO AI · 7 CÔNG ĐOẠN"; color: Floword.cyan; font-size: 11px; font-weight: 700; }
-                        }
-                    }
-                }
-
-                Text {
-                    text: "Biến ý tưởng thành video điện ảnh hoàn chỉnh";
-                    color: Floword.text;
-                    font-size: 22px;
-                    font-weight: 700;
-                }
-
-                Text {
-                    text: "Chỉ 3 bước đơn giản: 1. Viết ý tưởng   →   2. Kiểm tra trước khi tạo   →   3. Bắt đầu tạo video";
-                    color: Floword.muted;
-                    font-size: 13px;
-                    wrap: word-wrap;
-                }
+                min-width: 0px; preferred-width: 200px; horizontal-stretch: 1; spacing: 8px;
+                Text { text: "Số cảnh"; color: Floword.muted; }
+                NumberField { value <=> ProductionStudio.scenes; minimum: 1; maximum: 30; enabled: !ProductionStudio.busy; changed(v) => { ProductionStudio.invalidate(); } }
             }
-
-            // Quick status pill
             VerticalLayout {
-                alignment: center;
-                Rectangle {
-                    background: Floword.raised.with-alpha(0.9);
-                    border-radius: 12px;
-                    border-width: 1px;
-                    border-color: Floword.line-bright;
-                    HorizontalLayout {
-                        padding: 14px;
-                        spacing: 12px;
-                        alignment: center;
-                        VerticalLayout {
-                            spacing: 2px;
-                            Text { text: "Trạng thái xưởng"; color: Floword.muted; font-size: 11px; }
-                            Text {
-                                text: ProductionStudio.busy ? "Đang xử lý..." : (ProductionStudio.ready ? "Đã sẵn sàng tạo" : "Đang chờ ý tưởng");
-                                color: ProductionStudio.busy ? Floword.warning : (ProductionStudio.ready ? Floword.success : Floword.cyan);
-                                font-size: 13px;
-                                font-weight: 700;
-                            }
-                        }
-                    }
-                }
+                min-width: 0px; preferred-width: 200px; horizontal-stretch: 1; spacing: 8px;
+                Text { text: "Thời lượng (giây)"; color: Floword.muted; }
+                NumberField { value <=> ProductionStudio.duration; minimum: 0.5; maximum: 7200; precision: 2; step: 0.5; enabled: !ProductionStudio.busy; changed(v) => { ProductionStudio.invalidate(); } }
             }
         }
     }
-
-    // 1. PIPELINE 7-PHASE VISUALIZER RIBBON (Matching ArtCraft ProductionPipelineView)
-    Rectangle {
-        background: Floword.surface;
-        border-radius: 14px;
-        border-width: 1px;
-        border-color: Floword.line;
-        VerticalLayout {
-            padding: 16px;
-            spacing: 12px;
-            HorizontalLayout {
-                alignment: space-between;
-                HorizontalLayout {
-                    spacing: 8px;
-                    Icon { glyph: Glyph.film; size: 18px; tint: Floword.violet; }
-                    Text { text: "QUY TRÌNH 7 CÔNG ĐOẠN TỰ ĐỘNG"; color: Floword.violet; font-size: 13px; font-weight: 700; }
-                }
-                Text { text: "Hệ thống AI tự động điều phối từ đầu đến cuối"; color: Floword.muted; font-size: 12px; }
-            }
-
-            // Stepper pills with neon accents
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: space-between;
-                Rectangle {
-                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.cyan.with-alpha(0.4); horizontal-stretch: 1;
-                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
-                        Text { text: "1"; color: Floword.cyan; font-size: 12px; font-weight: 700; }
-                        Text { text: "Nguồn & Ý tưởng"; color: Floword.text; font-size: 12px; }
-                    }
-                }
-                Rectangle {
-                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
-                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
-                        Text { text: "2"; color: Floword.violet; font-size: 12px; font-weight: 700; }
-                        Text { text: "Kịch bản"; color: Floword.text; font-size: 12px; }
-                    }
-                }
-                Rectangle {
-                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
-                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
-                        Text { text: "3"; color: Floword.violet; font-size: 12px; font-weight: 700; }
-                        Text { text: "Tư liệu"; color: Floword.text; font-size: 12px; }
-                    }
-                }
-                Rectangle {
-                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
-                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
-                        Text { text: "4"; color: Floword.violet; font-size: 12px; font-weight: 700; }
-                        Text { text: "Nhân vật"; color: Floword.text; font-size: 12px; }
-                    }
-                }
-                Rectangle {
-                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
-                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
-                        Text { text: "5"; color: Floword.violet; font-size: 12px; font-weight: 700; }
-                        Text { text: "Sinh hình AI"; color: Floword.text; font-size: 12px; }
-                    }
-                }
-                Rectangle {
-                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
-                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
-                        Text { text: "6"; color: Floword.violet; font-size: 12px; font-weight: 700; }
-                        Text { text: "Lồng tiếng"; color: Floword.text; font-size: 12px; }
-                    }
-                }
-                Rectangle {
-                    background: Floword.field; border-radius: 8px; border-width: 1px; border-color: Floword.line; horizontal-stretch: 1;
-                    HorizontalLayout { padding: 8px; spacing: 6px; alignment: center;
-                        Text { text: "7"; color: Floword.violet; font-size: 12px; font-weight: 700; }
-                        Text { text: "Dựng & Xuất"; color: Floword.text; font-size: 12px; }
-                    }
-                }
+    if ProductionStudio.current-phase == 4: StudioCard {
+        StudioHeading { title: "4. Nhân vật & ảnh tham chiếu (anchor)"; }
+        StudioField { label: "Mô tả nhận diện nhân vật"; placeholder: "Ngoại hình, trang phục, đặc điểm cần giữ giữa các cảnh…"; multiline: true; value: ProductionStudio.character-anchor; enabled: !ProductionStudio.busy; edited(text) => { ProductionStudio.character-anchor = text; ProductionStudio.invalidate(); } }
+        if ProductionStudio.anchor-label != "": Image { source: ProductionStudio.anchor-preview; height: 180px; image-fit: contain; }
+        Text { text: ProductionStudio.anchor-label == "" ? "Chưa chọn ảnh tham chiếu." : ProductionStudio.anchor-label; color: Floword.muted; wrap: word-wrap; }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: ProductionStudio.anchor-label == "" ? "Chọn ảnh nhân vật" : "Thay ảnh nhân vật"; enabled: !ProductionStudio.busy; clicked => { ProductionStudio.choose-anchor(); } }
+            if ProductionStudio.anchor-label != "": StudioButton { label: "Bỏ ảnh"; enabled: !ProductionStudio.busy; clicked => { ProductionStudio.clear-anchor(); } }
+        }
+        Text { text: "PNG/JPEG tối đa 10 MB. Ảnh mới được chọn trên máy, chưa tải lên dịch vụ; không dùng làm video nguồn."; color: Floword.muted; wrap: word-wrap; }
+    }
+    if ProductionStudio.current-phase >= 2: SceneWorkspace {
+        phase: ProductionStudio.current-phase;
+        script: ProductionStudio.script;
+        script-edited(text) => { ProductionStudio.script = text; ProductionStudio.invalidate(); }
+    }
+    if ProductionStudio.current-phase == 3 && ProductionScenes.count == 0: StudioCard {
+        StudioHeading { title: "3. Tư liệu & bối cảnh"; }
+        StudioField { label: "URL tư liệu hình / video (mỗi dòng một URL)"; placeholder: "https://…"; multiline: true; value: ProductionStudio.asset-urls; enabled: !ProductionStudio.busy; edited(text) => { ProductionStudio.asset-urls = text; ProductionStudio.invalidate(); } }
+        StudioField { label: "Phong cách & bối cảnh xuyên suốt"; placeholder: "Điện ảnh, ánh sáng ấm, phố về đêm…"; multiline: true; value: ProductionStudio.visual-style; enabled: !ProductionStudio.busy; edited(text) => { ProductionStudio.visual-style = text; ProductionStudio.invalidate(); } }
+    }
+    if ProductionStudio.current-phase == 5: StudioCard {
+        StudioHeading { title: "5. Sinh hình & video"; }
+        Text { text: "Dịch vụ tạo hình"; color: Floword.muted; }
+        if ProductionStudio.native-workflow: Text { text: "Grok qua hồ sơ Nexora đã chọn · tự mở khi bấm Tạo video"; color: Floword.text; wrap: word-wrap; }
+        if !ProductionStudio.native-workflow: Select { min-width: 0px; options: ProductionStudio.visual-engine-options; current <=> ProductionStudio.visual-engine-index; enabled: !ProductionStudio.busy; changed(index) => { ProductionStudio.invalidate(); } }
+        StudioField { label: "Yêu cầu tạo hình"; placeholder: "Giữ khuôn mặt và trang phục từ ảnh; mô tả cảnh cần tạo…"; multiline: true; value: ProductionStudio.image-prompt; enabled: !ProductionStudio.busy; edited(text) => { ProductionStudio.image-prompt = text; ProductionStudio.invalidate(); } }
+        StudioField { label: "Yêu cầu mở rộng khung hình"; value: ProductionStudio.expand-prompt; enabled: !ProductionStudio.busy; edited(text) => { ProductionStudio.expand-prompt = text; ProductionStudio.invalidate(); } }
+        StudioField { label: "Chuyển động / máy quay"; placeholder: "Nhân vật bước chậm, camera tiến gần…"; multiline: true; value: ProductionStudio.motion-prompt; enabled: !ProductionStudio.busy; edited(text) => { ProductionStudio.motion-prompt = text; ProductionStudio.invalidate(); } }
+        Text { text: "Lựa chọn công cụ được lưu trong cấu hình; chưa xác nhận công cụ đã kết nối hoặc hỗ trợ mọi yêu cầu."; color: Floword.warning; wrap: word-wrap; }
+    }
+    if ProductionStudio.current-phase == 6: StudioCard {
+        if ProductionStudio.visual-engine-index == 1: Text { text: "Luồng Grok hiện không lồng tiếng hoặc thêm phụ đề từ các ô này. Không xác nhận đã tạo giọng khi chưa chạy dịch vụ TTS."; color: Floword.warning; wrap: word-wrap; }
+        StudioHeading { title: "6. Giọng nói & phụ đề"; }
+        Text { text: "Phong cách đọc"; color: Floword.muted; }
+        Select { min-width: 0px; options: ["Kể chuyện tiếng Việt, có ngắt nghỉ", "Thuyết minh rõ ràng", "Hội thoại tự nhiên"]; current <=> ProductionStudio.voice-style-index; enabled: !ProductionStudio.busy; changed(index) => { ProductionStudio.invalidate(); } }
+        StudioField { label: "ID giọng đã cấu hình (không bắt buộc)"; placeholder: "ID giọng từ dịch vụ TTS của bạn"; value: ProductionStudio.voice-id; enabled: !ProductionStudio.busy; edited(text) => { ProductionStudio.voice-id = text; ProductionStudio.invalidate(); } }
+        Text { text: "Kiểu phụ đề"; color: Floword.muted; }
+        Select { min-width: 0px; options: ["Năng động", "Đơn giản", "Không thêm phụ đề"]; current <=> ProductionStudio.subtitle-index; enabled: !ProductionStudio.busy; changed(index) => { ProductionStudio.invalidate(); } }
+        Text { text: "Chưa tự tạo hoặc sao chép giọng nói. Dịch vụ thực thi phải hỗ trợ ID giọng bạn chọn."; color: Floword.muted; wrap: word-wrap; }
+    }
+    if ProductionStudio.current-phase == 7: StudioCard {
+        StudioHeading { title: "7. Dựng & xuất"; }
+        Text { text: "Tỷ lệ khung hình"; color: Floword.muted; }
+        if ProductionStudio.native-workflow: Text { text: "9:16 · Dọc · 1080 × 1920 (cố định theo quy trình Grok native)"; color: Floword.text; wrap: word-wrap; }
+        if !ProductionStudio.native-workflow: Select { min-width: 0px; options: ["9:16 · Dọc", "16:9 · Ngang", "1:1 · Vuông"]; current <=> ProductionStudio.aspect-index; enabled: !ProductionStudio.busy; changed(index) => { ProductionStudio.invalidate(); } }
+        if !ProductionStudio.native-workflow: VerticalLayout {
+            spacing: 10px;
+            Text { text: "Chuyển cảnh"; color: Floword.muted; }
+            Select { min-width: 0px; options: ["Mượt (Dissolve)", "Cắt thẳng", "Mờ dần"]; current <=> ProductionStudio.transition-index; enabled: !ProductionStudio.busy; changed(index) => { ProductionStudio.invalidate(); } }
+            Text { text: "Tốc độ video (×)"; color: Floword.muted; }
+            NumberField { value <=> ProductionStudio.video-speed; minimum: 0.5; maximum: 2; enabled: !ProductionStudio.busy; changed(v) => { ProductionStudio.invalidate(); } }
+            Text { text: "Âm lượng nhạc nền (%)"; color: Floword.muted; }
+            NumberField { value <=> ProductionStudio.music-volume; minimum: 0; maximum: 100; enabled: !ProductionStudio.busy; changed(v) => { ProductionStudio.invalidate(); } }
+        }
+        if ProductionStudio.native-workflow: Text { text: "Luồng native: Grok qua Page Nexora, xuất MP4 1080×1920; khớp thời lượng theo giọng, cắt thẳng, tốc độ 1×. Chọn nhạc/lớp hình riêng ở bảng phân cảnh. Cần đăng nhập Grok trong hồ sơ, không cần đăng nhập Concat."; color: Floword.muted; wrap: word-wrap; }
+        Text { text: "Quy trình"; color: Floword.muted; }
+        Select { min-width: 0px; options: ProductionStudio.workflow-names; current <=> ProductionStudio.workflow-index; enabled: !ProductionStudio.busy; changed(index) => { ProductionStudio.invalidate(); } }
+        StudioButton { label: root.advanced-open ? "Ẩn tham số kỹ thuật" : "Tham số bổ sung (JSON)"; clicked => { root.advanced-open = !root.advanced-open; } }
+        if root.advanced-open: StudioField { label: "Tham số bổ sung (JSON)"; multiline: true; value: ProductionStudio.extra-inputs; enabled: !ProductionStudio.busy; edited(text) => { ProductionStudio.extra-inputs = text; ProductionStudio.invalidate(); } }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: ProductionStudio.busy ? "Đang kiểm tra…" : "Kiểm tra cấu hình"; enabled: !ProductionStudio.busy && ProductionStudio.workflow-ids.length > 0 && !ProductionStudio.uncertain; clicked => { ProductionStudio.check-plan(); } }
+            StudioButton { label: ProductionStudio.busy ? "Đang chuẩn bị…" : ProductionStudio.local-running ? "Đang tạo video…" : "Tạo video"; primary: true; enabled: !ProductionStudio.busy && !ProductionStudio.local-running && !ProductionStudio.uncertain && (ProductionStudio.native-workflow ? ProductionStudio.page-index > 0 : ProductionStudio.ready); clicked => { ProductionStudio.confirm-start = true; if ProductionStudio.native-workflow { ProductionStudio.start-run(); } } }
+        }
+        if ProductionStudio.status != "": StudioStatus { label: ProductionStudio.status; tone: ProductionStudio.busy || ProductionStudio.local-running ? 4 : ProductionStudio.uncertain ? 2 : 0; }
+        if ProductionStudio.confirm-start && !ProductionStudio.native-workflow: StudioCard {
+            Text { text: I18n.t("nativeStudio.startConfirm"); color: Floword.warning; wrap: word-wrap; }
+            FlexboxLayout {
+                min-width: 0px; spacing: 8px;
+                StudioButton { label: I18n.t("nativeStudio.confirm"); primary: true; enabled: !ProductionStudio.busy; clicked => { ProductionStudio.start-run(); } }
+                StudioButton { label: I18n.t("common.cancel"); enabled: !ProductionStudio.busy; clicked => { ProductionStudio.confirm-start = false; } }
             }
         }
+        if !ProductionStudio.ready: Text { text: ProductionStudio.native-workflow ? "Bấm Tạo video: ứng dụng tự mở hoặc dùng lại tab Grok trong đúng hồ sơ Nexora. Chỉ gửi tạo khi Grok và worker đã sẵn sàng." : "Bấm Kiểm tra cấu hình để xác nhận worker. Lý do chưa sẵn sàng hiện bên dưới."; color: Floword.muted; wrap: word-wrap; }
+        if ProductionStudio.local-has-output: StudioButton { label: "Nhập video đã tạo vào Concat"; enabled: !ProductionStudio.busy; clicked => { ProductionStudio.import-output(); } }
     }
-
-    // 2. MAIN PRODUCTION WORKSPACE
-    HorizontalLayout {
-        spacing: 18px;
-        min-width: 0px;
-
-        // LEFT COLUMN: Brief, Character Anchor & Prompts
-        StudioCard {
-            min-width: 360px;
-            horizontal-stretch: 2;
-            StudioHeading { title: I18n.t("nativeStudio.briefSection"); glyph: Glyph.text-mark; }
-            StudioField {
-                label: I18n.t("nativeStudio.brief"); placeholder: I18n.t("nativeStudio.briefExample"); multiline: true;
-                value: ProductionStudio.brief; enabled: !ProductionStudio.busy;
-                edited(text) => { ProductionStudio.brief = text; ProductionStudio.invalidate(); }
-            }
-            StudioField {
-                label: "Nhân vật chính (giữ ngoại hình nhất quán)";
-                placeholder: "Ví dụ: Người phụ nữ 35 tuổi, áo dài xanh thẫm, tóc búi thấp, khuôn mặt thanh tú...";
-                value: ProductionStudio.character-anchor; enabled: !ProductionStudio.busy;
-                edited(text) => { ProductionStudio.character-anchor = text; }
-            }
-            StudioField {
-                label: "Phong cách hình ảnh";
-                placeholder: "Ví dụ: Phong cách điện ảnh, ánh sáng hoàng hôn ấm áp, màu sắc tự nhiên...";
-                value: ProductionStudio.visual-style; enabled: !ProductionStudio.busy;
-                edited(text) => { ProductionStudio.visual-style = text; }
-            }
-            StudioField {
-                label: I18n.t("nativeStudio.sources"); multiline: false; value: ProductionStudio.sources; enabled: !ProductionStudio.busy;
-                placeholder: "https://... (URL bài viết, liên kết tham khảo)";
-                edited(text) => { ProductionStudio.sources = text; ProductionStudio.invalidate(); }
-            }
-            StudioButton {
-                compact: true;
-                label: "Kiểm tra URL YouTube qua Promax";
-                enabled: !ProductionStudio.busy && ProductionStudio.sources != "";
-                clicked => { ProductionStudio.check-source(); }
-            }
-            HorizontalLayout {
-                spacing: 18px;
-                VerticalLayout {
-                    spacing: 8px;
-                    Text { text: I18n.t("nativeStudio.scenes"); color: Floword.text; font-size: 13px; font-weight: 600; }
-                    NumberField { value <=> ProductionStudio.scenes; minimum: 1; maximum: 30; height: 38px; background: Floword.field; border-color: Floword.line; enabled: !ProductionStudio.busy; changed(v) => { ProductionStudio.invalidate(); } }
-                }
-                VerticalLayout {
-                    spacing: 8px;
-                    Text { text: I18n.t("nativeStudio.duration"); color: Floword.text; font-size: 13px; font-weight: 600; }
-                    NumberField { value <=> ProductionStudio.duration; minimum: 10; maximum: 7200; height: 38px; background: Floword.field; border-color: Floword.line; enabled: !ProductionStudio.busy; changed(v) => { ProductionStudio.invalidate(); } }
-                }
-            }
-        }
-
-        // RIGHT COLUMN: Visual Engine, Workflow & Execution Controls
-        StudioCard {
-            min-width: 320px;
-            horizontal-stretch: 1;
-            StudioHeading { title: I18n.t("nativeStudio.executionSection"); glyph: Glyph.sparkle; }
-
-            // Visual engine selection
-            VerticalLayout {
-                spacing: 6px;
-                Text { text: "Công cụ AI tạo hình ảnh/video:"; color: Floword.text; font-size: 13px; font-weight: 600; }
-                Select {
-                    height: 38px;
-                    background: Floword.field; border-color: Floword.line;
-                    options: ProductionStudio.visual-engine-options; current <=> ProductionStudio.visual-engine-index;
-                    placeholder: "Chọn công cụ AI"; enabled: !ProductionStudio.busy;
-                }
-            }
-
-            // Workflow definition selection
-            VerticalLayout {
-                spacing: 6px;
-                Text { text: I18n.t("nativeStudio.workflow"); color: Floword.text; font-size: 13px; font-weight: 600; }
-                Select {
-                    height: 38px;
-                    background: Floword.field; border-color: Floword.line;
-                    options: ProductionStudio.workflow-names; current <=> ProductionStudio.workflow-index;
-                    placeholder: I18n.t("nativeStudio.selectWorkflow"); enabled: !ProductionStudio.busy;
-                    changed(index) => { ProductionStudio.invalidate(); }
-                }
-            }
-
-            Text { text: "Nếu bạn mới sử dụng, hãy giữ lựa chọn được đề xuất. Quy trình quyết định cách các công đoạn được tự động thực hiện."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
-            Text { text: I18n.t("nativeStudio.workflowHint"); color: Floword.muted; font-size: 12px; wrap: word-wrap; }
-
-            StudioButton {
-                label: root.advanced-open ? "Ẩn tùy chọn nâng cao" : "Hiện tùy chọn nâng cao";
-                clicked => { root.advanced-open = !root.advanced-open; }
-            }
-            if root.advanced-open: StudioField {
-                label: "Cấu hình nâng cao (JSON)"; multiline: true; value: ProductionStudio.extra-inputs; enabled: !ProductionStudio.busy;
-                edited(text) => { ProductionStudio.extra-inputs = text; ProductionStudio.invalidate(); }
-            }
-
-            if !ProductionStudio.ready && !ProductionStudio.busy: Text {
-                text: "Hãy bấm Kiểm tra trước khi tạo để xác nhận các thiết lập đã sẵn sàng.";
-                color: Floword.muted; font-size: 13px; wrap: word-wrap;
-            }
-            if ProductionStudio.ready && !ProductionStudio.busy: Text {
-                text: "Đã kiểm tra. Bạn có thể bắt đầu tạo video.";
-                color: Floword.success; font-size: 13px; wrap: word-wrap;
-            }
-            VerticalLayout {
-                spacing: 8px;
-                StudioButton {
-                    label: ProductionStudio.busy ? "Đang kiểm tra..." : "Bước 2 · Kiểm tra trước khi tạo";
-                    enabled: !ProductionStudio.busy && ProductionStudio.workflow-ids.length > 0 && !ProductionStudio.uncertain;
-                    clicked => { ProductionStudio.check-plan(); }
-                }
-                StudioButton {
-                    label: "Bước 3 · Bắt đầu tạo video"; primary: true;
-                    enabled: !ProductionStudio.busy && ProductionStudio.ready && !ProductionStudio.uncertain;
-                    clicked => { ProductionStudio.confirm-start = true; }
-                }
-            }
-        }
+    FlexboxLayout {
+        min-width: 0px; spacing: 8px;
+        StudioButton { label: "← Bước trước"; enabled: ProductionStudio.current-phase > 1; clicked => { ProductionStudio.current-phase -= 1; } }
+        StudioButton { label: "Bước tiếp →"; primary: true; enabled: ProductionStudio.current-phase < 7; clicked => { ProductionStudio.current-phase += 1; } }
+        StudioButton { label: "Lưu cấu hình ra file"; enabled: !ProductionStudio.busy; clicked => { ProductionStudio.export-settings(); } }
     }
-
-    StudioBrowserPanel { }
-
-    if ProductionStudio.confirm-start: StudioCard {
-        Text { text: I18n.t("nativeStudio.startConfirm"); color: Floword.warning; wrap: word-wrap; }
-        HorizontalLayout {
-            StudioButton { label: I18n.t("nativeStudio.confirm"); primary: true; enabled: !ProductionStudio.busy; clicked => { ProductionStudio.start-run(); } }
-            StudioButton { label: I18n.t("common.cancel"); enabled: !ProductionStudio.busy; clicked => { ProductionStudio.confirm-start = false; } }
-            Rectangle { horizontal-stretch: 1; }
-        }
-    }
-    if ProductionStudio.status != "": StudioCard {
-        Text { text: ProductionStudio.status; color: ProductionStudio.uncertain ? Floword.warning : Floword.muted; wrap: word-wrap; }
-    }
+    if ProductionStudio.workflow-ids.length == 0: Text { text: "Chọn Page/hồ sơ Nexora để tải quy trình. Chưa có quy trình được xác nhận từ BE nên chưa thể gửi chạy."; color: Floword.warning; wrap: word-wrap; }
+    if ProductionStudio.anchor-label != "": Text { text: "Ảnh được giữ trong tác vụ native tại máy. Promax điều phối từng công đoạn; Concat chuyển dữ liệu ảnh tới đúng worker Nexora, không gửi đường dẫn máy như file đã upload cloud."; color: Floword.muted; wrap: word-wrap; }
+    if ProductionStudio.active-run != "" || ProductionStudio.runs-loaded: StudioRunList { }
 }

@@ -1,5 +1,9 @@
 param(
     [switch]$Apply,
+    [switch]$PruneOwnCache,
+    [switch]$PruneMainIncremental,
+    [ValidateRange(1, 2)]
+    [int]$KeepMainConfigurations = 2,
     [string]$OwnedTempRoot,
     [string]$OwnedPackageFile
 )
@@ -32,6 +36,11 @@ if ($OwnedPackageFile) {
 }
 $cutoff = [DateTime]::UtcNow.AddHours(-24)
 $scratchCutoff = [DateTime]::UtcNow.AddHours(-1)
+# Low-disk builds must not retain every recent preview/failed configuration.
+# This changes only regenerable caches owned by Concat, never dependencies.
+$driveRoot = [IO.Path]::GetPathRoot($cleanupRoot)
+$lowDisk = ([IO.DriveInfo]::new($driveRoot)).AvailableFreeSpace -lt 8GB
+$pruneOwn = $PruneOwnCache.IsPresent -or $lowDisk
 
 function Assert-CleanupPath([string]$Path) {
     $resolved = [IO.Path]::GetFullPath($Path)
@@ -58,7 +67,7 @@ function Assert-CleanupPath([string]$Path) {
 # Never race a compiler or native test process, including another terminal.
 $busy = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
     $_.ProcessName -in @('cargo','rustc','link','cl','cmake','ninja') -or
-    $_.ProcessName -match '^concat_(agent|project|host|studio)-[0-9a-f]+$'
+    $_.ProcessName -match '^(concat_(agent|project|host|studio)|live_speech)-[0-9a-f]+$'
 })
 if ($busy.Count) { Write-Host '[cleanup] skipped: a compiler/test process is active'; return }
 
@@ -68,13 +77,33 @@ foreach ($profile in @('debug','quick')) {
     $profileRoot = Join-Path $targetRoot $profile
     $incremental = Join-Path $profileRoot 'incremental'
     if (Test-Path -LiteralPath $incremental) {
-        # Keep the two newest Concat configurations plus every recent one.
+        # Keep the requested number of newest Concat configurations plus recent ones.
         # Third-party incremental caches are left alone.
         $dirs = @(Get-ChildItem -LiteralPath $incremental -Directory -Force |
             Where-Object { $_.Name -match '^concat-[a-z0-9]+$' } |
             Sort-Object LastWriteTimeUtc -Descending)
-        for ($i=2; $i -lt $dirs.Count; $i++) {
-            if ($dirs[$i].LastWriteTimeUtc -lt $cutoff) { $candidates.Add($dirs[$i].FullName) }
+        for ($i=$KeepMainConfigurations; $i -lt $dirs.Count; $i++) {
+            if ($pruneOwn -or $dirs[$i].LastWriteTimeUtc -lt $cutoff) { $candidates.Add($dirs[$i].FullName) }
+        }
+        if ($PruneMainIncremental) {
+            # Explicitly discard only this application's regenerable incremental
+            # state, including interrupted *-working sessions. Keep EXE, linked
+            # libraries and every dependency. Busy-process and Cargo-lock guards
+            # above/below still apply.
+            foreach ($dir in $dirs) {
+                if (!$candidates.Contains($dir.FullName)) { $candidates.Add($dir.FullName) }
+            }
+        }
+        if ($pruneOwn) {
+            # Preview caches are test-only; quick-profile editor caches cannot
+            # produce the supported Windows native executable. Keep debug's two
+            # latest main configurations to avoid rebuilding all dependencies.
+            foreach ($dir in @(Get-ChildItem -LiteralPath $incremental -Directory -Force)) {
+                if ($dir.Name -match '^concat_studio_preview-[a-z0-9]+$' -or
+                    ($profile -eq 'quick' -and $dir.Name -match '^concat-[a-z0-9]+$')) {
+                    if (!$candidates.Contains($dir.FullName)) { $candidates.Add($dir.FullName) }
+                }
+            }
         }
         # Cargo keeps previous session snapshots inside the same configuration.
         # Keep its newest completed session. Previous completed snapshots are
@@ -104,10 +133,10 @@ foreach ($profile in @('debug','quick')) {
         # Standalone .rcgu.o files are abandoned compiler intermediates; the
         # reusable linked library is .rlib. Do not remove objects in build/.
         $abandonedObject = $file.Name -match '^concat-[0-9a-f]{16}\..+\.rcgu\.o$' -and
-            $file.LastWriteTimeUtc -lt $scratchCutoff
+            ($pruneOwn -or $file.LastWriteTimeUtc -lt $scratchCutoff)
         # Test executables/symbols are disposable after the result is known.
         # Keep .rlib/.rmeta dependencies and the runnable GUI concat.exe.
-        $testOutput = $file.Name -match '^concat_(agent|project|host|studio)-[0-9a-f]{16}\.(exe|pdb)$'
+        $testOutput = $file.Name -match '^(concat_(agent|project|host|studio)|live_speech)-[0-9a-f]{16}\.(exe|pdb)$'
         if ($oldOwnLibrary -or $abandonedObject -or $testOutput) { $candidates.Add($file.FullName) }
     }
     foreach ($dir in @(Get-ChildItem -LiteralPath $deps -Directory -Force)) {

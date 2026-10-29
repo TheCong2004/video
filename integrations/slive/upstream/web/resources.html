@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Slive Vip Studio</title>
+  <link rel="shortcut icon" href="favicon.png" type="image/png">
+  <script>window.location.replace('/dashboard.html');</script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --cyan: #08d7e5;
+      --blue: #11b4f5;
+      --green: #12d79d;
+      --panel: #0c1527;
+      --line: #18324b;
+      --muted: #8194ad;
+      --danger: #dc2626;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 18% 16%, #052532, #050a17 48%, #16091e);
+      color: #eef6ff;
+      font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      height: 68px;
+      padding: 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #070d1a;
+      border-bottom: 1px solid #15334a;
+    }
+
+    .brand,
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--cyan);
+    }
+
+    .vip {
+      padding: 7px 11px;
+      border-radius: 7px;
+      background: #ff0669;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .top-btn {
+      border: 1px solid #21354d;
+      background: #101a2b;
+      color: #dce9f8;
+      border-radius: 9px;
+      padding: 10px 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .top-btn.resource {
+      border: 0;
+      background: linear-gradient(90deg, var(--green), #0cbcae);
+      color: #001a19;
+    }
+
+    .top-btn:hover {
+      filter: brightness(1.12);
+    }
+
+    .workspace {
+      min-height: calc(100vh - 68px);
+      padding: 24px;
+      display: grid;
+      place-items: center;
+    }
+
+    .empty {
+      width: min(760px, 94vw);
+      padding: 38px;
+      text-align: center;
+      border: 1px solid #17344c;
+      border-radius: 18px;
+      background: #091324cc;
+    }
+
+    .empty h1 {
+      margin: 0 0 10px;
+      font-size: 26px;
+    }
+
+    .empty p {
+      color: var(--muted);
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .empty-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .empty .open {
+      border: 0;
+      border-radius: 10px;
+      padding: 13px 22px;
+      background: linear-gradient(90deg, var(--cyan), var(--blue));
+      color: #00111d;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .empty .open.secondary {
+      background: #263247;
+      color: #dbe7f5;
+    }
+
+    .empty .open:hover {
+      filter: brightness(1.1);
+    }
+
+    /* Modal dialog */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: #030711d9;
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s;
+    }
+
+    .overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      width: min(720px, 94vw);
+      background: var(--panel);
+      border: 1px solid #14566b;
+      border-radius: 18px;
+      box-shadow: 0 25px 80px #000b;
+      overflow: hidden;
+      transform: translateY(10px) scale(.985);
+      transition: .2s;
+    }
+
+    .overlay.open .modal {
+      transform: none;
+    }
+
+    .modal-head {
+      padding: 22px 26px 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .modal-head h2 {
+      margin: 0 0 7px;
+      font-size: 25px;
+    }
+
+    .sub {
+      color: #91a2ba;
+    }
+
+    .close {
+      width: 34px;
+      height: 34px;
+      border: 1px solid #713044;
+      border-radius: 9px;
+      background: #321221;
+      color: #ffd0dc;
+      font-size: 20px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 8px 26px 26px;
+    }
+
+    .bundle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px;
+      margin: 10px 0;
+      border: 1px solid #1c2c43;
+      border-radius: 12px;
+      background: #081222;
+      transition: border-color .2s;
+    }
+
+    .bundle.active {
+      border-color: rgba(8, 215, 229, 0.45);
+      background: #0b1a2e;
+    }
+
+    .bundle b {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .meta {
+      color: #7f91aa;
+      font-size: 12px;
+    }
+
+    .badge {
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: #2a3445;
+      color: #b6c0cf;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge.ok {
+      background: #063f37;
+      color: #24e1b5;
+      border: 1px solid rgba(36, 225, 181, 0.3);
+    }
+
+    .badge.running {
+      background: #083648;
+      color: var(--cyan);
+      border: 1px solid rgba(8, 215, 229, 0.4);
+    }
+
+    .badge.canceled {
+      background: #3a151f;
+      color: #ff859f;
+      border: 1px solid rgba(255, 133, 159, 0.3);
+    }
+
+    .progress {
+      height: 12px;
+      background: #1b2639;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-top: 22px;
+    }
+
+    .bar {
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--blue), var(--green));
+      transition: width .25s ease-out;
+    }
+
+    .line {
+      display: flex;
+      justify-content: space-between;
+      color: #98abc3;
+      margin: 9px 0 12px;
+    }
+
+    .error {
+      color: #ff6f91;
+      min-height: 20px;
+      margin-bottom: 8px;
+    }
+
+    .metrics-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 14px;
+      margin: 8px 0 12px;
+      background: #091322;
+      border: 1px solid #1a2c44;
+      border-radius: 10px;
+      font-size: 12.5px;
+      color: #93a6be;
+    }
+
+    .metric-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .metric-item .m-label {
+      color: #8295ad;
+    }
+
+    .metric-item .m-val {
+      color: #dbe9f8;
+      font-weight: 700;
+    }
+
+    .metric-item .m-val.cyan {
+      color: var(--cyan);
+    }
+
+    .metric-item .m-val.green {
+      color: var(--green);
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .buttons button {
+      border: 0;
+      border-radius: 11px;
+      padding: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      font-size: 13.5px;
+      transition: filter .15s;
+    }
+
+    .buttons button:hover {
+      filter: brightness(1.1);
+    }
+
+    .later {
+      background: #263247;
+      color: #dbe7f5;
+    }
+
+    .action {
+      background: linear-gradient(90deg, var(--cyan), var(--blue));
+      color: #00111d;
+    }
+
+    .btn-danger {
+      background: var(--danger) !important;
+      color: #ffffff !important;
+    }
+
+    .buttons button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .hint {
+      margin-top: 16px;
+      color: #72849c;
+      font-size: 12px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    @keyframes spin {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 700px) {
+      .user-label {
+        display: none;
+      }
+
+      .topbar {
+        padding: 0 10px;
+      }
+
+      .workspace {
+        padding: 14px;
+      }
+
+      .modal-body {
+        padding: 8px 18px 20px;
+      }
+
+      .modal-head {
+        padding: 18px;
+      }
+
+      .buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .metrics-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+    }
+  </style>
+<script data-agency-branding>
+document.addEventListener('DOMContentLoaded', async () => {
+  if (location.protocol === 'file:') return;
+  try {
+    const response = await fetch('/api/agency/site', {cache: 'no-store'});
+    const site = await response.json();
+    if (!response.ok) throw new Error(site.error || 'Không tải được cấu hình đại lý.');
+    const name = site.name || site.branding?.siteName;
+    if (name) {
+      document.title = name;
+      document.querySelectorAll('[data-agency-name], .logo-title, .brand-name, .auth-product-title').forEach(el => { el.textContent = name; });
+    }
+    const logo = site.logo || site.branding?.logoUrl;
+    if (logo) {
+      document.querySelectorAll('img.brand-mark, img[data-agency-logo], .navbar-brand img').forEach(el => { el.src = logo; el.alt = name || 'Logo'; });
+      document.querySelectorAll('link[rel~="icon"]').forEach(el => { el.href = site.favicon || logo; });
+      const title = document.querySelector('.logo-title');
+      if (title && !document.querySelector('img[data-agency-logo]')) {
+        const image = document.createElement('img');
+        image.src = logo; image.alt = name || 'Logo'; image.dataset.agencyLogo = '';
+        image.style.cssText = 'display:block;width:64px;height:64px;object-fit:contain;margin:0 auto 12px';
+        title.before(image);
+      }
+    }
+    if (/^#[0-9a-f]{6}$/i.test(site.theme?.primaryColor || '')) document.documentElement.style.setProperty('--agency-primary', site.theme.primaryColor);
+  } catch (error) {
+    console.warn('Không tải được cấu hình thương hiệu đại lý:', error);
+  }
+});
+</script>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="favicon.png"
+        style="width: 26px; height: 26px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 0 8px rgba(0, 233, 255, 0.4));"
+        alt="Logo">
+      <span class="logo">Slive Vip</span>
+      <span class="vip">LIVE VIP</span>
+    </div>
+    <div class="actions">
+      <span class="user-label" id="username">Đang tải tài khoản...</span>
+      <button class="top-btn resource" type="button" onclick="openResources()">⬇ Tài nguyên</button>
+      <button class="top-btn" type="button" onclick="logout()">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="empty">
+      <h1>Slive Vip Studio</h1>
+      <p>Bạn đã đăng nhập thành công. Hãy cài bộ tài nguyên AI để sử dụng Avatar realtime, TTS và các tính năng Live
+        VIP.</p>
+      <div class="empty-actions">
+        <button class="open" type="button" onclick="openResources()">XEM VÀ CÀI TÀI NGUYÊN</button>
+        <button class="open secondary" type="button" onclick="goToDashboard()">VÀO MÀN HÌNH CHÍNH</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="overlay open" id="resource-modal" role="dialog" aria-modal="true" aria-labelledby="resource-title">
+    <section class="modal">
+      <div class="modal-head">
+        <div>
+          <h2 id="resource-title">⬇ File tài nguyên Slive Vip</h2>
+          <div class="sub">Bạn có thể chọn “Đóng” và mở lại từ nút Tài nguyên trên header.</div>
+        </div>
+        <button class="close" type="button" onclick="goToDashboard()" aria-label="Đóng">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="bundles"></div>
+        <div class="progress">
+          <div class="bar" id="bar"></div>
+        </div>
+        <div class="line">
+          <span id="status">Đang kiểm tra...</span>
+          <b id="percent">0%</b>
+        </div>
+        <div class="metrics-row" id="metrics-row">
+          <div class="metric-item">
+            <span class="m-label">Dung lượng:</span>
+            <b class="m-val" id="metric-size">-- / --</b>
+          </div>
+          <div class="metric-item">
+            <span class="m-label">Tốc độ:</span>
+            <b class="m-val cyan" id="metric-speed">-- MB/s</b>
+          </div>
+          <div class="metric-item">
+            <span class="m-label">Thời gian còn lại:</span>
+            <b class="m-val green" id="metric-eta">--</b>
+          </div>
+        </div>
+        <div class="error" id="error"></div>
+        <div class="buttons" id="buttons">
+          <button class="cancel-btn" id="resource-cancel-btn" type="button" onclick="handleCancel()"
+            style="display:none; background:#ef4444; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer;">⏹
+            HỦY TẢI</button>
+          <button class="action" id="action" type="button" onclick="goToDashboard()">ĐÓNG</button>
+        </div>
+        <div class="hint">⚠️ Vui lòng không đóng app khi đang tải tài nguyên. Bạn có thể bấm "ĐÓNG" để vào màn hình
+          chính trong khi tải ngầm.</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    let state = {};
+    let autoStarted = false;
+    let userCanceled = false;
+
+    // Format dung lượng bytes
+    const size = n => {
+      if (!n) return 'Kích thước theo máy chủ';
+      const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+      let i = 0;
+      n = Number(n);
+      while (n >= 1024 && i < u.length - 1) {
+        n /= 1024;
+        i++;
+      }
+      return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
+    };
+
+    async function request(url, opt) {
+      const r = await fetch(url, opt);
+      const p = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(p.error || 'Yêu cầu thất bại');
+      return p;
+    }
+
+    function openResources() {
+      $('resource-modal').classList.add('open');
+    }
+
+    function closeResources() {
+      $('resource-modal').classList.remove('open');
+    }
+
+    function render(s) {
+      state = s;
+      const p = s.progress || {};
+      const ready = !!s.installed && !p.running;
+      const isRunning = !!p.running;
+
+      // 1. Tự động tải tài nguyên khi mở app lần đầu
+      checkAutoStart(s);
+
+      // 2. Chạy lần lượt từng gói một: hiển thị trạng thái riêng từng gói
+      $('bundles').innerHTML = (s.bundles || []).map(b => {
+        const ok = !!b.installed;
+        const status = b.status || (ok ? 'installed' : (isRunning ? 'downloading' : 'pending'));
+        const isCurDownloading = status === 'downloading';
+        const isExtracting = status === 'extracting';
+        const isCanceled = status === 'canceled';
+        const bPercent = ok ? 100 : Math.min(100, Math.max(0, b.percent || 0));
+
+        let badgeClass = 'badge';
+        let badgeText = 'Chờ thiết lập';
+        if (ok) {
+          badgeClass += ' ok';
+          badgeText = '✓ Hoàn thành';
+        } else if (isExtracting || isCurDownloading) {
+          badgeClass += ' running';
+          badgeText = `⚡ Đang thiết lập ${bPercent}%`;
+        } else if (isCanceled) {
+          badgeClass += ' canceled';
+          badgeText = '✕ Đã dừng';
+        } else {
+          badgeText = 'Chờ thiết lập';
+        }
+
+        let metaText = size(b.size);
+        if (isCurDownloading && b.downloaded > 0) {
+          metaText = `${size(b.downloaded)} / ${size(b.size)}`;
+          if (b.speed_text) {
+            metaText += ` · ${b.speed_text}`;
+          }
+        }
+
+        return `
+      <div class="bundle ${isCurDownloading ? 'active' : ''}">
+        <div>
+          <b>${b.name}</b>
+          <span class="meta">${metaText}</span>
+        </div>
+        <span class="${badgeClass}">${badgeText}</span>
+      </div>
+    `;
+      }).join('');
+
+      // 3. Tiến trình tổng
+      const percent = Math.min(100, Math.max(0, p.percent || (ready ? 100 : 0)));
+      $('bar').style.width = `${percent}%`;
+      $('percent').textContent = `${percent}%`;
+      $('status').textContent = p.current || (ready ? 'Đã tải xong toàn bộ tài nguyên. Vui lòng đóng app và mở lại.' : 'Sẵn sàng tải');
+      $('error').textContent = p.error || '';
+
+      // 4. Hiển thị thông số tải: Dung lượng, Tốc độ, Thời gian dự kiến (thay đổi linh hoạt theo tốc độ thực tế)
+      const downloaded = p.downloaded || 0;
+      const total = p.total || 0;
+
+      if (total > 0) {
+        $('metric-size').textContent = `${size(downloaded)} / ${size(total)}`;
+      } else {
+        $('metric-size').textContent = ready ? size(downloaded || total) : '-- / --';
+      }
+
+      // Tốc độ tải (MB/s)
+      if (isRunning) {
+        $('metric-speed').textContent = (p.speed_text && p.speed_text !== '-- MB/s')
+          ? p.speed_text
+          : (p.speed_mb > 0 ? `${p.speed_mb.toFixed(1)} MB/s` : 'Đang tính...');
+      } else {
+        $('metric-speed').textContent = ready ? 'Hoàn tất' : '-- MB/s';
+      }
+
+      // Thời gian dự kiến (thay đổi theo tốc độ tải)
+      if (isRunning) {
+        let etaStr = p.eta_text || '';
+        if ((!etaStr || etaStr === 'Đang tính toán...' || etaStr === '--') && (p.speed_mb > 0.05 || (p.speed_text && parseFloat(p.speed_text) > 0.05)) && total > downloaded) {
+          const speedVal = p.speed_mb > 0.05 ? p.speed_mb : parseFloat(p.speed_text);
+          const remainingBytes = total - downloaded;
+          const speedBytesPerSec = speedVal * 1024 * 1024;
+          const sec = Math.round(remainingBytes / speedBytesPerSec);
+          if (sec > 0) {
+            if (sec < 60) {
+              etaStr = `Khoảng ${sec} giây`;
+            } else {
+              const mins = Math.floor(sec / 60);
+              const remSecs = sec % 60;
+              etaStr = `Khoảng ${mins} phút ${remSecs > 0 ? remSecs + ' giây' : ''}`;
+            }
+          }
+        }
+        $('metric-eta').textContent = etaStr || 'Đang tính toán...';
+      } else {
+        $('metric-eta').textContent = ready ? 'Hoàn thành' : '--';
+      }
+
+      // 5. Các nút hành động: hỗ trợ HỦY TẢI và ĐÓNG (tải ngầm)
+      const buttonsEl = $('buttons');
+      if (isClosedAfterInstall) {
+        buttonsEl.innerHTML = `
+      <button class="action" id="action-btn" type="button" disabled style="opacity:0.6; cursor:not-allowed;"><span style="display:inline-block;width:14px;height:14px;border:2px solid #000;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle;"></span> ĐANG ĐÓNG APP...</button>
+    `;
+        return;
+      }
+      if (isRunning) {
+        buttonsEl.innerHTML = `
+      <button class="btn-danger" type="button" onclick="handleCancel()" style="background:#ef4444; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer;">⏹ HỦY TẢI</button>
+      <button class="action" type="button" onclick="goToDashboard()">ĐÓNG</button>
+    `;
+      } else if (ready) {
+        buttonsEl.innerHTML = `
+      <button class="action" id="action-btn" type="button" onclick="goToDashboard()">ĐÓNG</button>
+    `;
+      } else {
+        buttonsEl.innerHTML = `
+      <button class="btn-primary" type="button" onclick="startInstall()" style="background:#00e9ff; color:#050b14; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer;">🔄 TẢI LẠI</button>
+      <button class="action" id="action-btn" type="button" onclick="goToDashboard()">ĐÓNG</button>
+    `;
+      }
+    }
+
+    let isClosedAfterInstall = false;
+
+    // Tự động tải tài nguyên khi vào màn hình lần đầu
+    async function checkAutoStart(data) {
+      if (autoStarted || userCanceled) return;
+      if (data && !data.installed && (!data.progress || !data.progress.running) && (!data.progress || !data.progress.error)) {
+        autoStarted = true;
+        try {
+          render(await request('/api/resources/install', { method: 'POST' }));
+        } catch (e) {
+          console.warn('Auto start failed:', e);
+        }
+      }
+    }
+
+    async function startInstall() {
+      userCanceled = false;
+      try {
+        render(await request('/api/resources/install', { method: 'POST' }));
+      } catch (err) {
+        $('error').textContent = err.message;
+      }
+    }
+
+    // Xử lý nút HỦY TẢI
+    async function handleCancel() {
+      userCanceled = true;
+      try {
+        render(await request('/api/resources/cancel', { method: 'POST' }));
+      } catch (err) {
+        $('error').textContent = err.message;
+      }
+    }
+
+    // Vào màn hình chính (tải vẫn tiếp tục diễn ra ngầm)
+    function handleLater() {
+      window.location.href = '/dashboard.html';
+    }
+
+    function goToDashboard() {
+      const btn = $('action-btn') || document.querySelector('.buttons .action');
+      const closeX = document.querySelector('.modal-head .close');
+
+      if (state.ready || (state.progress && state.progress.percent >= 100)) {
+        if (isClosedAfterInstall) return;
+        isClosedAfterInstall = true;
+        if (btn) {
+          btn.disabled = true;
+          btn.style.opacity = '0.6';
+          btn.style.cursor = 'not-allowed';
+          btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid #000;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle;"></span> ĐANG ĐÓNG APP...';
+        }
+        if (closeX) {
+          closeX.disabled = true;
+          closeX.style.pointerEvents = 'none';
+          closeX.style.opacity = '0.5';
+        }
+        request('/api/app/exit', { method: 'POST' }).finally(() => {
+          try { window.close(); } catch (e) { }
+        });
+        return;
+      }
+
+      // Đang tải ngầm, vào dashboard
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid #000;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle;"></span> Đang đóng...';
+      }
+      if (closeX) closeX.style.pointerEvents = 'none';
+      window.location.href = '/dashboard.html';
+    }
+
+    async function launchApp() {
+      try {
+        const btn = $('action-btn');
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'ĐANG MỞ LẠI SLIVE VIP...';
+        }
+        await request('/api/resources/launch', { method: 'POST' });
+        try { window.close(); } catch (e) { }
+      } catch (e) {
+        $('error').textContent = e.message;
+      }
+    }
+
+    // Cảnh báo người dùng khi tắt trình duyệt / tab trong lúc tải
+    window.addEventListener('beforeunload', (event) => {
+      if (state.progress && state.progress.running) {
+        event.preventDefault();
+        event.returnValue = 'Quá trình tải tài nguyên đang diễn ra. Bạn có chắc muốn rời đi?';
+        return event.returnValue;
+      }
+    });
+
+    async function logout() {
+      try {
+        await request('/api/auth/logout', { method: 'POST' });
+      } finally {
+        location.href = '/login.html';
+      }
+    }
+
+    async function poll() {
+      try {
+        const data = await request('/api/resources/status');
+        render(data);
+      } catch (e) {
+        $('error').textContent = e.message;
+      }
+      setTimeout(poll, 800);
+    }
+
+    // Lấy thông tin tài khoản người dùng
+    request('/api/auth/state').then(p => {
+      $('username').textContent = (p.user || p.profile || {}).username || p.username || 'Tài khoản Live VIP';
+    }).catch(() => { });
+
+    poll();
+  </script>
+</body>
+
+</html>

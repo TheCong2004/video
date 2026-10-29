@@ -93,6 +93,54 @@ struct Session {
     origin: String,
     #[serde(default)]
     subject: Option<String>,
+    #[serde(default)]
+    device_id: Option<String>,
+}
+
+// Worker secrets are intentionally not Debug/Serialize and stay inside this crate.
+pub(crate) struct WorkerAuth {
+    pub(crate) origin: String,
+    pub(crate) access: String,
+    pub(crate) tenant_id: String,
+    pub(crate) user_id: String,
+    pub(crate) device_id: String,
+}
+
+fn new_device_id() -> String {
+    let mut bytes = rand::random::<[u8; 16]>();
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    format!(
+        "{}-{}-{}-{}-{}",
+        &hex[..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..]
+    )
+}
+
+fn valid_device_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 36
+        && bytes.iter().enumerate().all(|(i, b)| {
+            if matches!(i, 8 | 13 | 18 | 23) {
+                *b == b'-'
+            } else {
+                b.is_ascii_hexdigit()
+            }
+        })
+        && bytes[14] == b'4'
+        && matches!(bytes[19], b'8' | b'9' | b'a' | b'b')
+}
+
+fn require_device_binding(session: &Session, requested: &str) -> Result<(), AuthError> {
+    if valid_device_id(requested) && session.device_id.as_deref() == Some(requested) {
+        Ok(())
+    } else {
+        Err(AuthError::InvalidExchange)
+    }
 }
 impl Session {
     fn account(&self) -> Account {
@@ -440,6 +488,11 @@ fn parse_session(data: &Value, origin: &str) -> Result<Session, AuthError> {
         roles,
         origin: origin.into(),
         subject: None,
+        device_id: match principal.get("deviceId") {
+            None | Some(Value::Null) => None,
+            Some(Value::String(id)) if valid_device_id(id) => Some(id.clone()),
+            _ => return Err(AuthError::Rejected),
+        },
     })
 }
 
@@ -686,12 +739,15 @@ impl AuthManager {
         if cancelled.load(Ordering::Acquire) {
             return Err(AuthError::Cancelled);
         }
+        // Per-login UUID avoids cross-account device registration collisions;
+        // the verified server response, not this random ID, grants the binding.
+        let device_id = new_device_id();
         let result = request(
             &self.origin,
             "/api/v1/auth/supabase/exchange",
             None,
             None,
-            &json!({"accessToken":access,"deviceType":"desktop"}),
+            &json!({"accessToken":access,"deviceType":"desktop","deviceId":device_id}),
         )?;
         if result.get("ok").and_then(Value::as_bool) != Some(true) {
             return Err(AuthError::InvalidExchange);
@@ -701,6 +757,7 @@ impl AuthManager {
             &self.origin,
         )
         .map_err(|_| AuthError::InvalidExchange)?;
+        require_device_binding(&session, &device_id)?;
         // The token was already verified by the Promax exchange. Reading the
         // stable issuer/subject here never grants authentication or permission.
         session.subject = access
@@ -738,6 +795,10 @@ impl AuthManager {
                 if session.origin != self.origin
                     || !safe_token(&session.access)
                     || !safe_token(&session.refresh)
+                    || session
+                        .device_id
+                        .as_deref()
+                        .is_some_and(|id| !valid_device_id(id))
                 {
                     return Err(AuthError::Storage);
                 }
@@ -765,7 +826,10 @@ impl AuthManager {
         match &*state {
             State::SignedIn(s)
                 if field(&verified, "userId")? == s.user
-                    && field(&verified, "tenantId")? == s.tenant =>
+                    && field(&verified, "tenantId")? == s.tenant
+                    && (s.device_id.is_none()
+                        || verified.get("deviceId").and_then(Value::as_str)
+                            == s.device_id.as_deref()) =>
             {
                 Ok(s.account())
             }
@@ -796,7 +860,10 @@ impl AuthManager {
                     }
                     let mut next =
                         parse_session(v.get("data").ok_or(AuthError::Rejected)?, &self.origin)?;
-                    if next.user != session.user || next.tenant != session.tenant {
+                    if next.user != session.user
+                        || next.tenant != session.tenant
+                        || next.device_id != session.device_id
+                    {
                         return Err(AuthError::Rejected);
                     }
                     next.subject = session.subject.clone();
@@ -819,6 +886,33 @@ impl AuthManager {
             _ => Err(WorkflowError::Authentication),
         }
     }
+    /// Fresh internal worker credentials require an explicitly verified device binding.
+    pub(crate) fn worker_auth(&self) -> Result<WorkerAuth, WorkflowError> {
+        // Use the same serialized rotating-refresh path as ordinary API calls.
+        let _client = self.client()?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| WorkflowError::Authentication)?;
+        match &*state {
+            State::SignedIn(session) if session.expires > now() + 10 => {
+                let device_id = session
+                    .device_id
+                    .as_deref()
+                    .filter(|id| valid_device_id(id))
+                    .ok_or(WorkflowError::Authentication)?;
+                Ok(WorkerAuth {
+                    origin: self.origin.clone(),
+                    access: session.access.clone(),
+                    tenant_id: session.tenant.clone(),
+                    user_id: session.user.clone(),
+                    device_id: device_id.into(),
+                })
+            }
+            _ => Err(WorkflowError::Authentication),
+        }
+    }
+
     /// Clear local session first, then request server revocation exactly once.
     /// False means remote revocation was not confirmed; local logout still occurred.
     pub fn logout(&self) -> Result<bool, AuthError> {
@@ -1173,10 +1267,139 @@ mod tests {
             roles: vec!["member".into()],
             origin: origin.into(),
             subject: None,
+            device_id: None,
         }
     }
     fn response(user: &str) -> Value {
         json!({"ok":true,"data":{"accessToken":"rotated-fixture-access","refreshToken":"rotated-fixture-refresh","expiresAt":chrono::DateTime::from_timestamp(now()+3600,0).unwrap().to_rfc3339(),"principal":{"userId":user,"tenantId":"fixture-tenant","roles":["member"]}}})
+    }
+    #[test]
+    fn device_ids_are_independent_v4_uuids() {
+        let first = new_device_id();
+        let second = new_device_id();
+        assert_ne!(first, second);
+        assert!(valid_device_id(&first));
+        assert!(valid_device_id(&second));
+        assert!(!valid_device_id("unverified-device"));
+    }
+    #[test]
+    fn exchange_requires_exact_requested_device_binding() {
+        let requested = "11111111-1111-4111-8111-111111111111";
+        for returned in [None, Some("22222222-2222-4222-8222-222222222222")] {
+            let mut session =
+                parse_session(&response("fixture-user")["data"], "https://promax.example").unwrap();
+            session.device_id = returned.map(str::to_owned);
+            assert!(require_device_binding(&session, requested).is_err());
+        }
+        let mut session =
+            parse_session(&response("fixture-user")["data"], "https://promax.example").unwrap();
+        session.device_id = Some(requested.into());
+        assert!(require_device_binding(&session, requested).is_ok());
+    }
+    #[test]
+    fn legacy_session_can_use_client_but_never_worker_credentials() {
+        let root = temporary();
+        let manager = AuthManager::new("https://promax.example", &root).unwrap();
+        *manager.state.lock().unwrap() = State::SignedIn(token_response(
+            &manager.origin,
+            "fixture-user",
+            now() + 3600,
+        ));
+        assert!(manager.client().is_ok());
+        assert!(matches!(
+            manager.worker_auth(),
+            Err(WorkflowError::Authentication)
+        ));
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn worker_credentials_are_verified_bound_session_fields() {
+        let root = temporary();
+        let manager = AuthManager::new("https://promax.example", &root).unwrap();
+        let mut session = token_response(&manager.origin, "fixture-user", now() + 3600);
+        session.device_id = Some("11111111-1111-4111-8111-111111111111".into());
+        *manager.state.lock().unwrap() = State::SignedIn(session);
+        let worker = manager.worker_auth().unwrap();
+        assert_eq!(worker.origin, manager.origin);
+        assert_eq!(worker.access, "fixture-access");
+        assert_eq!(worker.user_id, "fixture-user");
+        assert_eq!(worker.tenant_id, "fixture-tenant");
+        assert_eq!(worker.device_id, "11111111-1111-4111-8111-111111111111");
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn exchange_sends_device_and_rejects_a_different_returned_device() {
+        let mut reply = response("fixture-user");
+        reply["data"]["principal"]["deviceId"] = json!("22222222-2222-4222-8222-222222222222");
+        let (origin, worker) = fixture(reply, "200 OK");
+        let root = temporary();
+        let manager = AuthManager::new(&origin, &root).unwrap();
+        manager.set_remember(false).unwrap();
+        assert_eq!(
+            manager.accept_identity(
+                &json!({"access_token":"identity-fixture-token"}),
+                &AtomicBool::new(false)
+            ),
+            Err(AuthError::InvalidExchange)
+        );
+        let request = worker.join().unwrap();
+        let body: Value = serde_json::from_str(request.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+        assert!(valid_device_id(body["deviceId"].as_str().unwrap()));
+        assert_eq!(body["deviceType"], "desktop");
+        assert!(!manager.path.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn refresh_cannot_change_a_verified_device() {
+        for returned in [None, Some("22222222-2222-4222-8222-222222222222")] {
+            let mut reply = response("fixture-user");
+            if let Some(device) = returned {
+                reply["data"]["principal"]["deviceId"] = json!(device);
+            }
+            let (origin, worker) = fixture(reply, "200 OK");
+            let root = temporary();
+            let manager = AuthManager::new(&origin, &root).unwrap();
+            manager.set_remember(false).unwrap();
+            let mut session = token_response(&origin, "fixture-user", now() + 30);
+            session.device_id = Some("11111111-1111-4111-8111-111111111111".into());
+            *manager.state.lock().unwrap() = State::SignedIn(session);
+            assert!(matches!(
+                manager.client(),
+                Err(WorkflowError::Authentication)
+            ));
+            worker.join().unwrap();
+            assert!(matches!(
+                manager.worker_auth(),
+                Err(WorkflowError::Authentication)
+            ));
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+    #[test]
+    fn worker_refresh_preserves_verified_device_binding() {
+        let device = "11111111-1111-4111-8111-111111111111";
+        let mut reply = response("fixture-user");
+        reply["data"]["principal"]["deviceId"] = json!(device);
+        let (origin, worker) = fixture(reply, "200 OK");
+        let root = temporary();
+        let manager = AuthManager::new(&origin, &root).unwrap();
+        manager.set_remember(false).unwrap();
+        let mut session = token_response(&origin, "fixture-user", now() + 30);
+        session.device_id = Some(device.into());
+        *manager.state.lock().unwrap() = State::SignedIn(session);
+        let auth = manager.worker_auth().unwrap();
+        assert_eq!(auth.device_id, device);
+        assert_eq!(auth.access, "rotated-fixture-access");
+        worker.join().unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn persisted_legacy_session_defaults_to_no_worker_device() {
+        let session = token_response("https://promax.example", "fixture-user", now() + 3600);
+        let mut value = serde_json::to_value(session).unwrap();
+        value.as_object_mut().unwrap().remove("device_id");
+        let restored: Session = serde_json::from_value(value).unwrap();
+        assert!(restored.device_id.is_none());
     }
     fn fixture(reply: Value, status: &'static str) -> (String, std::thread::JoinHandle<String>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -1204,6 +1427,25 @@ mod tests {
                         .unwrap_or(0);
                     if bytes.len() >= end + 4 + length {
                         break;
+                    }
+                }
+            }
+            // Model the real exchange server echoing an explicitly registered
+            // device, while explicit mismatch fixtures remain unchanged.
+            let mut reply = reply;
+            if bytes.starts_with(b"POST /api/v1/auth/supabase/exchange ") {
+                let text = String::from_utf8_lossy(&bytes);
+                let input: Value =
+                    serde_json::from_str(text.split("\r\n\r\n").nth(1).unwrap_or("{}")).unwrap();
+                if let Some(principal) = reply
+                    .get_mut("data")
+                    .and_then(|v| v.get_mut("principal"))
+                    .and_then(Value::as_object_mut)
+                {
+                    if !principal.contains_key("deviceId") {
+                        if let Some(device) = input.get("deviceId") {
+                            principal.insert("deviceId".into(), device.clone());
+                        }
                     }
                 }
             }

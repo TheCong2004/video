@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Floword } from "../theme/floword.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField, StudioStatus } from "studio-chrome.slint";
+import { StudioLive } from "studio-live.slint";
+import { StudioOpenTalking } from "studio-opentalking.slint";
+
+// Deployment setup only. LIVE uploads connect on demand, without technical fields.
+export component StudioVoiceServicePanel inherits StudioCard {
+    in property <length> text-width: 500px;
+    StudioHeading { title: "Dịch vụ giọng mẫu · Dành cho người quản trị"; }
+    Text { width: root.text-width; text: "Thiết lập một lần cho phiên làm việc. Người LIVE chỉ cần chọn Giọng mẫu và tải tiếng của mình. Dịch vụ phải cài và chạy VieNeu; localhost mặc định không tự tải model hoặc thuê máy chủ."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+    if !StudioLive.voice-server-enabled: VerticalLayout {
+        min-width: 0px; spacing: 8px;
+        StudioField { label: "Địa chỉ dịch vụ giọng · HTTPS / SSH tunnel"; value: StudioLive.voice-server-url; enabled: !StudioLive.voice-server-busy; edited(value) => { StudioLive.voice-server-url = value; } }
+        StudioField { label: "Mã truy cập HTTPS · localhost có thể để trống"; secret: true; value: StudioLive.voice-server-token; enabled: !StudioLive.voice-server-busy; edited(value) => { StudioLive.voice-server-token = value; } }
+        StudioButton { label: StudioLive.voice-server-busy ? "Đang kiểm tra…" : "Kiểm tra dịch vụ giọng"; enabled: !StudioLive.voice-server-busy && !StudioLive.is-speaking; clicked => { StudioLive.connect-voice-server(); } }
+    }
+    if StudioLive.voice-server-enabled: StudioButton { label: "Đổi dịch vụ giọng"; enabled: !StudioLive.is-speaking && !StudioLive.voice-server-busy; clicked => { StudioLive.disconnect-voice-server(); } }
+    if StudioLive.voice-server-status != "": StudioStatus { label: StudioLive.voice-server-status; }
+}
+
+// Operator-only connection inputs; the creation page contains only media and duration.
+export component StudioMotionServicePanel inherits StudioCard {
+    in property <length> text-width: 500px;
+    StudioHeading { title: "Dịch vụ tạo cử chỉ · Dành cho người quản trị"; }
+    Text { width: root.text-width; text: "Thiết lập EchoMimic tại đây trước khi sử dụng. Người tạo video chỉ cần chọn ảnh, giọng và thời lượng trong Video nhân vật. Thông tin này không xuất hiện trên màn tạo clip; mã truy cập chỉ giữ trong phiên và được kiểm tra khi tạo."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+    StudioField { label: "Địa chỉ dịch vụ · HTTPS / SSH tunnel"; value: StudioOpenTalking.gesture-url; enabled: !StudioOpenTalking.gesture-busy; edited(value) => { StudioOpenTalking.gesture-url = value; } }
+    StudioField { label: "Mã truy cập · chỉ giữ trong phiên"; secret: true; value: StudioOpenTalking.gesture-token; enabled: !StudioOpenTalking.gesture-busy; edited(value) => { StudioOpenTalking.gesture-token = value; } }
+}
+
+// Operator setup lives once in Studio settings, never in the broadcast controls.
+export component StudioLiveServicePanel inherits StudioCard {
+    in property <length> text-width: 500px;
+    StudioHeading { title: "Máy chủ nhân vật · Khớp môi tự động"; }
+    Text { width: root.text-width; text: "Kết nối máy chủ MuseTalk một lần trong phiên. Khi máy chủ xác nhận sẵn sàng, LIVE tự khớp môi cho lời AI; không cần bật thêm công tắc. Video nhân vật và giọng AI được gửi tới máy chủ này khi trả lời."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+    if !StudioLive.lipsync-enabled: VerticalLayout {
+        min-width: 0px; spacing: 8px;
+        StudioField { label: "Địa chỉ máy chủ · HTTPS / SSH tunnel"; value: StudioLive.lipsync-url; enabled: !StudioLive.lipsync-busy && !StudioLive.is-speaking; edited(value) => { StudioLive.lipsync-url = value; } }
+        StudioField { label: "Mã kết nối · chỉ giữ trong phiên"; secret: true; value: StudioLive.lipsync-token; enabled: !StudioLive.lipsync-busy && !StudioLive.is-speaking; edited(value) => { StudioLive.lipsync-token = value; } }
+        StudioButton { label: StudioLive.lipsync-busy ? "Đang xác minh máy chủ…" : "Kết nối máy chủ"; primary: true; enabled: !StudioLive.lipsync-busy && !StudioLive.is-speaking; clicked => { StudioLive.connect-lipsync(); } }
+    }
+    if StudioLive.lipsync-enabled: VerticalLayout {
+        min-width: 0px; spacing: 8px;
+        StudioStatus { label: "Máy chủ sẵn sàng · LIVE tự dùng khớp môi"; tone: 1; }
+        StudioButton { label: "Đổi máy chủ"; compact: true; enabled: !StudioLive.is-speaking; clicked => { StudioLive.disconnect-lipsync(); } }
+    }
+    if StudioLive.lipsync-status != "": StudioStatus { label: StudioLive.lipsync-status; }
+}

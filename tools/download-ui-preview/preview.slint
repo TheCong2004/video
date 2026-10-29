@@ -1,0 +1,18 @@
+import { StudioBulkPanel, StudioBulk, StudioVideoItem } from "../../src/crates/concat/ui/workspace/studio-bulk.slint";
+import { LuxImportDialog, StudioLux, LuxChoice } from "../../src/crates/concat/ui/dialogs/lux-import.slint";
+import { Floword } from "../../src/crates/concat/ui/theme/floword.slint";
+import { Theme } from "../../src/crates/concat/ui/theme/theme.slint";
+import { ScrollView } from "std-widgets.slint";
+import "../../src/crates/concat-text/fonts/HankenGrotesk-Regular.ttf";
+import "../../src/crates/concat-text/fonts/HankenGrotesk-SemiBold.ttf";
+export { StudioBulk, StudioVideoItem, StudioLux, LuxChoice, Theme }
+export component Preview inherits Window {
+    in property <bool> library;
+    in-out property <float> viewport-width: 1080;
+    in-out property <float> viewport-height: 1000;
+    width: root.viewport-width * 1px; height: root.viewport-height * 1px;
+    background: Floword.ground;
+    default-font-family: Theme.font;
+    if root.library: ScrollView { VerticalLayout { padding: 20px; alignment: start; StudioBulkPanel { } } }
+    if !root.library: LuxImportDialog { }
+}

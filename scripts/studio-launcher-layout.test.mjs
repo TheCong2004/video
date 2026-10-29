@@ -31,17 +31,19 @@ test("OpenTalking adapts columns and tabs without using image intrinsic height",
   assert.match(talking, /tab-columns: root\.width < 660px/);
   assert.match(talking, /root\.viewport-height \* 0\.52/);
   assert.match(talking, /image-fit: contain/);
-  assert.match(talking, /max-height: self\.min-height/);
+  assert.match(talking, /height: Math\.clamp\(Math\.min\(self\.width \* 0\.72, root\.viewport-height \* 0\.52\), 240px, 480px\)/);
   assert.match(launcher, /viewport-height: root\.height/);
   assert.match(studio, /viewport-height: root\.viewport-height/);
 });
 
-test("all twelve Studio routes live in the launcher rail below New project", () => {
-  const firstRoute = rail.indexOf("StudioRoute.overview");
+test("main routes live in the rail; advanced routes remain reachable from production", () => {
+  const firstRoute = rail.indexOf("StudioRoute.production");
   assert.ok(firstRoute > rail.indexOf('I18n.t("start.newProject")'));
-  for (const route of ["overview", "production", "opentalking", "workflows", "scripts", "bulk", "jobs", "channels", "publish", "history", "settings", "keys"]) {
+  for (const route of ["production", "opentalking", "live", "bulk", "channels", "publish", "history", "settings", "keys"]) {
     assert.match(rail, new RegExp(`StudioRoute\\.${route}\\b`));
   }
+  assert.doesNotMatch(rail, /root\.studio-picked\(StudioRoute\.auto-shorts\)/);
+  for (const route of ["workflows", "scripts", "jobs"]) assert.match(studio, new RegExp(`root\\.navigate\\(StudioRoute\\.${route}\\)`));
   assert.match(rail, /callback studio-picked\(route: StudioRoute\)/);
   assert.match(rail, /PaneScroll/);
   assert.match(rail, /callback projects\(\)/);
@@ -82,19 +84,20 @@ test("Media no longer owns any Studio route or rendering state", () => {
   assert.match(media, /callback import-media\(\)/);
 });
 
-test("Studio opens without a project only after verified native sign-in", () => {
-  assert.match(app, /if root\.on-start && StudioSession\.signed-in: StartScreen/);
-  assert.match(app, /if !StudioSession\.signed-in: Rectangle/);
-  assert.match(launcher, /studio-picked\(route\) => \{ root\.studio-route = route; root\.studio-open = true; \}/);
+test("local Studio opens without a project or fabricated cloud sign-in", () => {
+  assert.match(app, /if root\.on-start: StartScreen/);
+  assert.doesNotMatch(app, /StudioLoginScreen|if [^\n]*StudioSession\.signed-in/);
+  assert.match(launcher, /studio-picked\(route\) => \{ root\.studio-route = route; root\.studio-open = true; root\.close-menu\(\); \}/);
   assert.match(launcher, /if root\.studio-open: (PaneScroll|Rectangle)/);
   assert.match(launcher, /if !root\.studio-open: Rectangle/);
-  assert.match(launcher, /projects => \{ root\.studio-open = false; \}/);
-  assert.match(launcher, /if !root\.narrow \|\| !root\.phone: Rail/);
+  assert.match(launcher, /projects => \{ root\.studio-open = false; root\.close-menu\(\); \}/);
+  assert.match(launcher, /sidebar := Rail/);
+  assert.match(launcher, /visible: !root\.narrow \|\| root\.drawer-open/);
 });
 
 test("project-free Studio has an honest project chooser, not a dead import action", () => {
   assert.match(studio, /callback choose-project\(\)/);
-  assert.match(studio, /StudioButton\s*\{[^\n]*clicked => \{ root\.choose-project\(\); \}/);
+  assert.doesNotMatch(studio, /label: "Mở dự án"|label: "Danh sách dự án"/);
   assert.doesNotMatch(studio, /import-artifact|back-to-media/);
   assert.match(launcher, /choose-project => \{ root\.studio-open = false; \}/);
   assert.match(studio, /StudioBridge\.refresh-workflows\(\)/);
@@ -104,7 +107,7 @@ test("project-free Studio has an honest project chooser, not a dead import actio
 test("script route owns a real local CRUD editor, with explicit delete confirmation", () => {
   const scripts = read("ui/workspace/studio-scripts.slint");
   const binding = read("src/studio_scripts.rs");
-  assert.match(studio, /if root\.route == StudioRoute\.scripts: StudioCard\s*\{\s*StudioScripts/);
+  assert.match(studio, /if root\.route == StudioRoute\.scripts: StudioScripts/);
   for (const action of ["refresh", "save-script", "delete-script"]) {
     assert.ok(scripts.includes(`ScriptLibrary.${action}(`));
   }
@@ -116,12 +119,13 @@ test("script route owns a real local CRUD editor, with explicit delete confirmat
   assert.match(app, /ScriptLibrary, StudioPromptRow/);
 });
 
-test("production is a native form with a separate explicit confirmation boundary", () => {
+test("production keeps generic confirmation adjacent and native Create explicit in one click", () => {
   const production = read("ui/workspace/studio-production.slint");
   const binding = read("src/studio_production.rs");
   assert.match(studio, /StudioProduction \{ \}/);
-  assert.match(production, /if ProductionStudio\.confirm-start: StudioCard/);
-  assert.match(production, /ProductionStudio\.ready && !ProductionStudio\.uncertain/);
+  assert.match(production, /if ProductionStudio\.confirm-start && !ProductionStudio\.native-workflow: StudioCard/);
+  assert.match(production, /if ProductionStudio\.native-workflow \{ ProductionStudio\.start-run\(\); \}/);
+  assert.match(production, /!ProductionStudio\.uncertain/);
   assert.match(binding, /current == prepared/);
   assert.match(binding, /RunError::UnknownOutcome\s*\{\s*state\.set_uncertain\(true\)/);
   assert.doesNotMatch(production + binding, /WebView|webview|<iframe/);
@@ -140,7 +144,7 @@ test("service diagnostics are a settings section, not every page's shared conten
 
 test("scroll content uses the available width rather than its text's preferred width", () => {
   const pane = read("ui/workspace/pane.slint");
-  assert.match(pane, /content := VerticalLayout \{\s*y: root\.at;\s*width: parent\.width - 12px;/);
+  assert.match(pane, /content := VerticalLayout \{\s*y: root\.at;\s*width: Math\.max\(0px, parent\.width - 12px\);/);
 });
 
 test("AI Keys owns native actions with separate connection and routed chat confirmation", () => {
@@ -161,17 +165,19 @@ test("browser lifecycle is native, explicit and separate from generation readine
   const browser = read("ui/workspace/studio-browser.slint");
   const production = read("ui/workspace/studio-production.slint");
   const binding = read("src/studio_browser.rs");
-  assert.match(production, /StudioBrowserPanel \{ \}/);
+  assert.match(production, /StudioBrowser.start\(\)/);
+  assert.doesNotMatch(production, /StudioBrowserPanel \{ \}/);
   assert.match(browser, /StudioBrowser\.confirm-stop \? I18n/);
   assert.match(binding, /get_confirm_stop\(\)/);
-  assert.match(browser, /studioBrowser\.noReadiness/);
+  assert.match(browser, /Đã đọc hồ sơ không có nghĩa là đã đăng nhập Grok hoặc sẵn sàng tạo video/);
   assert.doesNotMatch(binding, /Command::|taskkill|Stop-Process/);
 });
 
-test("LIVE exposes the actual AI model and OpenTalking voice used by auto-reply", () => {
+test("LIVE uses the configured OmniRoute model without duplicating its model picker", () => {
   const live = read("ui/workspace/studio-live.slint");
   const binding = read("src/studio_live.rs");
-  assert.match(live, /options: StudioAi\.models;\s*current <=> StudioAi\.model-index/);
+  assert.doesNotMatch(live, /options: StudioAi\.models/);
+  assert.match(read("ui/workspace/studio-ai.slint"), /StudioAi\.model-index/);
   assert.match(live, /StudioAi\.load-models\(\)/);
   assert.match(live, /options: StudioOpenTalking\.voice-options;\s*current <=> StudioOpenTalking\.voice-index/);
   assert.match(live, /StudioOpenTalking\.refresh\(\)/);
@@ -179,7 +185,10 @@ test("LIVE exposes the actual AI model and OpenTalking voice used by auto-reply"
   assert.match(live, /StudioLive\.reply-to-comment\(comment\.username, comment\.content\)/);
   assert.match(binding, /get_model_index\(\)/);
   assert.match(binding, /get_voice_index\(\)/);
-  assert.match(binding, /synthesize_reply\(&reply, &voice\)/);
+  assert.match(binding, /studio_live_director::synthesize\(&reply, &voice\)/);
+  const director = read("src/studio_live_director.rs");
+  assert.match(director, /Some\(\(client, voice\)\) => client\s*\.synthesize\(text, &voice\)/);
+  assert.match(director, /None => crate::studio_opentalking::synthesize_speech_robust\(text, fallback\)/);
   assert.match(binding, /play_tts\(playback, audio\)/);
   assert.match(binding, /on_reply_to_comment/);
   assert.match(binding, /let ai = app\.global::<StudioAi>\(\)/);

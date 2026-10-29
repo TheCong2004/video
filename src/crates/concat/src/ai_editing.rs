@@ -183,7 +183,7 @@ fn connect_web_chat(app: &App, provider: &str) {
     });
 }
 
-fn external_context(app: &App) -> Result<Value, String> {
+pub(crate) fn external_context(app: &App) -> Result<Value, String> {
     if app.global::<AiEditing>().get_prompt().len() > 8000 {
         return Err("Yêu cầu quá dài (tối đa 8000 byte).".into());
     }
@@ -203,6 +203,13 @@ fn external_context(app: &App) -> Result<Value, String> {
         }
     });
     result
+}
+
+/// Control Center has already checked its workflow approval/scopes. Revision and
+/// native schema validation remain exactly the same as the existing MCP path.
+pub(crate) fn apply_control(app:&App,scope:&str,value:&Value)->Result<Value,String>{
+    let mut result=Err("Chưa mở dự án".into());
+    Shell::with(|shell,_|{result=stage_or_commit_draft(app,&mut shell.studio.borrow_mut(),&shell.models,scope,value,true);});result
 }
 
 fn stage_external(app: &App, scope: &str, value: &Value) -> Result<Value, String> {
@@ -298,7 +305,12 @@ fn poll_bridge(app: &App) {
         return;
     }
     use concat_studio::edit_bridge::EditRequest;
+    if let EditRequest::Control {operation,input}=&call.request {
+        if operation.starts_with("campaign.") {let operation=operation.clone();let input=input.clone();crate::studio_campaign::remote(app,operation,input,call);return;}
+        if operation=="submit" {let input=input.clone();crate::studio_ai_control::submit_remote(app,input,call);return;}
+    }
     let result = match &call.request {
+        EditRequest::Control {operation,input}=>crate::studio_ai_control::remote(app,operation,input),
         EditRequest::Context {} => {
             external_context(app).map(|context| json!({"ok":true,"context":context}))
         }

@@ -13,6 +13,12 @@ import { Select } from "../primitives/select.slint";
 import { Wave } from "../primitives/wave.slint";
 import { ContextMenu, MenuItemData } from "../primitives/context-menu.slint";
 import { AiEditingPane } from "ai-editing-pane.slint";
+import { HotclipPane } from "hotclip-pane.slint";
+import { AutoLanguagePane } from "auto-language.slint";
+import { AutoLanguage } from "auto-language.slint";
+import { AutoShorts } from "auto-shorts.slint";
+import { StudioLux } from "../dialogs/lux-import.slint";
+import { SavedVideoShelf } from "saved-video-shelf.slint";
 
 // The library pane: a strip of pages across the top, then a narrow category
 // sidebar and the browsing area beside it. Media is the bin; Text adds a
@@ -1767,6 +1773,8 @@ export component MediaPane inherits Rectangle {
     callback pane-removed();
 
     property <int> tab;
+    init => { AutoLanguage.active = root.tab == 9; }
+    changed tab => { AutoLanguage.active = root.tab == 9; }
     /// How far left the page strip can be pushed: nothing, while its chips
     /// fit. See `strip`.
     property <length> strip-floor: Math.min(0px, strip.width - strip.content-width);
@@ -2091,7 +2099,7 @@ export component MediaPane inherits Rectangle {
                         }
                     }
 
-                    if root.tab == 7: CategoryRow {
+                    if root.tab == 7 || root.tab == 8 || root.tab == 9: CategoryRow {
                         height: 32px;
                         label: I18n.t("common.media");
                         clicked => { root.tab = 0; }
@@ -2099,22 +2107,69 @@ export component MediaPane inherits Rectangle {
                     // A primary destination, not a media filter or a second
                     // independent right-hand dock. Keep it visible on all pages.
                     Rectangle {
-                        height: 46px;
+                        height: 38px;
                         border-radius: Theme.r-sm;
                         background: root.tab == 7 ? Theme.field-active : ai-entry.has-hover ? Theme.field : Theme.panel;
                         HorizontalLayout {
-                            padding-left: 6px; padding-right: 4px; spacing: 5px;
-                            Icon { glyph: Glyph.sparkle; size: 17px; tint: Theme.fg; }
+                            alignment: center;
+                            padding-left: 8px; padding-right: 6px; spacing: 7px;
+                            Icon { glyph: Glyph.sparkle; size: 16px; tint: Theme.fg; }
                             Text {
                                 text: "Trợ lý AI"; color: Theme.fg;
                                 font-size: Theme.fs-sm; font-weight: Theme.weight-title;
-                                vertical-alignment: center; wrap: word-wrap;
+                                vertical-alignment: center; overflow: elide;
                                 horizontal-stretch: 1; min-width: 0px;
                             }
                         }
                         ai-entry := TouchArea {
                             mouse-cursor: pointer;
                             clicked => { root.tab = 7; root.ai-opened(); }
+                        }
+                    }
+
+                    // Hotclip: Tự động phân tích, cắt video thành shorts/clip thông minh
+                    Rectangle {
+                        height: 38px;
+                        border-radius: Theme.r-sm;
+                        background: root.tab == 8 ? Theme.field-active : hotclip-entry.has-hover ? Theme.field : Theme.panel;
+                        HorizontalLayout {
+                            alignment: center;
+                            padding-left: 8px; padding-right: 6px; spacing: 7px;
+                            Icon { glyph: Glyph.film; size: 16px; tint: root.tab == 8 ? Theme.accent : Theme.fg; }
+                            Text {
+                                text: "Hotclip"; color: root.tab == 8 ? Theme.accent : Theme.fg;
+                                font-size: Theme.fs-sm; font-weight: Theme.weight-title;
+                                vertical-alignment: center; overflow: elide;
+                                horizontal-stretch: 1; min-width: 0px;
+                            }
+                        }
+                        hotclip-entry := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.tab = 8;
+                                AutoShorts.activate-preview();
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 38px;
+                        border-radius: Theme.r-sm;
+                        background: root.tab == 9 ? Theme.field-active : language-entry.has-hover ? Theme.field : Theme.panel;
+                        HorizontalLayout {
+                            alignment: center;
+                            padding-left: 8px; padding-right: 6px; spacing: 7px;
+                            Icon { glyph: Glyph.text-mark; size: 16px; tint: root.tab == 9 ? Theme.accent : Theme.fg; }
+                            Text {
+                                text: "Auto ngôn ngữ"; color: root.tab == 9 ? Theme.accent : Theme.fg;
+                                font-size: Theme.fs-sm; font-weight: Theme.weight-title;
+                                vertical-alignment: center; overflow: elide;
+                                horizontal-stretch: 1; min-width: 0px;
+                            }
+                        }
+                        language-entry := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.tab = 9; }
                         }
                     }
 
@@ -2268,7 +2323,11 @@ export component MediaPane inherits Rectangle {
             }
 
             pages := PaneScroll {
-                visible: root.tab != 7;
+                // Each media page has a different content origin. Reusing the
+                // previous page's scroll offset clipped the Auto Language
+                // title and controls when switching tabs.
+                reset-key: root.tab * 10 + (root.filter == MediaFilter.video ? 1 : 0);
+                visible: root.tab != 7 && root.tab != 8;
                 x: root.sidebar + 1px;
                 width: Math.max(0px, parent.width - root.sidebar - 1px);
                 height: parent.height;
@@ -2288,6 +2347,13 @@ export component MediaPane inherits Rectangle {
                         horizontal-stretch: 0;
                         busy: root.importing;
                         clicked => { root.import-media(); }
+                    }
+                    ImportButton {
+                        height: Theme.h;
+                        horizontal-stretch: 0;
+                        label: "Tải Video (URL)";
+                        glyph: Glyph.import;
+                        clicked => { StudioLux.open-dialog(); }
                     }
                     Rectangle { horizontal-stretch: 1; }
                     // Sort, and sort only: narrowing the bin by kind is the
@@ -2363,7 +2429,7 @@ export component MediaPane inherits Rectangle {
                     }
                 }
 
-                if root.tab == 0 && root.items.length == 0: Empty {
+                if root.tab == 0 && root.items.length == 0 && root.filter != MediaFilter.video: Empty {
                     glyph: Glyph.import;
                     text: root.filter == MediaFilter.speech
                         ? I18n.t("mediaPane.nothingReadAloudYet")
@@ -2372,6 +2438,11 @@ export component MediaPane inherits Rectangle {
                         : root.count-all > 0
                         ? I18n.t("mediaPane.nothingKindProject")
                         : "Drop video and audio files anywhere in the window to import them.";
+                }
+
+                if root.tab == 0 && root.filter == MediaFilter.video && root.items.length > 0: Text {
+                    text: "Trong dự án · " + root.items.length;
+                    color: Theme.fg-muted; font-size: Theme.fs-sm;
                 }
 
                 if root.tab == 0 && root.items.length > 0: HorizontalLayout {
@@ -2388,7 +2459,7 @@ export component MediaPane inherits Rectangle {
                         // Counted rather than measured, because reading a
                         // sibling's laid-out height from inside the layout
                         // that assigns it is a binding loop waiting to happen.
-                        page-floor: Math.max(0px, pages.height - 52px
+                        page-floor: root.filter == MediaFilter.video ? 0px : Math.max(0px, pages.height - 52px
                             - (root.selected-count > 1 ? 36px : 0px) - 8px);
 
                         menu-items: root.menu-items;
@@ -2407,6 +2478,8 @@ export component MediaPane inherits Rectangle {
                         }
                     }
                 }
+
+                if root.tab == 0 && root.filter == MediaFilter.video: SavedVideoShelf { }
 
                 if root.tab == 1 && root.text-category == 0: HorizontalLayout {
                     padding: 8px;
@@ -2548,6 +2621,20 @@ export component MediaPane inherits Rectangle {
                 height: parent.height;
                 visible: root.tab == 7;
                 embedded: true;
+            }
+
+            // Hotclip: Cắt clip thông minh native trong giao diện Concat
+            HotclipPane {
+                x: root.sidebar + 1px; y: 0;
+                width: Math.max(0px, parent.width - root.sidebar - 1px);
+                height: parent.height;
+                visible: root.tab == 8;
+            }
+            AutoLanguagePane {
+                x: root.sidebar + 1px; y: 0;
+                width: Math.max(0px, parent.width - root.sidebar - 1px);
+                height: parent.height;
+                visible: root.tab == 9;
             }
         }
     }

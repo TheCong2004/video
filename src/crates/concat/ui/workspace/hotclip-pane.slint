@@ -1,0 +1,795 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Native editor workbench: shared analysis state, Kedi theme and interactive preview.
+import { Theme } from "../theme/theme.slint";
+import { Button, Select, NumberField } from "../primitives/primitives.slint";
+import { PaneScroll } from "pane.slint";
+import { AutoShorts } from "auto-shorts.slint";
+import { Glyph, Icon } from "../icons.slint";
+
+component Note inherits Text {
+    color: Theme.fg-muted;
+    font-size: Theme.fs-sm;
+    wrap: word-wrap;
+    min-width: 0px;
+}
+
+component Heading inherits Text {
+    color: Theme.fg;
+    font-size: Theme.fs;
+    font-weight: Theme.weight-title;
+    wrap: word-wrap;
+    min-width: 0px;
+}
+
+component EditField inherits VerticalLayout {
+    in property <string> label;
+    in-out property <string> value;
+    callback edited(string);
+    min-width: 0px;
+    spacing: 5px;
+    Note { text: root.label; }
+    Rectangle {
+        min-width: 0px;
+        height: 32px;
+        border-radius: Theme.r-sm;
+        background: Theme.field;
+        border-width: 1px;
+        border-color: Theme.line;
+        TextInput {
+            x: 8px; y: 5px;
+            width: Math.max(0px, parent.width - 16px);
+            height: parent.height - 10px;
+            text <=> root.value;
+            color: Theme.fg;
+            font-size: Theme.fs-sm;
+            single-line: true;
+            enabled: !AutoShorts.busy;
+            edited => { root.edited(self.text); }
+        }
+    }
+}
+
+component Choice inherits VerticalLayout {
+    in property <string> label;
+    in property <[string]> options;
+    in-out property <int> current;
+    min-width: 0px;
+    spacing: 5px;
+    Note { text: root.label; }
+    Select { options: root.options; current <=> root.current; enabled: !AutoShorts.busy; }
+}
+
+component Quantity inherits VerticalLayout {
+    in property <string> label;
+    in property <int> value;
+    in property <int> maximum: 180;
+    in property <int> minimum: 4;
+    callback edited(int);
+    min-width: 0px;
+    spacing: 5px;
+    Note { text: root.label; }
+    NumberField {
+        value: root.value; minimum: root.minimum; maximum: root.maximum;
+        step: 1; enabled: !AutoShorts.busy;
+        changed(value) => { root.edited(Math.round(value)); }
+    }
+}
+
+component Chip inherits Rectangle {
+    in property <string> label;
+    height: 20px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: Theme.line-strong;
+    background: Theme.brand-soft;
+    HorizontalLayout {
+        padding-left: 6px; padding-right: 6px;
+        Text {
+            text: root.label;
+            color: Theme.brand;
+            font-size: 10px;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component SoundBar inherits Rectangle {
+    in property <length> bar-h: 12px;
+    in property <color> tint: Theme.brand;
+    width: 3px;
+    height: root.bar-h;
+    border-radius: 1.5px;
+    background: root.tint;
+}
+
+export component HotclipPane inherits Rectangle {
+    private property <int> page: 0;
+    private property <bool> diagnostics-open;
+    private property <bool> duration-blocked: AutoShorts.has-source && AutoShorts.source-duration < AutoShorts.min-duration;
+    
+    // Shared Kedi palette; follows Light/Dark without changing processing.
+    private property <color> brand-color: Theme.brand;
+    private property <color> action-color: Theme.brand;
+
+    min-width: 0px;
+    clip: true;
+    background: Theme.panel;
+
+    VerticalLayout {
+        padding: 10px; spacing: 9px;
+
+        // Header with Hotclip branding
+        HorizontalLayout {
+            spacing: 8px;
+            Rectangle {
+                width: 24px; height: 24px; border-radius: 6px;
+                background: root.action-color;
+                Icon { x: 3px; y: 3px; width: 18px; height: 18px; glyph: Glyph.film; tint: Theme.on-brand; size: 16px; }
+            }
+            Text {
+                text: "Hotclip · Trích xuất Shorts";
+                color: Theme.fg; font-size: Theme.fs; font-weight: 700;
+                vertical-alignment: center; horizontal-stretch: 1;
+            }
+        }
+
+        // Navigation Bar (4 steps)
+        HorizontalLayout {
+            spacing: 4px;
+            Rectangle {
+                height: 28px; border-radius: 6px;
+                background: root.page == 0 ? root.brand-color : page-btn-0.has-hover ? Theme.line : Theme.field;
+                page-btn-0 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.page = 0; }
+                }
+                Text {
+                    text: "Nguồn";
+                    color: root.page == 0 ? Theme.on-brand : Theme.fg;
+                    font-size: 11px; font-weight: 700;
+                    vertical-alignment: center; horizontal-alignment: center;
+                }
+            }
+            Rectangle {
+                height: 28px; border-radius: 6px;
+                background: root.page == 1 ? root.brand-color : page-btn-1.has-hover ? Theme.line : Theme.field;
+                page-btn-1 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.page = 1; }
+                }
+                Text {
+                    text: "Lời thoại";
+                    color: root.page == 1 ? Theme.on-brand : Theme.fg;
+                    font-size: 11px; font-weight: 700;
+                    vertical-alignment: center; horizontal-alignment: center;
+                }
+            }
+            Rectangle {
+                height: 28px; border-radius: 6px;
+                background: root.page == 2 ? root.brand-color : page-btn-2.has-hover ? Theme.line : Theme.field;
+                page-btn-2 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.page = 2; }
+                }
+                Text {
+                    text: "Chọn đoạn";
+                    color: root.page == 2 ? Theme.on-brand : Theme.fg;
+                    font-size: 11px; font-weight: 700;
+                    vertical-alignment: center; horizontal-alignment: center;
+                }
+            }
+            Rectangle {
+                height: 28px; border-radius: 6px;
+                background: root.page == 3 ? root.brand-color : page-btn-3.has-hover ? Theme.line : Theme.field;
+                page-btn-3 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.page = 3; }
+                }
+                Text {
+                    text: "Xuất";
+                    color: root.page == 3 ? Theme.on-brand : Theme.fg;
+                    font-size: 11px; font-weight: 700;
+                    vertical-alignment: center; horizontal-alignment: center;
+                }
+            }
+        }
+
+        // Progress bar
+        if AutoShorts.busy: Rectangle {
+            height: 4px; border-radius: 2px; background: Theme.field;
+            Rectangle {
+                height: parent.height;
+                width: parent.width * Math.max(0, Math.min(1, AutoShorts.progress));
+                background: root.brand-color;
+            }
+        }
+
+        if AutoShorts.status != "": Rectangle {
+            border-radius: 6px;
+            background: Theme.field;
+            border-width: 1px;
+            border-color: Theme.line-soft;
+            HorizontalLayout {
+                padding: 6px;
+                spacing: 6px;
+                Icon { glyph: Glyph.sparkle; size: 14px; tint: root.brand-color; }
+                Note { text: AutoShorts.status; color: Theme.fg; horizontal-stretch: 1; }
+                status-close := TouchArea {
+                    width: 18px; height: 18px; mouse-cursor: pointer;
+                    Icon { x: 3px; y: 3px; glyph: Glyph.close; size: 12px; tint: status-close.has-hover ? Theme.fg : Theme.fg-muted; }
+                    clicked => { AutoShorts.status = ""; }
+                }
+            }
+        }
+
+        if AutoShorts.busy: Button {
+            label: "Hủy tác vụ đang chạy"; block: true; clicked => { AutoShorts.cancel(); }
+        }
+
+        PaneScroll {
+            vertical-stretch: 1;
+            min-width: 0px;
+            VerticalLayout {
+                alignment: start; spacing: 12px; min-width: 0px;
+
+                // ==================== TAB 0: NGUỒN ====================
+                if root.page == 0: VerticalLayout {
+                    spacing: 12px; min-width: 0px;
+
+                    // Shared-theme source selection.
+                    if !AutoShorts.has-source: Rectangle {
+                        border-radius: 16px;
+                        border-width: 1.5px;
+                        border-color: dropzone-area.has-hover ? root.brand-color : Theme.line-strong;
+                        background: dropzone-area.has-hover ? Theme.brand-soft : Theme.field;
+
+                        dropzone-area := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { AutoShorts.choose-source(); }
+                        }
+
+                        VerticalLayout {
+                            padding: 16px; spacing: 10px; alignment: center;
+
+                            // Glowing icon
+                            Rectangle {
+                                width: 44px; height: 44px; border-radius: 12px;
+                                background: Theme.brand-soft; border-width: 1px; border-color: Theme.line-strong;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    Icon { glyph: Glyph.film; size: 22px; tint: root.action-color; }
+                                }
+                            }
+
+                            Text {
+                                text: "Kéo thả video vào đây";
+                                font-size: 15px; font-weight: 800; color: Theme.fg;
+                                horizontal-alignment: center;
+                            }
+
+                            Text {
+                                text: "Podcasts · Livestream · Bài giảng · Vlogs\nMP4, MKV, MOV, FLV, MP3";
+                                font-size: 11px; color: Theme.fg-muted;
+                                horizontal-alignment: center; wrap: word-wrap;
+                            }
+
+                            // Prominent Choose Button
+                            Rectangle {
+                                height: 36px; border-radius: 10px;
+                                background: root.action-color;
+                                HorizontalLayout {
+                                    alignment: center; spacing: 6px;
+                                    Icon { glyph: Glyph.plus; tint: Theme.on-brand; size: 15px; }
+                                    Text {
+                                        text: "Chọn video từ máy";
+                                        color: Theme.on-brand; font-weight: 700; font-size: 12px;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            // Format chips
+                            HorizontalLayout {
+                                alignment: center; spacing: 4px;
+                                Chip { label: "MP4"; }
+                                Chip { label: "MKV"; }
+                                Chip { label: "MOV"; }
+                                Chip { label: "FLV"; }
+                                Chip { label: "MP3"; }
+                            }
+
+                            // Security hint
+                            Text {
+                                text: "🛡 Xử lý 100% trên máy — Không tải video lên mạng";
+                                font-size: 10px; color: root.brand-color;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+
+                    // WHEN VIDEO IS SELECTED: ACTIVE VIDEO CARD
+                    if AutoShorts.has-source: Rectangle {
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: root.brand-color;
+                        background: Theme.field;
+
+                        VerticalLayout {
+                            padding: 12px; spacing: 8px;
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Icon { glyph: Glyph.film; tint: root.brand-color; size: 16px; }
+                                Text {
+                                    text: AutoShorts.source-label;
+                                    color: Theme.fg; font-weight: 700; font-size: 12px;
+                                    wrap: word-wrap; horizontal-stretch: 1;
+                                }
+                            }
+
+                            if AutoShorts.source-info != "": Text {
+                                text: AutoShorts.source-info;
+                                color: Theme.fg-muted; font-size: 11px;
+                            }
+
+                            // Monitor Connected Badge
+                            Rectangle {
+                                height: 26px; border-radius: 6px;
+                                background: Theme.brand-soft; border-width: 1px; border-color: Theme.line-strong;
+                                HorizontalLayout {
+                                    padding-left: 8px; padding-right: 8px; spacing: 6px;
+                                    Icon { glyph: Glyph.play; tint: root.brand-color; size: 13px; }
+                                    Text {
+                                        text: "Đang phát trên màn hình Xem trước Concat";
+                                        color: root.brand-color; font-size: 11px; font-weight: 700;
+                                        vertical-alignment: center; horizontal-stretch: 1;
+                                    }
+                                }
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { AutoShorts.toggle-preview(); }
+                                }
+                            }
+
+                            // Sound Waveform Bars Visual
+                            HorizontalLayout {
+                                spacing: 2px; alignment: center;
+                                SoundBar { bar-h: 8px; }
+                                SoundBar { bar-h: 14px; }
+                                SoundBar { bar-h: 22px; }
+                                SoundBar { bar-h: 16px; }
+                                SoundBar { bar-h: 10px; tint: root.action-color; }
+                                SoundBar { bar-h: 18px; tint: root.action-color; }
+                                SoundBar { bar-h: 26px; }
+                                SoundBar { bar-h: 12px; }
+                                SoundBar { bar-h: 20px; }
+                                SoundBar { bar-h: 28px; }
+                                SoundBar { bar-h: 15px; tint: root.action-color; }
+                                SoundBar { bar-h: 9px; }
+                                SoundBar { bar-h: 17px; }
+                                SoundBar { bar-h: 24px; }
+                                SoundBar { bar-h: 11px; }
+                                SoundBar { bar-h: 19px; tint: root.action-color; }
+                                SoundBar { bar-h: 25px; }
+                                SoundBar { bar-h: 13px; }
+                                SoundBar { bar-h: 7px; }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Button {
+                                    label: "Đổi video"; block: true;
+                                    enabled: !AutoShorts.busy;
+                                    clicked => { AutoShorts.choose-source(); }
+                                }
+                                Button {
+                                    label: "Nhập SRT/VTT"; block: true;
+                                    enabled: !AutoShorts.busy;
+                                    clicked => { AutoShorts.choose-transcript(); }
+                                }
+                            }
+
+                            if AutoShorts.transcript-label != "": Note {
+                                text: "Phụ đề: " + AutoShorts.transcript-label;
+                                color: root.brand-color;
+                            }
+                        }
+                    }
+
+                    // Clip settings
+                    Heading { text: "Cấu hình tìm đoạn"; }
+                    Quantity {
+                        label: "Số clip tối đa"; value: AutoShorts.target-count;
+                        minimum: 1; maximum: 12;
+                        edited(value) => { AutoShorts.target-count = value; }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Quantity {
+                            label: "Ngắn nhất (giây)"; value: AutoShorts.min-duration;
+                            edited(value) => { AutoShorts.min-duration = value; }
+                        }
+                        Quantity {
+                            label: "Dài nhất (giây)"; value: AutoShorts.max-duration;
+                            edited(value) => { AutoShorts.max-duration = value; }
+                        }
+                    }
+                    if root.duration-blocked: Note {
+                        text: "Video ngắn hơn độ dài tối thiểu. Giảm số giây hoặc chọn video dài hơn.";
+                        color: root.action-color;
+                    }
+
+                    Choice {
+                        label: "Phương thức tìm đoạn";
+                        options: ["Phân tích trên máy (Offline)", "Dùng AI đã kết nối"];
+                        current <=> AutoShorts.ai-mode-index;
+                    }
+                    Choice {
+                        label: "Thể loại nội dung";
+                        options: ["Tự động", "Podcast", "Livestream", "Gaming", "Giáo dục", "Review", "Bán hàng", "Phỏng vấn", "Vlog", "Giải trí", "Âm nhạc"];
+                        current <=> AutoShorts.genre-index;
+                    }
+
+                    // Action Button: Find Highlights
+                    Rectangle {
+                        height: 38px; border-radius: 8px;
+                        background: (AutoShorts.has-source && !AutoShorts.busy && !root.duration-blocked) ? root.brand-color : Theme.field;
+                        opacity: (AutoShorts.has-source && !AutoShorts.busy && !root.duration-blocked) ? 1.0 : 0.5;
+
+                        btn-find := TouchArea {
+                            enabled: AutoShorts.has-source && !AutoShorts.busy && !root.duration-blocked && AutoShorts.min-duration <= AutoShorts.max-duration;
+                            mouse-cursor: pointer;
+                            clicked => {
+                                if AutoShorts.analyzed { AutoShorts.retry(); } else { AutoShorts.analyze(); }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            alignment: center; spacing: 6px;
+                            Icon {
+                                glyph: Glyph.sparkle;
+                                tint: (AutoShorts.has-source && !AutoShorts.busy) ? Theme.on-brand : Theme.fg-muted;
+                                size: 16px;
+                            }
+                            Text {
+                                text: AutoShorts.analyzed ? "Tìm lại đoạn" : "Bắt đầu tìm đoạn hay";
+                                color: (AutoShorts.has-source && !AutoShorts.busy) ? Theme.on-brand : Theme.fg-muted;
+                                font-weight: 700; font-size: 13px;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    if AutoShorts.analysis-note != "": Note { text: AutoShorts.analysis-note; }
+                    if AutoShorts.analyzed: Button {
+                        label: "Xem " + AutoShorts.result-count + " đoạn tìm được";
+                        primary: true; block: true;
+                        clicked => { root.page = 2; }
+                    }
+                }
+
+                // ==================== TAB 1: LỜI THOẠI ====================
+                if root.page == 1: VerticalLayout {
+                    spacing: 10px; min-width: 0px;
+                    Heading { text: "Cắt theo lời thoại (Transcript)"; }
+                    Note {
+                        text: AutoShorts.cue-count > 0 ? "Chọn câu bắt đầu và kết thúc để tạo clip. Sửa lời thoại hoặc tìm câu nói vấp." : "Chưa có lời thoại. Nhập phụ đề SRT/VTT ở mục Nguồn rồi tìm đoạn.";
+                    }
+
+                    if AutoShorts.cue-count > 0: VerticalLayout {
+                        spacing: 9px; min-width: 0px;
+                        EditField {
+                            label: "Tìm từ khóa / câu thoại";
+                            value: AutoShorts.transcript-query;
+                            edited(text) => { AutoShorts.transcript-query = text; AutoShorts.transcript-search(); }
+                        }
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Button {
+                                label: AutoShorts.repetitions-scanned ? "Quét lại câu lặp" : "Tìm câu lặp";
+                                block: true; enabled: !AutoShorts.busy;
+                                clicked => { AutoShorts.find-repetitions(); }
+                            }
+                            Button {
+                                label: AutoShorts.repetitions-only ? "Hiện tất cả" : "Chỉ câu lặp";
+                                block: true; enabled: !AutoShorts.busy && AutoShorts.repetition-count > 0;
+                                clicked => { AutoShorts.repetitions-only = !AutoShorts.repetitions-only; AutoShorts.transcript-search(); }
+                            }
+                        }
+                        if AutoShorts.repetitions-scanned: Note {
+                            text: AutoShorts.repetition-count + " cặp câu lặp phát hiện được.";
+                            color: root.action-color;
+                        }
+                        Note { text: AutoShorts.transcript-page; }
+
+                        for cue in AutoShorts.transcript-rows: Rectangle {
+                            border-radius: 8px;
+                            background: Theme.field;
+                            border-width: 1px;
+                            border-color: Theme.line-soft;
+                            VerticalLayout {
+                                padding: 8px; spacing: 5px;
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    Icon { glyph: Glyph.play; tint: root.brand-color; size: 12px; }
+                                    Text { text: cue.time; color: root.brand-color; font-size: 11px; font-weight: 700; }
+                                    if cue.marker != "": Text { text: cue.marker; color: root.action-color; font-size: 11px; }
+                                }
+                                Text { text: cue.text; color: Theme.fg; font-size: 12px; wrap: word-wrap; }
+                                HorizontalLayout {
+                                    spacing: 4px;
+                                    Button { label: "Bắt đầu"; block: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.transcript-select(cue.id, 0); } }
+                                    Button { label: "Kết thúc"; block: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.transcript-select(cue.id, 1); } }
+                                    Button { label: "Sửa"; block: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.transcript-select(cue.id, 2); } }
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 5px;
+                            Button { label: "Trang trước"; block: true; enabled: !AutoShorts.busy && AutoShorts.transcript-previous; clicked => { AutoShorts.transcript-paginate(-1); } }
+                            Button { label: "Trang sau"; block: true; enabled: !AutoShorts.busy && AutoShorts.transcript-next; clicked => { AutoShorts.transcript-paginate(1); } }
+                        }
+
+                        if AutoShorts.cue-editor-label != "": VerticalLayout {
+                            spacing: 6px;
+                            EditField { label: AutoShorts.cue-editor-label; value: AutoShorts.cue-editor-text; edited(text) => { AutoShorts.cue-editor-text = text; } }
+                            Button { label: "Lưu câu đã sửa"; block: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.transcript-save(); } }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Button {
+                                label: "Hoàn tác lời thoại"; block: true;
+                                enabled: !AutoShorts.busy && AutoShorts.transcript-undo;
+                                clicked => { AutoShorts.transcript-history(false); }
+                            }
+                            Button {
+                                label: "Làm lại"; block: true;
+                                enabled: !AutoShorts.busy && AutoShorts.transcript-redo;
+                                clicked => { AutoShorts.transcript-history(true); }
+                            }
+                        }
+
+                        if AutoShorts.transcript-range != "": Note { text: AutoShorts.transcript-range; color: root.brand-color; }
+                        Button {
+                            label: "Thêm vùng chọn thành clip"; primary: true; block: true;
+                            enabled: !AutoShorts.busy && AutoShorts.transcript-has-range;
+                            clicked => { AutoShorts.transcript-create(); }
+                        }
+                        Button {
+                            label: "Lưu phụ đề SRT"; block: true; enabled: !AutoShorts.busy;
+                            clicked => { AutoShorts.transcript-export(); }
+                        }
+                    }
+                }
+
+                // ==================== TAB 2: CHỌN ĐOẠN (HIGHLIGHT CARDS) ====================
+                if root.page == 2: VerticalLayout {
+                    spacing: 12px; min-width: 0px;
+                    Heading { text: "Danh sách " + AutoShorts.selected-count + "/" + AutoShorts.result-count + " clip đã chọn"; }
+
+                    EditField {
+                        label: "Tìm tiêu đề, hook mở đầu";
+                        value: AutoShorts.query;
+                        edited(text) => { AutoShorts.query = text; AutoShorts.refresh-results(); }
+                    }
+
+                    Choice {
+                        label: "Sắp xếp";
+                        options: ["Điểm cao trước", "Thời gian nguồn", "Thời lượng ngắn trước"];
+                        current: AutoShorts.sort-index;
+                        changed current => { AutoShorts.sort-index = self.current; AutoShorts.refresh-results(); }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Button {
+                            label: AutoShorts.review-only ? "✓ Đoạn cần duyệt" : "Đoạn cần duyệt";
+                            block: true; enabled: !AutoShorts.busy;
+                            clicked => { AutoShorts.review-only = !AutoShorts.review-only; AutoShorts.refresh-results(); }
+                        }
+                        Button {
+                            label: AutoShorts.selected-only ? "✓ Chỉ đoạn đã chọn" : "Chỉ đoạn đã chọn";
+                            block: true; enabled: !AutoShorts.busy;
+                            clicked => { AutoShorts.selected-only = !AutoShorts.selected-only; AutoShorts.refresh-results(); }
+                        }
+                    }
+
+                    if AutoShorts.rows.length == 0: Note {
+                        text: AutoShorts.result-count > 0 ? "Không có đoạn khớp bộ lọc." : "Chưa có clip. Vào Nguồn để tìm đoạn hoặc dùng Lời thoại để cắt câu.";
+                    }
+
+                    // Highlight Cards List
+                    for row in AutoShorts.rows: Rectangle {
+                        border-radius: 12px;
+                        border-width: 1.5px;
+                        border-color: row.selected ? root.brand-color : Theme.line;
+                        background: row.selected ? Theme.brand-soft : Theme.field;
+
+                        VerticalLayout {
+                            padding: 10px; spacing: 8px;
+
+                            // Badges Header Row
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Rectangle {
+                                    height: 20px; border-radius: 4px;
+                                    background: Theme.brand-soft; border-width: 1px; border-color: Theme.line-strong;
+                                    HorizontalLayout {
+                                        padding-left: 6px; padding-right: 6px;
+                                        Text {
+                                            text: row.score != "" ? "★ Điểm AI: " + row.score : "Chưa có điểm đánh giá";
+                                            color: root.brand-color; font-size: 10px; font-weight: 700;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    height: 20px; border-radius: 4px;
+                                    background: Theme.brand-soft; border-width: 1px; border-color: Theme.line-strong;
+                                    HorizontalLayout {
+                                        padding-left: 6px; padding-right: 6px;
+                                        Text {
+                                            text: row.range;
+                                            color: Theme.fg-muted; font-size: 10px; font-weight: 700;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                                Rectangle { horizontal-stretch: 1; }
+                                // Checkbox Toggle
+                                Rectangle {
+                                    width: 22px; height: 22px; border-radius: 4px;
+                                    background: row.selected ? root.brand-color : Theme.field;
+                                    border-width: 1px; border-color: row.selected ? root.brand-color : Theme.line-strong;
+                                    chk := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { AutoShorts.toggle-selected(row.id); }
+                                    }
+                                    if row.selected: Icon {
+                                        glyph: Glyph.check; tint: Theme.on-brand; size: 14px;
+                                        x: 4px; y: 4px;
+                                    }
+                                }
+                            }
+
+                            // Thumbnail
+                            Image { source: row.thumbnail; height: 85px; image-fit: contain; }
+
+                            // Title & Hook
+                            Text {
+                                text: row.title;
+                                font-size: 13px; font-weight: 700; color: Theme.fg;
+                                wrap: word-wrap;
+                            }
+                            if row.hook != "": Text {
+                                text: "⚡ Mở đầu: " + row.hook;
+                                color: Theme.warning; font-size: 11px; wrap: word-wrap;
+                            }
+                            if row.reason != "": Note { text: row.reason; }
+
+                            // Action Buttons: Preview & Stage
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Rectangle {
+                                    height: 32px; border-radius: 6px;
+                                    background: Theme.brand-soft; border-width: 1px; border-color: Theme.line-strong;
+                                    prev-btn := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { AutoShorts.preview(row.id); }
+                                    }
+                                    HorizontalLayout {
+                                        alignment: center; spacing: 4px;
+                                        Icon { glyph: Glyph.play; tint: root.brand-color; size: 13px; }
+                                        Text {
+                                            text: "Xem trên màn hình";
+                                            color: root.brand-color; font-weight: 700; font-size: 11px;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    height: 32px; border-radius: 6px;
+                                    background: root.action-color;
+                                    stage-btn := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { AutoShorts.stage(row.id); }
+                                    }
+                                    HorizontalLayout {
+                                        alignment: center; spacing: 4px;
+                                        Icon { glyph: Glyph.plus; tint: Theme.on-brand; size: 13px; }
+                                        Text {
+                                            text: "Đưa vào timeline Concat";
+                                            color: Theme.on-brand; font-weight: 700; font-size: 11px;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if AutoShorts.selected-count > 0: Button {
+                        label: "Tiếp tục: Xuất " + AutoShorts.selected-count + " clip";
+                        primary: true; block: true;
+                        clicked => { root.page = 3; }
+                    }
+                }
+
+                // ==================== TAB 3: XUẤT ====================
+                if root.page == 3: VerticalLayout {
+                    spacing: 12px; min-width: 0px;
+                    Heading { text: "Định dạng xuất video"; }
+                    Choice {
+                        label: "Khung hình";
+                        options: ["9:16 · Dọc (TikTok/Reels/Shorts)", "16:9 · Ngang (YouTube)", "1:1 · Vuông", "4:5 · Bài đăng"];
+                        current <=> AutoShorts.aspect-index;
+                    }
+                    Choice {
+                        label: "Độ phân giải";
+                        options: ["720p", "1080p · Full HD", "4K · Siêu nét"];
+                        current <=> AutoShorts.quality-index;
+                    }
+                    Choice {
+                        label: "Kiểu phụ đề tự động";
+                        options: ["Không phụ đề", "Clean Minimal", "TikTok Bold", "Podcast", "Cinematic", "Gaming"];
+                        current <=> AutoShorts.caption-index;
+                    }
+
+                    Heading { text: "Thư mục lưu trữ"; }
+                    Note {
+                        text: AutoShorts.output-label != "" ? AutoShorts.output-label : "Chưa chọn nơi lưu.";
+                        color: root.brand-color;
+                    }
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Button { label: "Chọn nơi lưu"; block: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.choose-output(); } }
+                        Button { label: "Mở thư mục"; block: true; enabled: !AutoShorts.busy && AutoShorts.output-label != ""; clicked => { AutoShorts.open-output(); } }
+                    }
+
+                    // Main Export Button
+                    Rectangle {
+                        height: 40px; border-radius: 8px;
+                        background: (AutoShorts.selected-count > 0 && AutoShorts.output-label != "" && !AutoShorts.busy) ? root.action-color : Theme.field;
+                        opacity: (AutoShorts.selected-count > 0 && AutoShorts.output-label != "" && !AutoShorts.busy) ? 1.0 : 0.5;
+                        TouchArea {
+                            enabled: AutoShorts.selected-count > 0 && AutoShorts.output-label != "" && !AutoShorts.busy;
+                            mouse-cursor: pointer;
+                            clicked => { AutoShorts.export-selected(); }
+                        }
+                        HorizontalLayout {
+                            alignment: center; spacing: 6px;
+                            Icon { glyph: Glyph.export; tint: (AutoShorts.selected-count > 0 && AutoShorts.output-label != "" && !AutoShorts.busy) ? Theme.on-brand : Theme.fg-muted; size: 16px; }
+                            Text {
+                                text: "Xuất " + AutoShorts.selected-count + " clip đã chọn";
+                                color: (AutoShorts.selected-count > 0 && AutoShorts.output-label != "" && !AutoShorts.busy) ? Theme.on-brand : Theme.fg-muted; font-weight: 700; font-size: 13px;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    Heading { text: "Tự động theo dõi thư mục (Watch Folder)"; }
+                    Note { text: AutoShorts.watch-label != "" ? AutoShorts.watch-label : "Chưa chọn thư mục theo dõi."; }
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Button { label: "Chọn thư mục"; block: true; enabled: !AutoShorts.busy && !AutoShorts.watch-enabled; clicked => { AutoShorts.choose-watch(); } }
+                        Button {
+                            label: AutoShorts.watch-enabled ? "Dừng theo dõi" : "Bật theo dõi";
+                            block: true; primary: AutoShorts.watch-enabled;
+                            enabled: !AutoShorts.busy && AutoShorts.watch-label != "";
+                            clicked => { AutoShorts.toggle-watch(); }
+                        }
+                    }
+                }
+
+                if AutoShorts.diagnostics != "": Button {
+                    label: root.diagnostics-open ? "Ẩn kiểm tra" : "Thông tin kiểm tra";
+                    block: true; clicked => { root.diagnostics-open = !root.diagnostics-open; }
+                }
+                if root.diagnostics-open && AutoShorts.diagnostics != "": Note { text: AutoShorts.diagnostics; }
+            }
+        }
+    }
+}

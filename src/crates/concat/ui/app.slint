@@ -28,10 +28,11 @@ import { RelinkDialog, RelinkData, MissingMediaItem } from "dialogs/relink.slint
 import { ConfirmData, ConfirmDialog } from "dialogs/confirm.slint";
 import { CaptionsDialog, CaptionsSheetData } from "dialogs/captions.slint";
 import { SpeechDialog, SpeechSheetData } from "dialogs/speech.slint";
+import { LuxImportDialog, StudioLux, LuxChoice } from "dialogs/lux-import.slint";
 import { DockDivider, DockSide, SeatBox } from "dock.slint";
 import { Editor } from "editor.slint";
 import { PaneKind, Panes } from "workspace/pane-switcher.slint";
-import { ChipOption, NewProjectDialog, RecentProjectData, StartData, StartScreen } from "start.slint";
+import { ChipOption, LauncherUi, NewProjectDialog, RecentProjectData, StartData, StartScreen } from "start.slint";
 import { TitleBar } from "title-bar.slint";
 import { PhoneEditor } from "phone/editor.slint";
 import {
@@ -44,20 +45,28 @@ import { FontSearch } from "inspector/font-picker.slint";
 import { Meters } from "workspace/meters-pane.slint";
 import { Workspace } from "workspace/workspace.slint";
 import { StudioBridge, StudioWorkflowRow } from "workspace/studio-pane.slint";
+import { FilmStudio } from "workspace/studio-film.slint";
 import { StudioAi, StudioProviderRow } from "workspace/studio-ai.slint";
+import { AiControl, ControlStepRow, AiControlWorkspace } from "workspace/studio-ai-control.slint";
 import { AiEditing } from "workspace/ai-editing-pane.slint";
-import { AutoShorts, ShortsRow } from "workspace/auto-shorts.slint";
+import { AutoShorts, ShortsRow, TranscriptRow } from "workspace/auto-shorts.slint";
+import { AutoLanguage } from "workspace/auto-language.slint";
 import { StudioBrowser } from "workspace/studio-browser.slint";
+import { StudioWeb } from "workspace/studio-web.slint";
+import { StudioHotclip } from "workspace/studio-hotclip.slint";
 import { StudioSession } from "workspace/studio-session.slint";
 import { PaneScroll } from "workspace/pane.slint";
 import { StudioOpenTalking } from "workspace/studio-opentalking.slint";
+import { StudioPromaxAvatars, PromaxAvatarRow } from "workspace/studio-promax-avatars.slint";
 import { StudioLive, StudioLiveCommentRow } from "workspace/studio-live.slint";
 import { StudioProducts, StudioProductRow } from "workspace/studio-products.slint";
 import { ScriptLibrary, StudioPromptRow } from "workspace/studio-scripts.slint";
 import { ProductionStudio, StudioRunRow } from "workspace/studio-production.slint";
+import { ProductionScenes, SceneCardRow } from "workspace/studio-scenes.slint";
 import { StudioChannels, StudioPageRow } from "workspace/studio-pages.slint";
-import { StudioBulk, StudioBulkRowItem } from "workspace/studio-bulk.slint";
+import { StudioBulk, StudioBulkRowItem, StudioVideoItem } from "workspace/studio-bulk.slint";
 import { StudioPublish, StudioPublishRowItem } from "workspace/studio-publish.slint";
+import { KediFactory, KediJobRow, KediProviderRow, KediResolvedVideo } from "workspace/studio-kedi-factory.slint";
 import { LiveOutputWindow } from "workspace/live-output-window.slint";
 import {
     ClipData, ClipField, ClipKeyData, ClipKind, ClipTextField, DropData, Keyframes,
@@ -69,21 +78,31 @@ import {
 import { KeyEditor, KeyMarkData, KeyRowData } from "workspace/keyframes-pane.slint";
 
 export {
+    ProductionScenes, SceneCardRow,
+    LauncherUi,
+    StudioWeb,
+    StudioHotclip,
     AiEditing,
-    AutoShorts, ShortsRow,
+    AutoShorts, ShortsRow, TranscriptRow,
+    AutoLanguage,
     StudioBridge, StudioWorkflowRow,
     StudioAi, StudioProviderRow,
+    AiControl, ControlStepRow,
     StudioBrowser,
     StudioSession,
     StudioOpenTalking,
+    StudioPromaxAvatars, PromaxAvatarRow,
     StudioLive,
     StudioLiveCommentRow,
     StudioProducts, StudioProductRow,
     ScriptLibrary, StudioPromptRow,
     ProductionStudio, StudioRunRow,
+    FilmStudio,
     StudioChannels, StudioPageRow,
-    StudioBulk, StudioBulkRowItem,
+    StudioBulk, StudioBulkRowItem, StudioVideoItem,
     StudioPublish, StudioPublishRowItem,
+    StudioLux, LuxChoice,
+    KediFactory, KediJobRow, KediProviderRow, KediResolvedVideo,
     Curves, Fmt, Focus, Payload, Theme, Bezier, Editor, I18n,
     AppliedEntryData, AppliedParamData, CatalogueEntryData, Library, LibraryViewData, ParamFormat,
     DockDivider, DockSide, PaneKind, SeatBox,
@@ -144,6 +163,8 @@ export component App inherits Window {
     // the focus back here on the way out.
     changed on-start => {
         if (!root.on-start) {
+            StudioWeb.hide-native();
+            StudioHotclip.hide-native();
             keys.focus();
         }
     }
@@ -151,9 +172,15 @@ export component App inherits Window {
         || root.project-sheet.open || root.captions.open || root.speech.open
         || root.start.composing;
     changed sheet-open => {
+        if root.sheet-open { StudioWeb.hide-native(); StudioHotclip.hide-native(); }
         if (!root.sheet-open) {
             keys.focus();
         }
+    }
+
+    out property <bool> web-host-allowed: root.on-start && !root.sheet-open && !root.confirm.open && !root.relink.open && root.open-menu < 0;
+    changed web-host-allowed => {
+        if !root.web-host-allowed { StudioWeb.hide-native(); StudioHotclip.hide-native(); }
     }
 
     // The editor's own state and actions live on the Editor global rather
@@ -698,6 +725,12 @@ export component App inherits Window {
         }
     }
 
+    if AiControl.workspace-open: AiControlWorkspace {
+        x:0; y:32px; width:root.width; height:root.height - 32px;
+        takeover=>{AiControl.takeover-project();}
+        connections=>{root.open-settings();}
+    }
+
     // Declared last, and that is load-bearing: Slint paints siblings in
     // declaration order, so a modal placed above the workspace in the file is
     // painted *under* it on screen — open, correct, and completely hidden.
@@ -851,6 +884,25 @@ export component App inherits Window {
         dismissed => { root.confirm-dismissed(); }
     }
 
+    // Window-level overlay: opening a delete question must not change the
+    // library's height or scroll position.
+    ConfirmDialog {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        surface-width: 520px;
+        data: {
+            open: StudioBulk.delete-confirm-path != "",
+            title: "Xác nhận xóa video",
+            message: "Bạn sắp xóa video:\n" + StudioBulk.delete-confirm-path
+                + "\n\nThao tác này xóa tệp video khỏi máy và không thể hoàn tác.",
+            action: "Xóa tệp video",
+        };
+        confirmed => { StudioBulk.confirm-delete(); }
+        dismissed => { StudioBulk.cancel-delete(); }
+    }
+
 
     CaptionsDialog {
         x: 0;
@@ -898,6 +950,13 @@ export component App inherits Window {
         cancel => { root.speech-cancel(); }
     }
 
+    LuxImportDialog {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+    }
+
     // Over the workspace and both sheets, under the menus. A tooltip has to
     // clear the pane it belongs to — panes clip — and it has no business over
     // an open menu, which is the one surface that would rather not be
@@ -940,3 +999,5 @@ export component App inherits Window {
         data: root.toast;
     }
 }
+
+

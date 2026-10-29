@@ -13,6 +13,7 @@ import { Fmt } from "../util.slint";
 import { Select } from "../primitives/select.slint";
 import { PaneScroll } from "../workspace/pane.slint";
 import { HairlineSplitter } from "../workspace/splitter.slint";
+import { LauncherUi } from "../launcher-ui.slint";
 
 // Settings: a fixed-height sheet with a column of pages down the side. The
 // model rows keep two things apart — a downloaded model is a *choice* and so
@@ -748,6 +749,20 @@ export component SettingsDialog inherits Modal {
                         options: [I18n.t("settings.dark"), I18n.t("settings.light")];
                         current: Theme.dark ? 0 : 1;
                         changed(index) => { root.theme-changed(index == 0); }
+                    }
+                }
+
+                DialogSection {
+                    title: "Chuyển động và thanh bên";
+                    Button {
+                        label: Theme.system-reduced-motion ? "Giảm chuyển động: Theo hệ điều hành" : Theme.reduced-motion ? "Giảm chuyển động: Bật" : "Giảm chuyển động: Tắt";
+                        enabled: !Theme.system-reduced-motion;
+                        clicked => { LauncherUi.reduced-motion-changed(!Theme.reduced-motion); }
+                    }
+                    Select {
+                        options: ["Thanh bên tự động", "Ghim thanh bên", "Thu gọn thanh bên"];
+                        current: LauncherUi.sidebar-mode;
+                        changed(index) => { LauncherUi.sidebar-mode-changed(index); }
                     }
                 }
 

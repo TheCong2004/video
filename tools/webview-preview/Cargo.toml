@@ -1,0 +1,21 @@
+[package]
+name = "concat-webview-preview"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+slint = { version = "=1.18.1", default-features = false, features = ["std", "backend-winit", "renderer-software", "compat-1-2", "unstable-winit-030"] }
+wry = { version = "=0.57.0", default-features = false }
+url = "2"
+concat-studio = { path = "../../src/crates/concat-studio" }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+[profile.dev]
+debug = 0
+incremental = false

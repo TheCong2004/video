@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Floword } from "../theme/floword.slint";
+import { StudioButton } from "studio-chrome.slint";
+
+export global StudioHotclip {
+    in-out property <bool> active;
+    in-out property <int> open-request;
+    in-out property <bool> loaded;
+    in-out property <bool> failed;
+    in-out property <string> status: "Đang khởi động Hotclip…";
+    in-out property <length> frame-x;
+    in-out property <length> frame-y;
+    in-out property <length> frame-width;
+    in-out property <length> frame-height;
+    callback retry();
+    callback hide-native();
+}
+
+export component StudioHotclipPage inherits Rectangle {
+    background: Floword.ground;
+    VerticalLayout {
+        padding: 12px; spacing: 8px;
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "Hotclip"; color: Floword.text; font-size: 20px; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1; min-width: 0px; }
+            if StudioHotclip.failed: StudioButton { label: "Mở lại Hotclip"; compact: true; clicked => { StudioHotclip.retry(); } }
+        }
+        Text { text: StudioHotclip.status; color: StudioHotclip.failed ? Floword.warning : Floword.muted; font-size: 12px; wrap: word-wrap; min-width: 0px; }
+        native-frame := Rectangle {
+            min-width: 0px; min-height: 0px; vertical-stretch: 1;
+            background: Floword.surface;
+            if !StudioHotclip.loaded: Text {
+                width: Math.max(0px, parent.width - 32px); x: 16px;
+                y: Math.max(0px, (parent.height - self.height) / 2);
+                text: StudioHotclip.failed ? "Hotclip chưa mở được. Kiểm tra thông báo phía trên rồi thử lại." : "Đang mở xưởng cắt video Hotclip…";
+                color: Floword.muted; wrap: word-wrap; horizontal-alignment: center;
+            }
+        }
+    }
+    Timer {
+        interval: 50ms; running: StudioHotclip.active;
+        triggered => {
+            StudioHotclip.frame-x = native-frame.absolute-position.x;
+            StudioHotclip.frame-y = native-frame.absolute-position.y;
+            StudioHotclip.frame-width = native-frame.width;
+            StudioHotclip.frame-height = native-frame.height;
+        }
+    }
+}

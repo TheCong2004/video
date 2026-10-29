@@ -210,6 +210,9 @@ impl LocalAiRuntime {
                         .and_then(|v| v.get("authenticated").and_then(Value::as_bool))
                         == Some(true)
                 {
+                    // Public local origin only. Authentication remains in the
+                    // existing DPAPI runtime store and is never exported.
+                    fs::write(data.join("runtime-origin.json"),serde_json::to_vec(&json!({"version":1,"origin":runtime.origin})).map_err(configuration)?).map_err(configuration)?;
                     return Ok(runtime);
                 }
             }
@@ -228,6 +231,22 @@ impl LocalAiRuntime {
     pub fn origin(&self) -> &str {
         &self.origin
     }
+    /// Attach a background campaign to this same account/runtime owner. This
+    /// reads existing credentials only; it never creates a second account store.
+    pub fn attach(data:&Path)->Result<WorkflowClient,WorkflowError>{
+        if !data.join("runtime.dpapi").is_file(){return Err(WorkflowError::Unavailable);}
+        let bytes=fs::read(data.join("runtime-origin.json")).map_err(unavailable)?;
+        if bytes.len()>4096{return Err(WorkflowError::Configuration);}
+        let value:Value=serde_json::from_slice(&bytes).map_err(configuration)?;
+        let origin=value["origin"].as_str().ok_or(WorkflowError::Configuration)?;
+        let url=url::Url::parse(origin).map_err(configuration)?;
+        if value["version"]!=1 || url.scheme()!="http" || url.host_str()!=Some("127.0.0.1") || url.path()!="/" || url.query().is_some() || url.port().is_none(){return Err(WorkflowError::Configuration);}
+        let key=secrets(data)?.jwt;let auth=cookie(&key)?;
+        let res=ureq::AgentBuilder::new().redirects(0).timeout(Duration::from_secs(2)).build().get(&format!("{origin}/api/auth/status")).set("Cookie",&format!("auth_token={auth}")).call().map_err(unavailable)?;
+        let mut bytes=vec![];res.into_reader().take(16385).read_to_end(&mut bytes).map_err(unavailable)?;
+        if bytes.len()>16384 || serde_json::from_slice::<Value>(&bytes).map_err(configuration)?["authenticated"]!=true{return Err(WorkflowError::Authentication);}
+        WorkflowClient::local_ai(origin,auth)
+    }
 }
 impl Drop for LocalAiRuntime {
     fn drop(&mut self) {
@@ -236,7 +255,7 @@ impl Drop for LocalAiRuntime {
     }
 }
 
-fn node_path(path: &Path) -> Result<PathBuf, WorkflowError> {
+pub(crate) fn node_path(path: &Path) -> Result<PathBuf, WorkflowError> {
     let full = path.canonicalize().map_err(configuration)?;
     #[cfg(windows)]
     {
@@ -250,7 +269,7 @@ fn node_path(path: &Path) -> Result<PathBuf, WorkflowError> {
 }
 
 #[cfg(windows)]
-fn owned_job(child: &Child) -> Result<std::os::windows::io::OwnedHandle, WorkflowError> {
+pub(crate) fn owned_job(child: &Child) -> Result<std::os::windows::io::OwnedHandle, WorkflowError> {
     use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
     use windows_sys::Win32::System::JobObjects::*;
     // SAFETY: null security/name create an unnamed, non-inheritable Job.

@@ -7,4 +7,8 @@ export global StudioSession {
     in-out property <bool> signed-in;
     in-out property <string> account;
     in-out property <string> status;
+    callback restore();
+    callback login();
+    callback cancel();
+    callback logout();
 }

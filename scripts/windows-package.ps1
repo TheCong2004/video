@@ -25,12 +25,20 @@ $live=Join-Path $packageRoot '.deps\tiktok-live-connector'
 $mcp=Join-Path $packageRoot 'tools\ai-edit-mcp'
 if(!(Test-Path -LiteralPath (Join-Path $mcp 'node_modules\@modelcontextprotocol\sdk\package.json'))){throw 'Install MCP dependencies first: cd tools\ai-edit-mcp; pnpm install --frozen-lockfile --ignore-scripts'}
 if(!(Test-Path -LiteralPath (Join-Path $live 'dist\artcraftLiveRuntime.js'))){throw 'Stage TikTok runtime first: scripts\stage-live-runtime.ps1'}
+& node (Join-Path $PSScriptRoot 'patch-live-controller.mjs') $live
+if($LASTEXITCODE -ne 0){throw 'Concat LIVE controller staging failed.'}
 New-Item -ItemType Directory -Path $output -ErrorAction Stop | Out-Null
 Copy-Item -LiteralPath $built -Destination (Join-Path $output 'Concat.exe')
 Copy-Item -LiteralPath (Join-Path $packageRoot 'docs\WINDOWS-PACKAGE.md') -Destination $output
 Copy-Item -LiteralPath (Join-Path $packageRoot 'docs\AI_EDIT_EXTERNAL.md') -Destination $output
 Copy-Item -LiteralPath (Join-Path $packageRoot 'docs\TIKTOK_LIVE_CONNECTION_CHECK.md') -Destination $output
 Copy-Item -LiteralPath (Join-Path $packageRoot 'docs\LIVE_MOTION.md') -Destination $output
+Copy-Item -LiteralPath (Join-Path $packageRoot 'docs\LOCAL_AVATAR_UI.md') -Destination $output
+& (Join-Path $PSScriptRoot 'stage-local-avatars.ps1') -Destination (Join-Path $output 'AvatarRuntime')
+if(!$?){throw 'Bundling Concat local avatar runtime failed.'}
+foreach($tool in @('ffmpeg.exe','ffprobe.exe')) {
+    Copy-Item -LiteralPath (Join-Path $ffmpeg[0].FullName $tool) -Destination $output
+}
 & robocopy $localAi (Join-Path $output 'OmniRoute') /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XJ /XF '.env' '.env.*' '*.db' '*.db-*' '*.sqlite' '*.sqlite-*' '*.sqlite3' '*.sqlite3-*' '*.log' | Out-Null
 if($LASTEXITCODE -ge 8){throw 'Bundling local AI runtime failed.'}
 $liveResources=Join-Path $output 'resources\tiktok-live-connector'
@@ -38,6 +46,15 @@ $liveResources=Join-Path $output 'resources\tiktok-live-connector'
 if($LASTEXITCODE -ge 8){throw 'Bundling TikTok runtime failed.'}
 New-Item -ItemType Directory -Path (Join-Path $output 'resources\node') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $localAi 'node.exe') -Destination (Join-Path $output 'resources\node\node.exe')
+New-Item -ItemType Directory -Path (Join-Path $output 'resources\bin') -Force | Out-Null
+foreach ($downloader in @('lux.exe', 'yt-dlp.exe')) {
+    $downloaderPath = Join-Path $packageRoot "resources\bin\$downloader"
+    if (!(Test-Path -LiteralPath $downloaderPath -PathType Leaf)) { throw "Missing online downloader: $downloader" }
+    Copy-Item -LiteralPath $downloaderPath -Destination (Join-Path $output 'resources\bin')
+}
+foreach ($notice in @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'resources\bin') -Filter 'yt-dlp-*.txt' -File)) {
+    Copy-Item -LiteralPath $notice.FullName -Destination (Join-Path $output 'resources\bin')
+}
 & robocopy $mcp (Join-Path $output 'tools\ai-edit-mcp') /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XJ /XD (Join-Path $mcp 'node_modules\.pnpm') /XF '.env' '.env.*' '*.dpapi' '*.log' '*.test.mjs' 'smoke-client.mjs' 'browser-native-client.mjs' 'live-chat-smoke.mjs' 'diagnose-chat.mjs' 'visible-window-smoke.mjs' | Out-Null
 if($LASTEXITCODE -ge 8){throw 'Bundling AI Edit MCP runtime failed.'}
 foreach($dir in @($ffmpeg[0].FullName,$ort[0].FullName,$sherpa)) {

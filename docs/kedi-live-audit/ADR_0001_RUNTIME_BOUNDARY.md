@@ -1,0 +1,8 @@
+﻿# ADR 0001 — Keep Kedi Live P1 inside the native Concat services crate
+
+- **Status:** Accepted for P0/P1; revisit only with measured requirements.
+- **Date:** 2026-10-27.
+- **Context:** The active Kedi desktop implementation is a Rust/Slint Concat fork with an existing `concat-studio` service layer, LIVE connector, product playlist, OpenTalking client, avatar motion selection, and extensive uncommitted work. OpenTalking is a sibling ArtCraft engine checkout. The spec's suggested Python sidecar/API is not an existing Kedi runtime boundary.
+- **Decision:** Add a pure local Rust module in `concat-studio` for versioned event contracts, session FSM, rule-only brain, mock ProductSession, bounded scheduler, fake speech backend, and offline simulator. Do not replace or redirect existing LIVE/OpenTalking paths. No API server or new dependency is needed for P1. Demo execution is explicitly feature-gated; all feature flags default off.
+- **Consequences:** Reuses workspace language, Serde, and test tooling; keeps the mock path deterministic and simple to roll back. P1 has no persistence, operator UI integration, real speech output, live publishing, or real commerce authority. P2 must adapt to the actual OpenTalking session source and preserve `speak_audio`'s STT semantics. P3 must use a tenant-scoped, revisioned, expiring commerce provider.
+- **Rollback:** Remove `live_brain` module export and its added source/tests/example; no app behavior or persisted format changes. Runtime flags `KEDI_LIVE_ENABLED`, `KEDI_OT_ADAPTER_ENABLED`, `KEDI_COMMERCE_ENABLED`, and `KEDI_PLATFORM_WRITE_ENABLED` all default off.

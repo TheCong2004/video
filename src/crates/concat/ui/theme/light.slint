@@ -55,39 +55,54 @@ export global Light {
     // panes are the lit thing, the ground is not, and the step between them is
     // the gutter. `raised` is the only pure white in the window and is spent
     // where something genuinely floats — a menu, a tooltip, a dialog sheet.
-    out property <color> panel: #f7f7f8;
+    out property <color> panel: #F5F8FC;
     out property <color> raised: #ffffff;
-    out property <color> well: #dfdfe4;
-    out property <color> field: #f0f0f2;
-    out property <color> field-hover: #e8e8ec;
-    out property <color> field-active: #d6d6dd;
+    out property <color> well: #E4EDF7;
+    out property <color> field: #EDF4FC;
+    out property <color> field-hover: #E6EEFF;
+    out property <color> field-active: #D8E4F7;
 
     // the launch screen's own ladder — see the dark palette for why it
     // exists. Deeper here too, which on this side of the switch means a
     // greyer page and panes that stop short of white: the launcher is the
     // one screen with no picture on it, and it is allowed to be the quiet
     // room the rest of the app is not.
-    out property <color> launch-page: #c4c4cd;
-    out property <color> launch-panel: #ededf1;
-    out property <color> launch-well: #d6d6dd;
-    out property <color> launch-raised: #f7f7f8;
-    out property <color> launch-field: #e2e2e8;
-    out property <color> launch-field-active: #cdcdd6;
+    out property <color> launch-page: #F7FAFE;
+    out property <color> launch-panel: #FFFFFF;
+    out property <color> launch-well: #EDF5FC;
+    out property <color> launch-raised: #FFFFFF;
+    out property <color> launch-field: #F5F8FC;
+    out property <color> launch-field-active: #E6EEFF;
 
     // hairlines — black-alpha, the mirror of the dark palette's white-alpha,
     // so they hold on panel, well, and ground alike. A shade heavier than a
     // straight inversion: dark hairlines on light surfaces are read at lower
     // contrast than light ones on dark, and 10% black all but disappears.
-    out property <color> line: #0000001f;         // rgb(0 0 0 / 0.12)
-    out property <color> line-strong: #00000038;  // rgb(0 0 0 / 0.22)
+    out property <color> line: #DCE6F2;
+    out property <color> line-strong: #B4C7DE;
 
     // text — the three steps of the dark palette's ramp, matched on contrast
     // against `panel` rather than by inverting the channels.
-    out property <color> fg: #16161a;
-    out property <color> fg-muted: #56565e;
-    out property <color> fg-dim: #86868c;
+    out property <color> fg: #17365D;
+    out property <color> fg-muted: #506985;
+    out property <color> fg-dim: #637B97;
     // Away from a light ground is down, not up; see the dark palette.
     out property <color> fg-hot: #000000;
+
+    // Kedi shell semantics. Editor selection accents and media-kind colours
+    // below remain document/editor semantics, not brand colours.
+    out property <color> brand: #315DCC;
+    out property <color> brand-hover: #264DAF;
+    out property <color> brand-soft: #E6EEFF;
+    out property <color> on-brand: #FFFFFF;
+    out property <color> brand-yellow: #FFC83D;
+    out property <color> nav-selected: #FFF3CF;
+    out property <color> nav-selected-ink: #17365D;
+    out property <color> line-soft: #EAF0F7;
+    out property <color> success: #087F5B;
+    out property <color> warning: #94600C;
+    out property <color> info: #1667AC;
+    out property <color> violet: #6C4FC5;
 
     // accents
     //
@@ -241,6 +256,6 @@ export global Light {
     // panel for the gutters to read as gaps rather than as seams, and still a
     // step under the darkest surface inside a pane, so a pane's floor never
     // mistakes itself for the space between panes.
-    out property <color> page: #d2d2d9;
-    out property <color> page-fg-muted: #56565e;
+    out property <color> page: #E4EDF7;
+    out property <color> page-fg-muted: #506985;
 }

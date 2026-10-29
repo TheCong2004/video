@@ -13,6 +13,7 @@ import { Pane, PaneHeader } from "pane.slint";
 import { PaneKind, PaneSwitcher } from "pane-switcher.slint";
 import { ClipKind, StageGuideData, StageItemData } from "../timeline/model.slint";
 import { ContextMenu, MenuMetrics, MenuRow } from "../primitives/context-menu.slint";
+import { AutoLanguage, AutoLanguageMonitor } from "auto-language.slint";
 
 // The programme monitor: a header that says what the output is, a stage on a
 // sunken viewport, and a transport tray under it in three parts — timecode on
@@ -711,6 +712,11 @@ export component PreviewPane inherits Rectangle {
     changed frames => { root.seed(); }
 
     Pane {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        visible: !AutoLanguage.active;
         if !root.bare: PaneHeader {
             title: I18n.t("common.preview");
 
@@ -1166,6 +1172,13 @@ export component PreviewPane inherits Rectangle {
                 }
             }
         }
+    }
+
+    if AutoLanguage.active: AutoLanguageMonitor {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
     }
 
     // The picture's right-click menu: one row, hosted here so its surface

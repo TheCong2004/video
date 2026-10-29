@@ -1,5 +1,49 @@
 # HotClip integration evidence
 
+## Follow-up: transcript review and repeated-take hints (2026-10-20)
+
+This section supersedes the earlier lack of a transcript correction UI. It does
+not supersede the explicit missing alignment/tracking/publishing capabilities.
+
+- `concat-agent/transcript.rs`: source-time cue validation; bounded normalized
+  Unicode phrase search across cues; correction with 64-step Undo/Redo; manual
+  range candidate with real evidence IDs; source-timed SRT serialization;
+  optional nearby-cue repeated-take hints from HotClip `retakes.ts`.
+- `concat/auto_shorts_transcript.rs` and Slint: source-owned review/reset,
+  20-cue pagination in a 300 px native scroll area, explicit edit/save/search/
+  range/add/export callbacks, manual provenance (no fake AI score), duplicate
+  region refusal, text edits clear output approvals, off-thread repeated-take
+  scan and exclusive-create source SRT save. Repetition hints never delete speech.
+- Native `shorts_plan` test verifies a corrected manual selection maps real source
+  times to native clip/caption times, leaves the project unchanged until commit
+  and restores the original with one Undo. No secondary timeline was introduced.
+- `cargo test -p concat-agent --profile quick`: **46 passed**, including nine
+  additions for transcript/manual native assembly/repeated-take behavior.
+- Node source/controller regression suite: **54 passed** across transcript,
+  shorts UX, resize, production steps, external AI editing, LIVE motion/
+  connection, auth-key boundaries and the local TikTok connector. These include
+  three transcript wiring guardrails; they are not mouse-driven GUI tests.
+- Prior-to-repetition UI revision: isolated Studio preview `cargo check` passed
+  after correcting access to private scroll offset using a public scroll-reset
+  method. Latest Slint UI revision (including repetition controls) also passed
+  the installed Slint build helper directly, writing only owned generated
+  bindings to `.runtime/hotclip-ui-check`. This is UI compilation evidence, not
+  a mouse-driven acceptance test or full native app typecheck.
+- Main Concat EXE was **not rebuilt/replaced**, and the running app was not stopped.
+  Full native controller build, interactive GUI acceptance and a rendered-video
+  fixture exercising these new callbacks remain pending until a safe app-closed
+  build window. No fresh paid provider/ASR-model/GPU request was made.
+- No ArtCraft/Promax runtime link, Electron installation, model download, Git push
+  or deployment was performed. The shared Unicode normalization dependency was
+  already present in the native lockfile/cache; it is now explicitly used by the
+  agent crate for Vietnamese combining accents.
+
+The exact source and remaining capability map/test instructions are in
+`AUTO_SHORTS.md`. Existing earlier end-to-end output evidence below concerns the
+older renderer flow; it must not be presented as new GUI validation.
+
+## Earlier integration baseline
+
 Worktree: `D:\capcutpolot\concat`, branch `main`, starting HEAD
 `47f91be9bafc8cb8dcbb7d11c901f4c1f6e27da7`. Reference source:
 `D:\capcutpolot\hotclip`, commit

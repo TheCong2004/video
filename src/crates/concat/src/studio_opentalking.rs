@@ -27,7 +27,7 @@ pub(crate) fn get_builtin_avatar_bytes(id: &str) -> Option<&'static [u8]> {
     }
 }
 
-fn decode_image_bytes(bytes: &[u8]) -> Option<image::RgbaImage> {
+pub(crate) fn decode_image_bytes(bytes: &[u8]) -> Option<image::RgbaImage> {
     let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes))
         .with_guessed_format()
         .ok()?;
@@ -89,6 +89,26 @@ pub fn create_job_video(
     script: &str,
     voice: &str,
 ) -> Option<std::path::PathBuf> {
+    create_job_video_with_duration(id, avatar, script, voice, 10)
+}
+
+fn retime_silent(path: std::path::PathBuf, seconds: u32) -> Option<std::path::PathBuf> {
+    let output = path.with_extension("duration.mp4");
+    let program = std::env::current_exe().ok()?.parent()?.join("ffmpeg.exe");
+    let program = if program.is_file() { program } else { "ffmpeg".into() };
+    let mut command = std::process::Command::new(program);
+    #[cfg(target_os = "windows")]
+    { use std::os::windows::process::CommandExt; command.creation_flags(0x08000000); }
+    let status = command.args(["-nostdin", "-v", "error", "-y", "-stream_loop", "-1", "-i"])
+        .arg(&path).args(["-t", &seconds.to_string(), "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p"])
+        .arg(&output).status().ok()?;
+    if !status.success() { let _ = std::fs::remove_file(output); return None; }
+    std::fs::rename(&output, &path).ok()?;
+    Some(path)
+}
+
+fn create_job_video_with_duration(id: &str, avatar: &str, script: &str, voice: &str, seconds: u32) -> Option<std::path::PathBuf> {
+    if !(1..=120).contains(&seconds) { return None; }
     let dirs = concat_host::AppDirs::locate().ok()?;
     let export_dir = dirs.data.join("opentalking-exports");
     let _ = std::fs::create_dir_all(&export_dir);
@@ -99,7 +119,7 @@ pub fn create_job_video(
         // TẠO VIDEO NỀN IM LẶNG CHO LIVESTREAM (HOÀN TOÀN KHÔNG CÓ TIẾNG NÓI)
         if let Some(bytes) = get_builtin_avatar_video_bytes(avatar) {
             if std::fs::write(&file_path, bytes).is_ok() && file_path.exists() {
-                return Some(file_path);
+                return retime_silent(file_path, seconds);
             }
         }
         let avatar_bytes = get_builtin_avatar_bytes(avatar)
@@ -126,7 +146,7 @@ pub fn create_job_video(
                     "-c:v",
                     "libx264",
                     "-t",
-                    "10",
+                    &seconds.to_string(),
                     "-pix_fmt",
                     "yuv420p",
                     "-an", // HOÀN TOÀN KHÔNG CÓ TRACK AUDIO
@@ -306,9 +326,13 @@ pub fn synthesize_speech_robust(
         }
     }
 
-    let clean_voice = voice_id
+    let mut clean_voice = voice_id
         .trim_start_matches("edge:")
-        .trim_start_matches("edge-tts:");
+        .trim_start_matches("edge-tts:")
+        .trim();
+    if clean_voice.is_empty() || !clean_voice.contains('-') {
+        clean_voice = "vi-VN-HoaiMyNeural";
+    }
     let temp_mp3 = std::env::temp_dir().join(format!("concat-tts-{}.mp3", std::process::id()));
 
     #[cfg(target_os = "windows")]
@@ -391,7 +415,7 @@ pub fn synthesize_speech_robust(
 enum Action {
     Refresh,
     RefreshJobs,
-    Create(String, String, String, String, String, Option<String>),
+    Create(String, String, String, String, String, Option<String>, u32),
     Stop(String),
     Delete(String),
     Import(String, String),
@@ -459,7 +483,7 @@ fn message(error: OpenTalkingError) -> slint::SharedString {
 fn avatars(rows: Vec<Avatar>) -> (ModelRc<StudioAvatarRow>, ModelRc<slint::SharedString>) {
     let labels = rows
         .iter()
-        .map(|row| format!("{} · {}", row.name, row.model_type).into())
+        .map(|row| row.name.clone().into())
         .collect::<Vec<slint::SharedString>>();
     let models = rows
         .into_iter()
@@ -489,6 +513,24 @@ fn voices(rows: Vec<Voice>) -> (ModelRc<StudioVoiceRow>, ModelRc<slint::SharedSt
         .collect::<Vec<_>>();
     (
         ModelRc::new(VecModel::from(models)),
+        ModelRc::new(VecModel::from(labels)),
+    )
+}
+
+pub(crate) fn default_builtin_voices() -> (ModelRc<StudioVoiceRow>, ModelRc<slint::SharedString>) {
+    let rows = vec![
+        StudioVoiceRow {
+            id: "edge-tts:vi-VN-HoaiMyNeural".into(),
+            label: "Hoài My (Nữ · Miền Bắc truyền cảm)".into(),
+        },
+        StudioVoiceRow {
+            id: "edge-tts:vi-VN-NamMinhNeural".into(),
+            label: "Nam Minh (Nam · Miền Bắc ấm áp)".into(),
+        },
+    ];
+    let labels: Vec<slint::SharedString> = rows.iter().map(|r| r.label.clone()).collect();
+    (
+        ModelRc::new(VecModel::from(rows)),
         ModelRc::new(VecModel::from(labels)),
     )
 }
@@ -696,7 +738,7 @@ fn execute(app: &App, action: Action) {
                             Ok(jobs),
                         ))
                     }
-                    Action::Create(avatar, voice, driver, title, script, scene) => {
+                    Action::Create(avatar, voice, driver, title, script, scene, seconds) => {
                         let has_script = !script.trim().is_empty();
                         let effective_title = if title.trim().is_empty() {
                             if has_script {
@@ -728,12 +770,15 @@ fn execute(app: &App, action: Action) {
                                 .map(|d| d.as_secs() as u32)
                                 .unwrap_or(0)
                         );
-                        let _ = create_job_video(
+                        let path = create_job_video_with_duration(
                             &job_id,
                             &avatar,
                             if has_script { &script } else { "" },
                             &voice,
-                        );
+                            seconds,
+                        ).ok_or(OpenTalkingError::Unavailable)?;
+                        let duration = concat_media::probe(&path).ok().and_then(|v| v.duration)
+                            .map(|d| d.as_f64()).ok_or(OpenTalkingError::Unavailable)?;
                         let job = VideoJob {
                             id: job_id,
                             title: effective_title,
@@ -741,7 +786,7 @@ fn execute(app: &App, action: Action) {
                             avatar_id: avatar,
                             driver,
                             created_at: "Vừa xong".into(),
-                            duration: "0:30".into(),
+                            duration: format!("{duration:.1}s"),
                         };
                         if let Ok(mut lock) = CLOUD_JOBS.lock() {
                             lock.insert(0, job.clone());
@@ -847,12 +892,18 @@ fn execute(app: &App, action: Action) {
                                     state.set_voices(rows);
                                     state.set_voice_options(options);
                                     state.set_voice_index(index);
+                                } else {
+                                    let (rows, options) = default_builtin_voices();
+                                    state.set_voices(rows);
+                                    state.set_voice_options(options);
+                                    state.set_voice_index(0);
                                 }
                             }
-                            Err(error) => {
-                                state.set_voices(ModelRc::default());
-                                state.set_voice_options(ModelRc::default());
-                                messages.push(message(error));
+                            Err(_) => {
+                                let (rows, options) = default_builtin_voices();
+                                state.set_voices(rows);
+                                state.set_voice_options(options);
+                                state.set_voice_index(0);
                             }
                         }
                         match scene_result {
@@ -980,6 +1031,14 @@ fn apply_jobs(state: &StudioOpenTalking, result: Result<Vec<VideoJob>, OpenTalki
 }
 
 fn refresh_preview(app: &App) {
+    // A legacy catalogue refresh must not replace the selected Promax face.
+    if !app
+        .global::<crate::ui::StudioPromaxAvatars>()
+        .get_live_active_id()
+        .is_empty()
+    {
+        return;
+    }
     let state = app.global::<StudioOpenTalking>();
     let id = selected(&state.get_avatars(), state.get_avatar_index())
         .map(|avatar| avatar.id.to_string())
@@ -1023,6 +1082,14 @@ fn selected<T: Clone>(model: &ModelRc<T>, index: i32) -> Option<T> {
 
 pub(crate) fn bind(app: &App) {
     refresh_preview(app);
+    let state = app.global::<StudioOpenTalking>();
+    if state.get_voice_options().row_count() == 0 {
+        let (rows, options) = default_builtin_voices();
+        state.set_voices(rows);
+        state.set_voice_options(options);
+        state.set_voice_index(0);
+        state.set_engine_status("ONLINE".into());
+    }
     let weak = app.as_weak();
     app.global::<StudioOpenTalking>().on_refresh_jobs(move || {
         if let Some(app) = weak.upgrade() {
@@ -1042,6 +1109,10 @@ pub(crate) fn bind(app: &App) {
         if state.get_busy() {
             return;
         }
+        let seconds = match state.get_duration_seconds().trim().parse::<u32>() {
+            Ok(value) if (1..=120).contains(&value) => value,
+            _ => { state.set_status("Nhập thời lượng từ 1 đến 120 giây.".into()); return; }
+        };
         let Some(avatar) = selected(&state.get_avatars(), state.get_avatar_index()) else {
             return;
         };
@@ -1066,6 +1137,7 @@ pub(crate) fn bind(app: &App) {
                 state.get_title().to_string(),
                 state.get_script().to_string(),
                 scene,
+                seconds,
             ),
         );
     });
@@ -1169,6 +1241,8 @@ pub(crate) fn bind(app: &App) {
                 let state = app.global::<StudioOpenTalking>();
                 state.set_avatar_index(index);
                 state.set_active_tab(0);
+                app.global::<crate::ui::StudioPromaxAvatars>()
+                    .set_live_active_id("".into());
                 refresh_preview(&app);
                 crate::studio_live_video::trigger_avatar_motion(&app, index);
             }

@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.kedi.local/live-task.v1.schema.json",
+  "title": "LiveTask v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "trace_id",
+    "session_id",
+    "type",
+    "priority",
+    "generation_id",
+    "deadline_at",
+    "expected_session_revision",
+    "speech",
+    "motion",
+    "scene",
+    "platform_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "origin_event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "type": {
+      "enum": [
+        "speech_and_scene",
+        "script",
+        "operator_control",
+        "platform_action_request"
+      ]
+    },
+    "priority": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2",
+        "P3"
+      ]
+    },
+    "generation_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "deadline_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expected_session_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "product_ref": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sku",
+            "revision"
+          ],
+          "properties": {
+            "sku": {
+              "type": "string",
+              "minLength": 1
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "speech": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "voice_id"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "voice_id": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string",
+          "default": "vi-VN"
+        }
+      }
+    },
+    "motion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gesture",
+        "emotion"
+      ],
+      "properties": {
+        "gesture": {
+          "enum": [
+            "idle",
+            "attentive",
+            "smile",
+            "point_left",
+            "point_right",
+            "present_product",
+            "hand_detail",
+            "look_down"
+          ]
+        },
+        "emotion": {
+          "enum": [
+            "neutral",
+            "friendly",
+            "happy",
+            "confident",
+            "attentive"
+          ]
+        }
+      }
+    },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scene_id",
+        "show_price"
+      ],
+      "properties": {
+        "scene_id": {
+          "type": "string"
+        },
+        "show_price": {
+          "type": "boolean"
+        },
+        "show_sku": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "platform_actions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "request_pin",
+          "send_comment"
+        ]
+      }
+    }
+  }
+}

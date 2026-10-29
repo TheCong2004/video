@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "tenant_id": "demo",
+  "store_id": "demo_store",
+  "sku": "DURIAN-2KG",
+  "revision": 37,
+  "title": "Sầu riêng 2 kg (demo)",
+  "currency": "VND",
+  "price_vnd": null,
+  "stock_state": "unknown",
+  "observed_at": "2026-10-26T03:20:00Z",
+  "valid_until": "2026-10-26T03:40:00Z",
+  "verification_source": "mock",
+  "pos_product_id": null,
+  "platform_product_ids": {},
+  "media_asset_ids": [
+    "demo-product-hero"
+  ],
+  "policy_revision": 1,
+  "shipping_quote": null
+}

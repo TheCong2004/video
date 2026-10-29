@@ -60,7 +60,7 @@ export component Modal inherits Rectangle {
         background: Theme.panel;
         border-width: 1px;
         border-color: Theme.line-strong;
-        border-radius: Theme.r-xl;
+        border-radius: Theme.r-dialog;
         clip: true;
 
         // Swallows presses that land on the dialog, so they do not reach the
@@ -202,7 +202,7 @@ export component Button inherits Rectangle {
         : root.square ? (root.large ? 34px : 28px)
         : text.preferred-width + root.mark + root.gap + (root.large ? 32px : 24px);
     max-width: root.square ? (root.large ? 34px : 28px) : 100000px;
-    border-radius: Theme.r;
+    border-radius: Theme.r-control;
     opacity: root.enabled ? 1.0 : 0.45;
     border-width: root.ghost ? 0px : 1px;
     border-color: root.primary ? (root.lit ? Theme.accent-hover : Theme.accent)
@@ -215,7 +215,7 @@ export component Button inherits Rectangle {
         : root.lit ? Theme.field-hover
         : Theme.field;
 
-    animate background, border-color { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background, border-color { duration: Theme.motion-hover; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     property <brush> ink: root.primary ? Theme.on-accent
         : root.ghost ? (root.lit ? Theme.fg : Theme.fg-muted)
@@ -268,7 +268,7 @@ export component CopyChip inherits Rectangle {
     border-width: 1px;
     border-color: touch.has-hover ? Theme.line-strong : Theme.line;
 
-    animate background, border-color { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background, border-color { duration: Theme.motion-hover; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     hidden := TextInput {
         x: 0;
@@ -385,7 +385,7 @@ export component DialogSection inherits VerticalLayout {
             : head.has-hover ? Theme.field
             : Theme.raised;
 
-        animate background { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+        animate background { duration: Theme.motion-hover; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
         head := TouchArea {
             enabled: root.collapsible;
@@ -544,6 +544,7 @@ export component DialogRow inherits HorizontalLayout {
 // A single-line field. No border: the ground carries it, and the accent ring
 // only appears once it is being typed into.
 export component Field inherits Rectangle {
+    in property <bool> enabled: true;
     /// The value the caller owns. One-way: what is typed comes back through
     /// `edited`, and this is re-seeded from whatever the caller does with it.
     in property <string> value;
@@ -556,8 +557,8 @@ export component Field inherits Rectangle {
     in property <bool> secret;
     /// The corners, a side at a time, so two fields can be joined into
     /// one control with a square seam between them.
-    in property <length> radius-left: Theme.r;
-    in property <length> radius-right: Theme.r;
+    in property <length> radius-left: Theme.r-control;
+    in property <length> radius-right: Theme.r-control;
 
     callback edited(text: string);
 
@@ -579,7 +580,7 @@ export component Field inherits Rectangle {
     border-color: input.has-focus ? Theme.accent : Colors.transparent;
     clip: true;
 
-    animate background, border-color { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background, border-color { duration: Theme.motion-hover; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     // The text being edited, held separately from `value`.
     //
@@ -600,11 +601,13 @@ export component Field inherits Rectangle {
     }
 
     touch := TouchArea {
+        enabled: root.enabled;
         mouse-cursor: MouseCursor.text;
         clicked => { input.focus(); }
     }
 
     input := TextInput {
+        read-only: !root.enabled;
         x: 10px;
         y: (parent.height - self.height) / 2;
         width: parent.width - 20px;

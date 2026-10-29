@@ -1,5 +1,24 @@
 # Concat AI Edit: connected chat browser and MCP
 
+## AI Control workspace (current source; desktop build pending)
+
+Open **AI Control → Phòng điều hành AI** for the dedicated task workspace. It
+shows real persisted steps as numbered blocks, with dependencies, readable states,
+pause/resume and results. Raw tool JSON is under **Chi tiết công cụ**.
+
+Choose **Dùng AI trên web**, then ChatGPT/Gemini/Claude and explicitly allow AI
+access. Control opens its own browser profile, waits for manual login if needed,
+types one correlated request, clicks Send once and reads the matching structured
+reply. `ai.plan`, `ai.script` and `ai.edit` use this transport; validated native
+executors apply project changes. This is not an arbitrary website click agent.
+API connections remain an alternative. Existing connected-editor web chat below
+is preserved and uses a separate owned profile.
+
+The provider is fixed after a model dispatch. A waiting workflow that has never
+dispatched AI can change sources through revision-checked input updates, which
+invalidate old approvals. An uncertain send is not automatically replayed.
+Tests use intercepted local browser pages, not a live account or model inference.
+
 **Chat web tự động → chọn ChatGPT/Gemini/Claude → Mở chat & kết nối project**
 launches an owned Chrome window (Edge fallback only if Chrome is absent) with a dedicated persistent profile per browser/provider. Log
 in there once and type in the chat. On your Send click, the browser adapter

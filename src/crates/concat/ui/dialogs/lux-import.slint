@@ -1,0 +1,282 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { I18n } from "../i18n.slint";
+import { Theme } from "../theme/theme.slint";
+import { Glyph, Icon } from "../icons.slint";
+import { Button, DialogRow, DialogSection, Field, Modal, Progress } from "../primitives/modal.slint";
+import { Select } from "../primitives/select.slint";
+import { ScrollView } from "std-widgets.slint";
+import { VideoTile } from "../primitives/video-tile.slint";
+
+export struct LuxChoice { index: int, title: string, detail: string, selected: bool, exists: bool, thumbnail: image, duration: string }
+
+export global StudioLux {
+    in-out property <bool> open: false;
+    in-out property <string> url: "";
+    in-out property <bool> is-playlist: false;
+    in-out property <bool> busy: false;
+    in-out property <bool> downloading: false;
+    in-out property <string> status: "";
+    in-out property <string> error: "";
+    in-out property <float> progress: 0.0;
+    in-out property <string> speed: "";
+    in-out property <string> eta: "";
+    in-out property <bool> done: false;
+
+    // Parsed video metadata provided by Concat backend adapter
+    in-out property <bool> has-info: false;
+    in-out property <string> video-title: "";
+    in-out property <string> video-site: "";
+    in-out property <string> video-type: "video";
+    in-out property <[string]> stream-options: [];
+    in-out property <int> stream-index: 0;
+    in-out property <[LuxChoice]> choices;
+    in-out property <int> selected-count: 0;
+    in-out property <int> scan-limit-index: 1;
+    in-out property <bool> hide-existing: true;
+    in-out property <bool> can-browser: false;
+    in-out property <int> choice-page: 0;
+    in-out property <int> choice-pages: 1;
+    in-out property <int> total-count: 0;
+    in-out property <int> existing-count: 0;
+    callback choice-page-changed(int);
+    callback fetch-browser();
+    callback toggle-choice(int);
+    callback choose-first(int);
+    callback filter-changed();
+    callback limit-changed(int);
+
+    callback open-dialog();
+    callback close-dialog();
+    callback url-edited(string);
+    callback toggle-playlist(bool);
+    callback fetch-info();
+    callback stream-changed(int);
+    callback start-download();
+    callback cancel-download();
+    callback reset();
+}
+
+export component LuxImportDialog inherits Modal {
+    title: "Tải & Nhập Video Trực Tuyến (Lux)";
+    glyph: Glyph.import;
+    open: StudioLux.open;
+    dismissable: !StudioLux.downloading && !StudioLux.busy;
+    surface-width: 940px;
+    surface-height: Math.min(StudioLux.is-playlist ? 820px : 560px, root.height - 24px);
+
+    closed => { StudioLux.close-dialog(); }
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 14px;
+
+        ScrollView { VerticalLayout { spacing: 12px; alignment: start;
+        // Header / introduction
+        Text {
+            text: "Dán link video hoặc tài khoản/kênh. Với tài khoản, lấy danh sách rồi chọn video cần tải; video đã có trên máy sẽ được bỏ qua.";
+            color: Theme.fg-muted;
+            font-size: Theme.fs;
+            wrap: word-wrap;
+        }
+
+        // Section 1: URL & Playlist option
+        DialogSection {
+            title: "Liên kết Video / Playlist";
+
+            DialogRow {
+                label: "URL:";
+                Field {
+                    enabled: !StudioLux.downloading && !StudioLux.busy;
+                    placeholder: "https://www.youtube.com/watch?v=... hoặc bilibili.com...";
+                    value: StudioLux.url;
+                    edited(text) => { StudioLux.url-edited(text); }
+                }
+                Button {
+                    label: StudioLux.busy ? "Đang quét..." : (StudioLux.is-playlist ? "Lấy danh sách" : "Lấy thông tin");
+                    glyph: Glyph.search;
+                    enabled: StudioLux.url != "" && !StudioLux.busy && !StudioLux.downloading;
+                    clicked => { StudioLux.fetch-info(); }
+                }
+            }
+
+            DialogRow {
+                label: "Tùy chọn:";
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: Theme.r-sm;
+                        border-width: 1px;
+                        border-color: StudioLux.is-playlist ? Theme.accent : Theme.line;
+                        background: StudioLux.is-playlist ? Theme.accent : Theme.field;
+
+                        if StudioLux.is-playlist: Icon {
+                            glyph: Glyph.check;
+                            size: 12px;
+                            tint: Theme.on-accent;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        TouchArea {
+                            enabled: !StudioLux.downloading && !StudioLux.busy;
+                            mouse-cursor: pointer;
+                            clicked => { StudioLux.toggle-playlist(!StudioLux.is-playlist); }
+                        }
+                    }
+                    Text {
+                        text: "Tải danh sách phát / kênh (nếu nền tảng cho phép)";
+                        color: Theme.fg;
+                        font-size: Theme.fs;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+            if StudioLux.is-playlist: HorizontalLayout {
+                spacing: 8px;
+                Text { text: "Lấy tối đa:"; color: Theme.fg; vertical-alignment: center; }
+                Select { enabled: !StudioLux.busy && !StudioLux.downloading; options: ["10 video", "100 video", "500 video"]; current: StudioLux.scan-limit-index; changed(i) => { StudioLux.limit-changed(i); } }
+            }
+        }
+
+        if StudioLux.is-playlist: VerticalLayout {
+            spacing: 8px;
+            Text { text: "Chọn video · " + StudioLux.total-count + " tìm thấy · " + StudioLux.selected-count + " đã chọn · " + StudioLux.existing-count + " đã có"; color: Theme.fg; font-weight: 600; }
+            if !StudioLux.has-info && !StudioLux.busy: Text { text: "Chưa có danh sách để chọn. Bấm Lấy danh sách ở trên; với TikTok, Concat tự mở trình duyệt để đọc video và ảnh bìa."; color: Theme.fg-muted; wrap: word-wrap; }
+            if StudioLux.busy: Text { text: "Đang đọc tài khoản… Nếu trình duyệt yêu cầu xác minh, hoàn tất tại cửa sổ vừa mở. Danh sách sẽ hiện ở đây khi đọc xong."; color: Theme.fg-muted; wrap: word-wrap; }
+            if StudioLux.has-info: HorizontalLayout {
+                spacing: 6px;
+                Button { label: "Chọn 10 mới"; enabled: !StudioLux.busy && !StudioLux.downloading; clicked => { StudioLux.choose-first(10); } }
+                Button { label: "Chọn 100 mới"; enabled: !StudioLux.busy && !StudioLux.downloading; clicked => { StudioLux.choose-first(100); } }
+                Button { label: "Bỏ chọn"; enabled: !StudioLux.busy && !StudioLux.downloading; clicked => { StudioLux.choose-first(0); } }
+                Button { label: StudioLux.hide-existing ? "Hiện video đã có" : "Ẩn video đã có"; enabled: !StudioLux.busy && !StudioLux.downloading; clicked => { StudioLux.hide-existing = !StudioLux.hide-existing; StudioLux.filter-changed(); } }
+            }
+            if StudioLux.has-info && StudioLux.choices.length == 0: Text { text: StudioLux.existing-count > 0 ? "Các video đọc được đều đã có trên máy. Bấm Hiện video đã có để xem, hoặc tăng giới hạn rồi lấy thêm." : "Chưa đọc được video nào; xem thông báo bên dưới rồi thử lấy lại danh sách."; color: Theme.fg-muted; wrap: word-wrap; }
+            if StudioLux.has-info: FlexboxLayout {
+                spacing: 10px; min-width: 0px; vertical-stretch: 0;
+                for item in StudioLux.choices: VideoTile {
+                    title: item.title; detail: item.detail; thumbnail: item.thumbnail; duration: item.duration;
+                    selected: item.selected; disabled: item.exists || StudioLux.busy || StudioLux.downloading;
+                    badge: item.exists ? "Đã có · không tải trùng" : (item.selected ? "Đã chọn" : "Bấm để chọn");
+                    activated => { StudioLux.toggle-choice(item.index); }
+                }
+            }
+            if StudioLux.has-info && StudioLux.choice-pages > 1: HorizontalLayout {
+                alignment: center; spacing: 8px;
+                Button { label: "← Trước"; enabled: StudioLux.choice-page > 0 && !StudioLux.downloading; clicked => { StudioLux.choice-page-changed(StudioLux.choice-page - 1); } }
+                Text { text: "Trang " + (StudioLux.choice-page + 1) + "/" + StudioLux.choice-pages; color: Theme.fg; vertical-alignment: center; }
+                Button { label: "Sau →"; enabled: StudioLux.choice-page + 1 < StudioLux.choice-pages && !StudioLux.downloading; clicked => { StudioLux.choice-page-changed(StudioLux.choice-page + 1); } }
+            }
+            Text { text: "Chỉ tải các video đã chọn. Video hoàn tất được giữ lại khi hủy; video lỗi có thể chọn tải lại. Danh sách theo thứ tự nền tảng (có thể có video ghim)."; color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs-sm; }
+        }
+
+        // Section 2: Parsed Video Information (Only shown when parsed info is available)
+        if StudioLux.has-info && !StudioLux.is-playlist: DialogSection {
+            title: "Thông tin Video (Đã phân tích)";
+
+            DialogRow {
+                label: "Tiêu đề:";
+                Text {
+                    text: StudioLux.video-title;
+                    color: Theme.fg;
+                    font-size: Theme.fs;
+                    font-weight: Theme.weight-title;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+            }
+
+            DialogRow {
+                label: "Nền tảng:";
+                Text {
+                    text: StudioLux.video-site + " (" + StudioLux.video-type + ")";
+                    color: Theme.fg-muted;
+                    font-size: Theme.fs;
+                    vertical-alignment: center;
+                }
+            }
+
+            if StudioLux.stream-options.length > 0: DialogRow {
+                label: "Chất lượng:";
+                Select {
+                    enabled: !StudioLux.downloading;
+                    options: StudioLux.stream-options;
+                    current <=> StudioLux.stream-index;
+                    changed(idx) => { StudioLux.stream-changed(idx); }
+                }
+            }
+        }
+
+        // Section 3: Progress & Status
+        if StudioLux.downloading || StudioLux.progress > 0.0 || StudioLux.status != "": DialogSection {
+            title: "Tiến độ tải về";
+
+            Progress {
+                value: StudioLux.progress;
+                done: StudioLux.done;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: StudioLux.status;
+                    wrap: word-wrap;
+                    color: StudioLux.done ? Theme.green : Theme.fg;
+                    font-size: Theme.fs;
+                    horizontal-stretch: 1;
+                }
+                if StudioLux.speed != "": Text {
+                    text: StudioLux.speed;
+                    color: Theme.accent;
+                    font-size: Theme.fs;
+                }
+                if StudioLux.eta != "": Text {
+                    text: "Còn: " + StudioLux.eta;
+                    color: Theme.fg-muted;
+                    font-size: Theme.fs;
+                }
+            }
+        }
+
+        // Error message if any
+        if StudioLux.error != "": Rectangle {
+            background: Theme.danger-wash;
+            border-width: 1px;
+            border-color: Theme.danger-edge;
+            border-radius: Theme.r;
+
+            VerticalLayout {
+                padding: 8px;
+                Text {
+                    text: StudioLux.error;
+                    color: Theme.danger;
+                    font-size: Theme.fs-sm;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        } }
+        // Action buttons remain reachable while the body scrolls.
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: end;
+
+            Button {
+                label: "Đóng";
+                enabled: !StudioLux.downloading && !StudioLux.busy;
+                clicked => { StudioLux.close-dialog(); }
+            }
+
+            Button {
+                label: StudioLux.downloading || StudioLux.busy ? "Hủy" : (StudioLux.is-playlist ? "Tải " + StudioLux.selected-count + " video đã chọn" : "Tải & Nhập vào Concat");
+                primary: true;
+                glyph: Glyph.import;
+                enabled: StudioLux.busy || StudioLux.downloading || (StudioLux.url != "" && (!StudioLux.is-playlist || StudioLux.selected-count > 0));
+                clicked => { if StudioLux.downloading || StudioLux.busy { StudioLux.cancel-download(); } else { StudioLux.start-download(); } }
+            }
+        }
+    }
+}

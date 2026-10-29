@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.kedi.local/platform-capabilities.v1.schema.json",
+  "title": "PlatformCapabilities v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "platform",
+    "account_scope",
+    "read_comments",
+    "request_pin_product",
+    "send_comment",
+    "pin_confirmation",
+    "authorized",
+    "verified_in_staging"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "platform": {
+      "type": "string"
+    },
+    "account_scope": {
+      "type": "string"
+    },
+    "read_comments": {
+      "type": "boolean"
+    },
+    "request_pin_product": {
+      "type": "boolean"
+    },
+    "send_comment": {
+      "type": "boolean"
+    },
+    "pin_confirmation": {
+      "type": "boolean"
+    },
+    "authorized": {
+      "type": "boolean"
+    },
+    "verified_in_staging": {
+      "type": "boolean"
+    },
+    "policy_notes": {
+      "type": "string"
+    },
+    "rate_limit_per_minute": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    }
+  }
+}

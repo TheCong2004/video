@@ -4,10 +4,9 @@
 # at an unpacked shared build. Set those in your own environment, never
 # here - a machine path committed to this file breaks every other checkout.
 
-# Incremental caching is selected per profile/package in Cargo.toml: the
-# standard dev profile retains it for the frequently edited window crate,
-# and quick retains it workspace-wide. Do not override build.incremental
-# here: that would defeat the package-specific choice.
+# Incremental caching is selected per profile/package in Cargo.toml. Standard
+# dev disables it for the large generated window crate to bound memory/disk;
+# quick retains it workspace-wide. Do not override build.incremental here.
 
 # `cargo dev`: the window, built to try a change in. See `[profile.quick]`
 # in Cargo.toml for what it is and why it is quick.

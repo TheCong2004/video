@@ -2360,6 +2360,16 @@ impl Studio {
     }
 
     pub fn apply(&mut self, command: Command) -> Option<String> {
+        self.session.as_ref()?;
+        match self.apply_checked(command) {
+            Ok(view)=>view.created_id,
+            Err(error)=>{self.notify(&error,true);None}
+        }
+    }
+
+    /// Shared result-bearing command path for native UI and Control executors.
+    /// Callers that bind a revision must flush text commits before checking it.
+    pub(crate) fn apply_checked(&mut self, command:Command)->Result<concat_host::session::EditorView,String>{
         // An edit ends whatever burst the view was in.
         self.end_burst();
         log::info!("edit: {}", command_name(&command));
@@ -2368,7 +2378,7 @@ impl Studio {
         // Anything but an inspector commit ends the coalescing window; the
         // commit path sets `last_commit` again right after calling here.
         self.last_commit = None;
-        let session = self.session.as_mut()?;
+        let session = self.session.as_mut().ok_or("No project is open")?;
         let chosen = matches!(command, Command::SetTimelineVideo { .. });
         let before = session.video().color_space;
         match session.apply(command) {
@@ -2378,11 +2388,10 @@ impl Studio {
                 if !chosen {
                     self.tell_of_hdr(before, after);
                 }
-                view.created_id
+                Ok(view)
             }
             Err(error) => {
-                self.notify(&error, true);
-                None
+                Err(error)
             }
         }
     }
@@ -7833,16 +7842,29 @@ impl Studio {
                     && playhead < clip.start + clip.duration
             })
             .max_by_key(|clip| -self.row_of(&clip.track_id));
-        editor.set_has_picture(showing.is_some());
+        let has_picture = if let Some(source) = self.source.as_ref() {
+            source.kind != concat_project::model::MediaKind::Audio
+        } else {
+            showing.is_some()
+        };
+        editor.set_has_picture(has_picture);
         editor.set_preview_clip_name(
-            showing
-                .map(|clip| clip.name.as_str())
-                .unwrap_or_default()
-                .into(),
+            if let Some(source) = self.source.as_ref() {
+                source.name.as_str().into()
+            } else {
+                showing
+                    .map(|clip| clip.name.as_str())
+                    .unwrap_or_default()
+                    .into()
+            }
         );
-        editor.set_preview_duration(self.duration());
+        editor.set_preview_duration(if let Some(source) = self.source.as_ref() {
+            source.duration as f32
+        } else {
+            self.duration()
+        });
         editor.set_playhead_free(!self.prefs.playhead_stops_at_end);
-        editor.set_playing(self.playing);
+        editor.set_playing(self.playing || self.source.as_ref().is_some_and(|s| s.playing));
         self.publish_frame(app);
         sync(&models.stage, self.stage_items());
         sync(&models.guides, self.stage_guides.clone());

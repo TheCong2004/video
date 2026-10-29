@@ -42,6 +42,8 @@ pub use concat_studio::ai as studio_ai;
 pub use concat_studio::auth as studio_auth;
 pub use concat_studio::browser as studio_browser;
 pub use concat_studio::opentalking as studio_opentalking;
+pub use concat_studio::promax_avatars as studio_promax_avatars;
+pub use concat_studio::local_avatars as studio_local_avatars;
 pub use concat_studio::{
     health as studio_bridge, pages as studio_pages, scripts as studio_scripts,
     workflows as studio_workflows,

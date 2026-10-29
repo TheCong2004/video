@@ -131,6 +131,14 @@ pub fn catch_panics() {
             .location()
             .map_or_else(|| "somewhere".to_owned(), |at| at.to_string());
         log::error!("panic at {where_}: {}", info);
+        // Windows GUI processes often have no stderr, so the previous hook's
+        // backtrace disappears. Keep stack frames (not local variable values)
+        // beside the panic; a generic Slint recursion otherwise has no owner.
+        log::error!(
+            "panic backtrace:\n{}",
+            std::backtrace::Backtrace::force_capture()
+        );
+        log::logger().flush();
         previous(info);
     }));
 }

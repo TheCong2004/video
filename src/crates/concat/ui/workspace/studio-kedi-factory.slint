@@ -1,0 +1,321 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Native factory: actual sources, confirmed product facts and local rendering.
+
+import { StudioProducts } from "studio-products.slint";
+import { Floword } from "../theme/floword.slint";
+import { Theme } from "../theme/theme.slint";
+import { Glyph, Icon } from "../icons.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField, StudioStatus } from "studio-chrome.slint";
+import { Select } from "../primitives/primitives.slint";
+
+// ── Data types exposed to Rust bridge ─────────────────────────────────────
+
+export struct KediProviderRow {
+    id: string,
+    display-name: string,
+    category: string,
+    status-label: string,
+    can-download: bool,
+    needs-manual: bool,
+    unavailable-reason: string,
+    backend: string,
+}
+
+export struct KediJobRow {
+    job-id: string,
+    input-summary: string,
+    provider-name: string,
+    stage-label: string,
+    progress: float,
+    speed: string,
+    error: string,
+    output-count: int,
+    can-cancel: bool,
+    can-retry: bool,
+}
+
+export struct KediResolvedVideo {
+    index: int,
+    url: string,
+    title: string,
+    site: string,
+    duration-label: string,
+    thumbnail: image,
+    selected: bool,
+    exists: bool,
+    quality-options: [string],
+    quality-index: int,
+}
+
+// ── Global state ──────────────────────────────────────────────────────────
+
+export global KediFactory {
+    in-out property <[KediProviderRow]> providers;
+    in-out property <bool> ytdlp-available;
+    in-out property <bool> lux-available;
+    callback check-providers();
+
+    in-out property <int> input-mode: 0; // 0 video URLs, 2 local media
+    in-out property <int> step;
+    in-out property <string> url-input: "";
+    in-out property <bool> playlist-mode: false;
+    callback resolve-url();
+    in-out property <bool> resolving: false;
+    in-out property <string> resolve-error: "";
+
+    in-out property <[KediResolvedVideo]> resolved-videos;
+    in-out property <bool> has-resolved: false;
+    in-out property <int> selected-count: 0;
+    callback toggle-video(int);
+    callback select-all();
+    callback deselect-all();
+    callback clear-resolved();
+    callback set-stream(int, int);
+
+    in-out property <string> product-url-input: "";
+    in-out property <bool> product-busy;
+    in-out property <image> product-image;
+    callback import-product();
+
+    in-out property <string> local-paths-display: "";
+    callback pick-local-files();
+
+
+    in-out property <string> download-dir: "";
+    callback pick-download-dir();
+    callback start-download();
+    callback cancel-download();
+
+    in-out property <[KediJobRow]> jobs;
+    in-out property <bool> jobs-loading: false;
+    callback refresh-jobs();
+    callback cancel-job(string);
+    callback retry-job(string);
+    callback open-output(string);
+
+    in-out property <string> status: "Sẵn sàng";
+    in-out property <string> global-error: "";
+
+    in-out property <bool> downloading;
+    in-out property <bool> rendering;
+    in-out property <float> render-progress;
+    in-out property <string> product-title;
+    in-out property <string> product-price;
+    in-out property <string> product-description;
+    in-out property <string> caption;
+    in-out property <string> script;
+    in-out property <int> audio-mode;
+    in-out property <int> voice-index;
+    callback prepare-script();
+    in-out property <string> seconds: "5";
+    in-out property <int> aspect-index;
+    in-out property <int> asset-count;
+    in-out property <string> audio-path;
+    in-out property <string> output-path;
+    callback pick-audio();
+    callback clear-audio();
+    callback render();
+    callback cancel-render();
+    callback reveal-render();
+    callback clear-assets();
+}
+
+component FactoryNote inherits Text {
+    color: Floword.muted;
+    font-family: Theme.font;
+    font-size: 13px;
+    wrap: word-wrap;
+    min-width: 0px;
+    vertical-stretch: 0;
+}
+
+export component KediFactoryPanel inherits VerticalLayout {
+    in property <length> viewport-width: 1000px;
+    in-out property <int> step <=> KediFactory.step;
+    property <bool> catalog-open;
+    spacing: 16px;
+    min-width: 0px;
+    alignment: start;
+
+    StudioCard {
+        spacing: 10px;
+        StudioHeading { title: "Tạo video từ tư liệu của bạn"; glyph: Glyph.film; font-size: 19px; }
+        FactoryNote { text: "Nhập video đa nền tảng hoặc file trên máy, thêm thông tin sản phẩm, rồi xuất video bằng FFmpeg."; }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: "1. Sản phẩm"; primary: root.step == 0; clicked => { root.step = 0; } }
+            StudioButton { label: "2. Tư liệu"; primary: root.step == 1; clicked => { root.step = 1; } }
+            StudioButton { label: "3. Kịch bản"; primary: root.step == 2; clicked => { root.step = 2; } }
+            StudioButton { label: "4. Giọng & phụ đề"; primary: root.step == 3; clicked => { root.step = 3; } }
+            StudioButton { label: "5. Dựng video"; primary: root.step == 4; clicked => { root.step = 4; } }
+            StudioButton { label: "6. Kết quả"; primary: root.step == 5; clicked => { root.step = 5; } }
+        }
+    }
+    if KediFactory.global-error != "": StudioStatus { label: KediFactory.global-error; tone: 3; }
+    if root.step == 1: StudioCard {
+        StudioHeading { title: "Nguồn tư liệu"; }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: "Link video"; primary: KediFactory.input-mode == 0; clicked => { KediFactory.input-mode = 0; } }
+            StudioButton { label: "File trên máy"; primary: KediFactory.input-mode == 2; clicked => { KediFactory.input-mode = 2; } }
+        }
+        if KediFactory.input-mode != 2: VerticalLayout {
+            spacing: 12px; min-width: 0px;
+            StudioField {
+                label: "Link video công khai · mỗi dòng một link";
+                placeholder: "Dán link YouTube, TikTok, Facebook, Instagram, Vimeo, Bilibili…";
+                value: KediFactory.url-input; multiline: true; input-height: 100px;
+                enabled: !KediFactory.resolving;
+                edited(text) => { KediFactory.url-input = text; }
+            }
+            FlexboxLayout {
+                min-width: 0px; spacing: 8px;
+                min-height: root.viewport-width < 600px ? 88px : 40px;
+                StudioButton { label: KediFactory.resolving ? "Đang đọc thông tin…" : "Đọc thông tin video"; primary: true; enabled: !KediFactory.resolving && KediFactory.url-input != ""; clicked => { KediFactory.resolve-url(); } }
+                StudioButton { label: KediFactory.playlist-mode ? "Danh sách phát: bật" : "Danh sách phát: tắt"; enabled: !KediFactory.resolving; clicked => { KediFactory.playlist-mode = !KediFactory.playlist-mode; } }
+            }
+            FactoryNote { text: "Khả năng tải phụ thuộc từng website và công cụ đã cài. Kết quả chỉ xuất hiện sau khi đọc được metadata thực tế."; min-height: root.viewport-width < 600px ? 76px : root.viewport-width < 1000px ? 40px : 20px; }
+            if KediFactory.resolve-error != "": StudioStatus { label: KediFactory.resolve-error; tone: 3; }
+            if KediFactory.has-resolved: VerticalLayout {
+                spacing: 10px; min-width: 0px;
+                FlexboxLayout {
+                    min-width: 0px; spacing: 8px;
+                    min-height: root.viewport-width < 600px ? 76px : 34px;
+                    StudioButton { label: "Chọn tất cả"; compact: true; clicked => { KediFactory.select-all(); } }
+                    StudioButton { label: "Bỏ chọn"; compact: true; clicked => { KediFactory.deselect-all(); } }
+                    StudioButton { label: "Xóa kết quả"; compact: true; clicked => { KediFactory.clear-resolved(); } }
+                }
+                for video in KediFactory.resolved-videos: StudioCard {
+                    padding-v: 12px; padding-h: 12px; spacing: 8px;
+                    Text { text: video.title; color: Floword.text; font-weight: 600; wrap: word-wrap; min-width: 0px; }
+                    FactoryNote { text: video.site + " · " + video.duration-label + " · " + video.url; }
+                    FlexboxLayout {
+                        min-width: 0px; spacing: 8px;
+                        min-height: root.viewport-width < 600px ? 76px : 34px;
+                        StudioButton { label: video.selected ? "Đã chọn" : "Chọn video"; primary: video.selected; compact: true; clicked => { KediFactory.toggle-video(video.index); } }
+                        Select { options: video.quality-options; current: video.quality-index; min-width: 160px; changed(index) => { KediFactory.set-stream(video.index, index); } }
+                    }
+                }
+                StudioButton { label: KediFactory.downloading ? "Đang tải…" : "Tải các video đã chọn (" + KediFactory.selected-count + ")"; primary: true; enabled: KediFactory.selected-count > 0 && !KediFactory.downloading; clicked => { KediFactory.start-download(); } }
+            }
+        }
+        if KediFactory.input-mode == 2: VerticalLayout {
+            spacing: 12px;
+            FactoryNote { text: "Chọn ảnh hoặc video sản phẩm thật. File gốc được giữ nguyên."; }
+            StudioButton { label: "Chọn ảnh / video"; primary: true; enabled: !KediFactory.rendering; clicked => { KediFactory.pick-local-files(); } }
+        }
+        if KediFactory.asset-count > 0: VerticalLayout {
+            spacing: 8px; min-width: 0px;
+            StudioStatus { label: KediFactory.asset-count + " tư liệu sẵn sàng để dựng"; tone: 1; }
+            FactoryNote { text: KediFactory.local-paths-display; }
+            FlexboxLayout {
+                min-width: 0px; spacing: 8px;
+                StudioButton { label: "Tiếp: kịch bản"; primary: true; clicked => { root.step = 2; } }
+                StudioButton { label: "Bỏ tư liệu đã chọn"; enabled: !KediFactory.rendering; clicked => { KediFactory.clear-assets(); } }
+            }
+        }
+    }
+    if root.step == 0: StudioCard {
+        StudioHeading { title: "Thông tin sản phẩm thật"; }
+        FactoryNote { text: "Nhập thông tin đã xác nhận hoặc lấy từ danh mục đang kết nối. Không tự điền giá, đánh giá hay lượt bán."; }
+        StudioField { label: "Link sản phẩm Shopee"; value: KediFactory.product-url-input; enabled: !KediFactory.product-busy && !KediFactory.rendering; edited(text) => { KediFactory.product-url-input = text; } }
+        StudioButton { label: KediFactory.product-busy ? "Đang nhập ảnh sản phẩm…" : "Nhập sản phẩm từ link"; primary: true; enabled: KediFactory.product-url-input != "" && !KediFactory.product-busy && !KediFactory.rendering; clicked => { KediFactory.import-product(); } }
+        FactoryNote { text: "Link Shopee đầy đủ có mã image_ids: nhập ảnh công khai và tên gợi ý từ link. Kiểm tra lại tên; giá và đánh giá chưa được xác minh sẽ để trống. Link không có mã ảnh: chọn ảnh/video của bạn ở bước 1."; }
+        if KediFactory.product-image.width > 0: Image { source: KediFactory.product-image; height: 180px; image-fit: contain; }
+        StudioButton { label: root.catalog-open ? "Thu gọn danh mục" : "Chọn từ danh mục đã kết nối"; enabled: !StudioProducts.busy && !StudioProducts.dirty && !StudioProducts.editing && !KediFactory.product-busy && !KediFactory.rendering; clicked => { root.catalog-open = !root.catalog-open; if root.catalog-open { StudioProducts.load(); } } }
+        if StudioProducts.status != "": FactoryNote { text: StudioProducts.status; }
+        if root.catalog-open: VerticalLayout {
+        for product in StudioProducts.rows: FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            Text { text: product.title + " · " + product.price; color: Floword.text; wrap: word-wrap; min-width: 0px; horizontal-stretch: 1; }
+            StudioButton { label: "Dùng sản phẩm"; compact: true; enabled: !KediFactory.product-busy && !KediFactory.rendering; clicked => { KediFactory.product-title = product.title; KediFactory.product-price = product.price; root.catalog-open = false; } }
+        }
+        }
+        StudioField { label: "Tên sản phẩm (kiểm tra trước khi xuất)"; value: KediFactory.product-title; enabled: !KediFactory.product-busy && !KediFactory.rendering; edited(text) => { KediFactory.product-title = text; } }
+        StudioField { label: "Giá hiển thị (để trống nếu chưa xác nhận)"; value: KediFactory.product-price; enabled: !KediFactory.product-busy && !KediFactory.rendering; edited(text) => { KediFactory.product-price = text; } }
+        StudioField { label: "Mô tả sản phẩm đã kiểm chứng"; multiline: true; input-height: 90px; value: KediFactory.product-description; enabled: !KediFactory.product-busy && !KediFactory.rendering; edited(text) => { KediFactory.product-description = text; } }
+        FactoryNote { text: "Tên, giá và nguồn thông tin được lưu cùng video. Kedi không tự suy đoán giá từ trang yêu cầu đăng nhập."; }
+        StudioButton { label: "Tiếp: tư liệu"; primary: true; clicked => { root.step = 1; } }
+    }
+    if root.step == 2: StudioCard {
+        StudioHeading { title: "Kịch bản lời đọc"; }
+        FactoryNote { text: "Nhập lời giới thiệu muốn đọc trong video. Có thể lấy tên, giá và mô tả bạn đã xác nhận làm bản nháp rồi chỉnh lại."; }
+        StudioButton { label: "Lấy thông tin sản phẩm làm bản nháp"; enabled: !KediFactory.rendering; clicked => { KediFactory.prepare-script(); } }
+        StudioField { label: "Lời đọc và phụ đề"; multiline: true; input-height: 180px; value: KediFactory.script; enabled: !KediFactory.rendering; edited(text) => { KediFactory.script = text; } }
+        StudioButton { label: "Tiếp: giọng và phụ đề"; primary: true; clicked => { root.step = 3; } }
+    }
+    if root.step == 3: StudioCard {
+        StudioHeading { title: "Giọng đọc và phụ đề"; }
+        Select { options: ["Tạo giọng Việt từ kịch bản", "Dùng file âm thanh", "Giữ âm thanh video gốc"]; current <=> KediFactory.audio-mode; enabled: !KediFactory.rendering; }
+        if KediFactory.audio-mode == 0: VerticalLayout {
+            spacing: 12px; min-width: 0px;
+            Select { options: ["Nữ · Hoài My", "Nam · Nam Minh"]; current <=> KediFactory.voice-index; enabled: !KediFactory.rendering; }
+            FactoryNote { text: "Giọng được tạo khi bấm dựng video, cần Internet. Phụ đề lấy mốc thời gian từ lời đọc; video tự kéo dài để không cắt mất câu."; }
+        }
+        if KediFactory.audio-mode == 1: VerticalLayout {
+            spacing: 12px; min-width: 0px;
+            StudioButton { label: "Chọn file giọng đọc / nhạc"; enabled: !KediFactory.rendering; clicked => { KediFactory.pick-audio(); } }
+            FactoryNote { text: KediFactory.audio-path == "" ? "Chưa chọn âm thanh" : KediFactory.audio-path; }
+            FactoryNote { text: "Âm thanh phát liên tục một lần qua toàn bộ video. Nếu có kịch bản, thời gian phụ đề được ước lượng theo độ dài lời; hãy dùng đúng lời của file âm thanh."; }
+        }
+        if KediFactory.audio-mode == 2: FactoryNote { text: "Giữ tiếng của clip đã chọn. Nếu chỉ có ảnh hoặc clip không tiếng, Kedi yêu cầu chọn giọng đọc trước khi xuất."; }
+        StudioButton { label: "Tiếp: dựng video"; primary: true; clicked => { root.step = 4; } }
+    }
+    if root.step == 4: StudioCard {
+        StudioHeading { title: "Dựng và xuất video"; glyph: Glyph.film; }
+        StudioStatus { label: KediFactory.asset-count + " tư liệu · " + (KediFactory.product-title == "" ? "Chưa gắn sản phẩm" : KediFactory.product-title); tone: KediFactory.asset-count > 0 ? 1 : 2; }
+        FactoryNote { text: "Ảnh được giữ trọn sản phẩm trên nền mờ, máy quay tiến/lùi nhẹ và chuyển cảnh mềm. Clip giữ chuyển động thật. Một ảnh không biến thành cảnh quay AI; có thể thêm nhiều ảnh/video để phong phú hơn."; }
+        Select { options: ["Dọc 9:16 · 720 × 1280", "Ngang 16:9 · 1280 × 720", "Vuông 1:1 · 720 × 720", "Dọc Full HD · 1080 × 1920"]; current <=> KediFactory.aspect-index; enabled: !KediFactory.rendering; }
+        StudioField { label: "Thời lượng tối thiểu mỗi tư liệu (giây, tự tăng theo lời đọc)"; value: KediFactory.seconds; enabled: !KediFactory.rendering; edited(text) => { KediFactory.seconds = text; } }
+        FactoryNote { text: "Thư mục lưu: " + KediFactory.download-dir; }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: "Chọn thư mục lưu"; enabled: !KediFactory.rendering && !KediFactory.downloading; clicked => { KediFactory.pick-download-dir(); } }
+            StudioButton { label: KediFactory.rendering ? "Đang dựng…" : "Dựng và xuất MP4"; primary: true; enabled: KediFactory.asset-count > 0 && !KediFactory.rendering && !KediFactory.product-busy; clicked => { KediFactory.render(); } }
+            if KediFactory.rendering: StudioButton { label: "Dừng dựng"; clicked => { KediFactory.cancel-render(); } }
+        }
+        if KediFactory.rendering: FactoryNote { text: "Đã dựng " + Math.round(KediFactory.render-progress * 100) + "% số cảnh"; }
+    }
+    if root.step == 5: StudioCard {
+        StudioHeading { title: "Video đã xuất"; }
+        if KediFactory.output-path == "": FactoryNote { text: "Chưa có video mới. Hoàn thành kịch bản, giọng đọc và bấm Dựng và xuất MP4 ở bước 5."; }
+        if KediFactory.output-path != "": VerticalLayout {
+            spacing: 8px;
+            StudioStatus { label: "Video đã xuất và kiểm tra thành công"; tone: 1; }
+            FactoryNote { text: KediFactory.output-path; }
+            StudioButton { label: "Mở vị trí video"; clicked => { KediFactory.reveal-render(); } }
+        }
+    }
+    if KediFactory.status != "": FactoryNote { text: KediFactory.status; }
+    StudioCard {
+        StudioHeading { title: "Tác vụ tải video"; }
+        if KediFactory.jobs.length == 0: FactoryNote { text: "Chưa có tác vụ. Kết quả tải thật sẽ được lưu tại đây."; }
+        for job in KediFactory.jobs: VerticalLayout {
+            spacing: 8px; min-width: 0px;
+            Text { text: job.input-summary; color: Floword.text; font-weight: 600; wrap: word-wrap; min-width: 0px; }
+            FactoryNote { text: job.stage-label + " · " + Math.round(job.progress * 100) + "% · " + job.output-count + " file"; }
+            if job.error != "": StudioStatus { label: job.error; tone: 3; }
+            FlexboxLayout {
+                min-width: 0px; spacing: 8px;
+                if job.can-cancel: StudioButton { label: "Dừng tải"; compact: true; clicked => { KediFactory.cancel-job(job.job-id); } }
+                if job.can-retry: StudioButton { label: "Thử tải lại"; compact: true; enabled: !KediFactory.downloading; clicked => { KediFactory.retry-job(job.job-id); } }
+                if job.output-count > 0: StudioButton { label: "Mở file đã tải"; compact: true; clicked => { KediFactory.open-output(job.job-id); } }
+            }
+            Rectangle { height: 1px; background: Floword.line; }
+        }
+    }
+}
+
+export component KediProviderPanel inherits VerticalLayout {
+    spacing: 12px; min-width: 0px; alignment: start;
+    StudioCard {
+        StudioHeading { title: "Công cụ tải đa nền tảng"; }
+        FactoryNote { text: "yt-dlp: " + (KediFactory.ytdlp-available ? "đã tìm thấy" : "chưa cài") + " · lux: " + (KediFactory.lux-available ? "đã tìm thấy" : "chưa cài"); }
+        StudioButton { label: "Kiểm tra lại công cụ"; clicked => { KediFactory.check-providers(); } }
+        FactoryNote { text: "Có công cụ không đảm bảo mọi URL đều tải được. Kedi hiển thị lỗi trả về thực tế từ website và không vượt đăng nhập."; }
+    }
+    for provider in KediFactory.providers: StudioCard {
+        Text { text: provider.display-name + " · " + provider.backend; color: Floword.text; font-weight: 600; wrap: word-wrap; }
+        FactoryNote { text: provider.can-download ? "Có bộ tải · cần kiểm tra từng URL" : "Chưa có bộ tải khả dụng · có thể nhập file trên máy"; }
+    }
+}

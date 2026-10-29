@@ -623,10 +623,10 @@ export component ConfigPane inherits Rectangle {
                             background: Theme.field;
                             border-width: 1px;
                             border-color: Theme.line;
-                            padding: 6px;
                             TextInput {
-                                width: 100%;
-                                height: 100%;
+                                x: 6px; y: 6px;
+                                width: Math.max(0px, parent.width - 12px);
+                                height: Math.max(0px, parent.height - 12px);
                                 text <=> StudioOpenTalking.script;
                                 color: Theme.fg;
                                 font-size: Theme.fs;

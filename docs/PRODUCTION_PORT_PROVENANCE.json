@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-22",
+  "kind": "local source contract extraction; not full application parity",
+  "sources": [
+    {"path": "artcraft/crates/desktop/artcraft/src/services/pipeline/floword_job_page_config.rs", "sha256": "e6e46f9aa977fa033aff0073f134099e4fe15156dcf62b8cc7415ce89e673575"},
+    {"path": "artcraft/crates/desktop/artcraft/src/services/pipeline/grok_image_edit_stage.rs", "sha256": "310edb0a676eb1ffdcdef98598fd34b4cb12e8abe26273698a797ccc9847d040"},
+    {"path": "artcraft/crates/desktop/artcraft/src/services/pipeline/grok_expand_9_16_stage.rs", "sha256": "0012df347a6b6432411ab62cad0a471fa464f2de1bc8d131f16b49cc49a87407"},
+    {"path": "artcraft/crates/desktop/artcraft/src/services/pipeline/grok_video_generate_stage.rs", "sha256": "ebb87b4420a0467a4279042eaba8155a0383950f8e9ee63120623b9a3d223225"},
+    {"path": "donutbrowser/src-tauri/src/worker/worker_routes.rs", "sha256": "04bed71ef6d3eeb62c3dcd3bb9aea680b588dd11486048998014e1d11ecc032a"}
+  ]
+}

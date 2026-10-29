@@ -53,7 +53,7 @@ fn execute(
         .spawn(move || {
             let result = (|| {
                 if start {
-                    return settings()?.start().map(Some);
+                    return settings()?.show().map(Some);
                 }
                 let client = client()?;
                 client.health()?;
@@ -102,7 +102,11 @@ fn execute(
                         }
                         state.set_index(0);
                         state.set_loaded(true);
-                        state.set_status(t("studioBrowser.loaded").into());
+                        state.set_status(if start {
+                            "Đã yêu cầu Nexora hiện cửa sổ đang chạy.".into()
+                        } else {
+                            t("studioBrowser.loaded").into()
+                        });
                     }
                     Ok(None) => {
                         if let Ok(mut rows) = rows.lock() {
@@ -258,7 +262,12 @@ fn configure(app: &App, choose: bool, forget: bool) {
             let state=app.global::<StudioBrowser>();state.set_busy(false);
             state.set_loaded(false);state.set_ids(ModelRc::default());state.set_names(ModelRc::default());
             match result {
-                Ok(settings)=>{publish_settings(&app,&settings);state.set_status("Đã lưu cấu hình Nexora trên máy. Bấm Kết nối/Tải profile để kiểm tra dịch vụ; token được lưu mã hóa.".into());}
+                Ok(settings)=>{
+                    crate::studio_session::connection_changed();
+                    crate::studio_production_pages::disconnect(&app);
+                    publish_settings(&app,&settings);
+                    state.set_status("Đã lưu cấu hình Nexora trên máy. Tải lại Page/hồ sơ để dùng kết nối mới; token được lưu mã hóa.".into());
+                }
                 Err(error)=>state.set_status(message(error).into()),
             }
         });

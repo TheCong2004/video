@@ -272,10 +272,23 @@ fn gain_at(clip: &ActiveClip, local: f64) -> f32 {
     gain.max(0.0) as f32
 }
 
+struct SpeechBuffer {
+    samples: Arc<[f32]>,
+    clock: Option<Arc<concat_core::speech_clock::SpeechClock>>,
+}
+impl Drop for SpeechBuffer {
+    fn drop(&mut self) {
+        if let Some(clock) = &self.clock {
+            clock.finish();
+        }
+    }
+}
+
 enum Msg {
     SetClips(Vec<ActiveClip>),
     /// A short one-shot speech buffer, interleaved stereo at `PCM_RATE`.
-    Speak(Arc<[f32]>),
+    Speak(SpeechBuffer),
+    StopSpeech,
     Play(f64),
     Pause,
     Seek(f64),
@@ -516,6 +529,14 @@ impl Playback {
     /// Plays a bounded, already-decoded speech buffer through the same output
     /// device as the timeline. It does not start or move the project transport.
     pub fn speak_once(&self, mut samples: Vec<f32>) -> Result<(), String> {
+        self.queue_speech(&mut samples, None)
+    }
+
+    fn queue_speech(
+        &self,
+        samples: &mut Vec<f32>,
+        clock: Option<Arc<concat_core::speech_clock::SpeechClock>>,
+    ) -> Result<(), String> {
         const MAX_SAMPLES: usize = PCM_RATE as usize * 2 * 15;
         if samples.is_empty() || samples.len() % 2 != 0 || samples.len() > MAX_SAMPLES {
             return Err("speech audio must be stereo and no longer than 15 seconds".into());
@@ -531,13 +552,65 @@ impl Playback {
             };
         });
         self.tx
-            .send(Msg::Speak(Arc::from(samples)))
+            .send(Msg::Speak(SpeechBuffer {
+                samples: Arc::from(std::mem::take(samples)),
+                clock,
+            }))
             .map_err(|_| "audio output is unavailable".to_owned())
     }
 
     /// Decodes a short speech file to the mixer's 48 kHz stereo format and
     /// queues it as a one-shot, leaving the project transport untouched.
     pub fn speak_file_once(&self, path: &Path) -> Result<(), String> {
+        self.speak_once(Self::decode_speech(path)?)
+    }
+
+    /// One output path with a completion receipt, without a video barrier.
+    pub fn speak_tracked_file(
+        &self,
+        path: &Path,
+    ) -> Result<Arc<concat_core::speech_clock::SpeechClock>, String> {
+        let clock = self.speak_synced_file(path)?;
+        clock.acknowledge_picture();
+        Ok(clock)
+    }
+
+    /// Queue an utterance held at zero until its first picture reaches the UI.
+    pub fn speak_synced_file(
+        &self,
+        path: &Path,
+    ) -> Result<Arc<concat_core::speech_clock::SpeechClock>, String> {
+        self.speak_synced_file_cancellable(path, || false)
+    }
+
+    /// Worker-only file preparation. Wait for the asynchronously opened device,
+    /// but never enqueue stale speech after an interrupt/selection change.
+    /// This waits at most five seconds and never retries a submitted buffer.
+    pub fn speak_synced_file_cancellable(
+        &self,
+        path: &Path,
+        cancelled: impl Fn() -> bool,
+    ) -> Result<Arc<concat_core::speech_clock::SpeechClock>, String> {
+        if cancelled() {
+            return Err("speech preparation cancelled".into());
+        }
+        let mut samples = Self::decode_speech(path)?;
+        wait_output_ready(
+            &self.shared.output_ready,
+            &cancelled,
+            std::time::Duration::from_secs(5),
+        )?;
+        let clock = Arc::new(concat_core::speech_clock::SpeechClock::default());
+        self.queue_speech(&mut samples, Some(Arc::clone(&clock)))?;
+        Ok(clock)
+    }
+
+    /// Stop speech only; do not pause or seek the user's project timeline.
+    pub fn stop_speech(&self) {
+        let _ = self.tx.send(Msg::StopSpeech);
+    }
+
+    fn decode_speech(path: &Path) -> Result<Vec<f32>, String> {
         use concat_media::{AudioDecoder, AudioOptions, SampleFormat};
 
         let mut decoder = AudioDecoder::open(
@@ -554,7 +627,7 @@ impl Playback {
         let samples = decoder
             .collect_f32()
             .map_err(|error| format!("could not read speech audio: {error}"))?;
-        self.speak_once(samples)
+        Ok(samples)
     }
 
     /// Stops playing; the position holds.
@@ -977,14 +1050,32 @@ impl WavWriter {
     }
 }
 
+fn wait_output_ready(
+    ready: &AtomicBool,
+    cancelled: &dyn Fn() -> bool,
+    timeout: std::time::Duration,
+) -> Result<(), String> {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        if cancelled() {
+            return Err("speech preparation cancelled".into());
+        }
+        if ready.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            return Err("audio output device is not ready".into());
+        }
+        // Off the UI/audio callback threads. Poll cancellation as well as device
+        // readiness, without a fixed startup delay or an unbounded speech queue.
+        std::thread::park_timeout(remaining.min(std::time::Duration::from_millis(10)));
+    }
+}
+
 /// Owns the output stream for the life of the app, rebuilding it whenever
-/// it dies or the default device changes.
-///
-/// Setup failure is a retry with backoff, not a permanent return: a machine
-/// that boots Concat before its audio device is ready, or loses its only
-/// device mid-session, gets sound back when the device does. A rebuilt
-/// stream is seeded from the shared clock and the last clip set, so playback
-/// carries straight on.
+/// it dies or the default device changes. Setup failure is a retry with
+/// backoff, not a permanent return; one-shot speech itself is never replayed.
 fn supervise_stream(
     rx: mpsc::Receiver<Msg>,
     shared: Arc<Shared>,
@@ -1074,7 +1165,7 @@ fn supervise_stream(
                             Msg::Seek(at) => shared.stamp(at),
                             // No output device exists to play this one-shot;
                             // drop it instead of retaining decoded PCM.
-                            Msg::Speak(_) => {}
+                            Msg::Speak(_) | Msg::StopSpeech => {}
                         }
                     }
                 }
@@ -1141,8 +1232,8 @@ where
     // Seed from the world as it is, not from zero: a stream rebuilt mid-
     // playback resumes the same clips at the shared clock's position.
     let mut clips: Vec<ActiveClip> = locked(last_active).clone();
-    let mut spoken: Option<(Arc<[f32]>, f64)> = None;
-    let mut speech_queue: VecDeque<Arc<[f32]>> = VecDeque::with_capacity(2);
+    let mut spoken: Option<(SpeechBuffer, f64)> = None;
+    let mut speech_queue: VecDeque<SpeechBuffer> = VecDeque::with_capacity(2);
     let mut playing = shared.playing.load(Ordering::Relaxed);
     let mut position = shared.position();
 
@@ -1168,6 +1259,10 @@ where
                                 } else if speech_queue.len() < speech_queue.capacity() {
                                     speech_queue.push_back(samples);
                                 }
+                            }
+                            Msg::StopSpeech => {
+                                spoken = None;
+                                speech_queue.clear();
                             }
                             Msg::Play(at) => {
                                 position = at;
@@ -1226,20 +1321,38 @@ where
                     }
 
                     let mut speech_finished = false;
-                    if let Some((samples, time)) = spoken.as_mut() {
-                        let sample = *time * f64::from(PCM_RATE);
-                        let index = sample.floor() as usize * 2;
-                        if index + 1 < samples.len() {
-                            let next = (index + 2).min(samples.len() - 2);
-                            let fraction = (sample - sample.floor()) as f32;
-                            left += samples[index] * (1.0 - fraction) + samples[next] * fraction;
-                            right += samples[index + 1] * (1.0 - fraction)
-                                + samples[next + 1] * fraction;
-                            *time += step;
-                            speech_finished =
-                                *time * f64::from(PCM_RATE) >= (samples.len() / 2) as f64;
-                        } else {
+                    if let Some((speech, time)) = spoken.as_mut() {
+                        if speech.clock.as_ref().is_some_and(|clock| clock.finished()) {
                             speech_finished = true;
+                        } else if speech
+                            .clock
+                            .as_ref()
+                            .is_none_or(|clock| clock.audio_ready())
+                        {
+                            let samples = &speech.samples;
+                            let sample = *time * f64::from(PCM_RATE);
+                            let index = sample.floor() as usize * 2;
+                            if index + 1 < samples.len() {
+                                let next = (index + 2).min(samples.len() - 2);
+                                let fraction = (sample - sample.floor()) as f32;
+                                left +=
+                                    samples[index] * (1.0 - fraction) + samples[next] * fraction;
+                                right += samples[index + 1] * (1.0 - fraction)
+                                    + samples[next + 1] * fraction;
+                                *time += step;
+                                speech_finished =
+                                    *time * f64::from(PCM_RATE) >= (samples.len() / 2) as f64;
+                                if speech_finished {
+                                    if let Some(clock) = &speech.clock {
+                                        clock.complete();
+                                    }
+                                }
+                            } else {
+                                speech_finished = true;
+                                if let Some(clock) = &speech.clock {
+                                    clock.complete();
+                                }
+                            }
                         }
                     }
                     if speech_finished {
@@ -1264,6 +1377,11 @@ where
 
                     if playing {
                         position += step;
+                    }
+                }
+                if let Some((speech, time)) = &spoken {
+                    if let Some(clock) = &speech.clock {
+                        clock.advance(*time);
                     }
                 }
 
@@ -1306,8 +1424,52 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{COAST, Shared, sweep_plan, wav_data_range};
-    use std::sync::atomic::Ordering;
+    use super::{COAST, Shared, sweep_plan, wait_output_ready, wav_data_range};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    };
+
+    #[test]
+    fn output_gate_rejects_cancel_even_if_device_is_ready_and_bounds_missing_device() {
+        let ready = AtomicBool::new(true);
+        assert!(wait_output_ready(&ready, &|| true, std::time::Duration::ZERO).is_err());
+        assert!(wait_output_ready(&ready, &|| false, std::time::Duration::ZERO).is_ok());
+        ready.store(false, Ordering::Release);
+        assert!(wait_output_ready(&ready, &|| false, std::time::Duration::ZERO).is_err());
+    }
+
+    #[test]
+    fn output_gate_observes_readiness_or_interrupt_without_submitting_speech() {
+        for interrupt in [false, true] {
+            let ready = Arc::new(AtomicBool::new(false));
+            let cancelled = Arc::new(AtomicBool::new(false));
+            let (tx, rx) = mpsc::sync_channel(1);
+            let waiter_ready = ready.clone();
+            let waiter_cancelled = cancelled.clone();
+            let signalled = AtomicBool::new(false);
+            let waiter = std::thread::spawn(move || {
+                wait_output_ready(
+                    &waiter_ready,
+                    &|| {
+                        if !signalled.swap(true, Ordering::AcqRel) {
+                            tx.send(()).unwrap();
+                        }
+                        waiter_cancelled.load(Ordering::Acquire)
+                    },
+                    std::time::Duration::from_secs(1),
+                )
+            });
+            rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
+            if interrupt {
+                cancelled.store(true, Ordering::Release);
+            } else {
+                ready.store(true, Ordering::Release);
+            }
+            assert_eq!(waiter.join().unwrap().is_err(), interrupt);
+        }
+    }
 
     #[test]
     fn the_clock_runs_on_between_buffers_but_not_past_a_stall() {

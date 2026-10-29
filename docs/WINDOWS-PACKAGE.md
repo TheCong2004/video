@@ -11,6 +11,23 @@ standalone runtime using `./scripts/stage-local-ai.ps1` before packaging.
 The standard Windows development profile omits debug symbols for the generated
 window crate to reduce memory/disk pressure; it is not an optimized release.
 
+## Regenerable build/test cache
+
+`scripts/cleanup-build.ps1` previews candidates; add `-Apply` to delete them.
+`-PruneOwnCache` also removes test-preview incremental caches, unsupported quick
+editor caches and older native editor configurations, retaining the two newest
+native configurations. The same bounded pruning activates automatically below
+8 GiB free, including the cleanup before/after `windows-studio.ps1` builds.
+It never targets source, `.deps`, models, user media/projects or the current
+`concat.exe`. Compiler/process and Cargo-lock guards prevent cleanup during
+active builds; reparse points are rejected. Deletion bypasses the Recycle Bin,
+but these caches are recreated by building; a later preview build may be slower.
+
+On 2026-10-20 explicit pruning removed 18.03 GiB of logical cache files and
+increased actual D: free space from about 0.13 to 15.9 GiB (hard-linked cache
+files can share physical storage). This is not deletion of project media or
+Python/model environments.
+
 Opening the application requires native Promax sign-in. Email/password uses
 Supabase, followed by the Promax identity exchange; registration can require an
 email confirmation. Google opens the system browser unless a Nexora profile

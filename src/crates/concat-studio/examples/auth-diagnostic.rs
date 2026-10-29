@@ -14,7 +14,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = PathBuf::from(std::env::var_os("APPDATA").ok_or("APPDATA missing")?)
         .join("app.concat.editor");
     let manager = AuthManager::new(&backend, &config).map_err(|e| format!("AUTH-CONFIG: {e:?}"))?;
-    let attempt = LoginAttempt::new(&identity, &public_key).map_err(|e| format!("AUTH-START: {e:?}"))?;
+    let attempt =
+        LoginAttempt::new(&identity, &public_key).map_err(|e| format!("AUTH-START: {e:?}"))?;
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -28,12 +29,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     return Err("This explicit diagnostic is Windows-only".into());
     println!("AUTH-STAGE: waiting for Google callback in the browser (up to 5 minutes)");
     let cancel = AtomicBool::new(false);
-    let code = attempt.wait(&cancel).map_err(|e| format!("AUTH-CALLBACK: {e:?}"))?;
+    let code = attempt
+        .wait(&cancel)
+        .map_err(|e| format!("AUTH-CALLBACK: {e:?}"))?;
     println!("AUTH-STAGE: callback received; verifying identity and Promax exchange");
-    manager.complete_login(&identity, &public_key, code, &cancel)
+    manager
+        .complete_login(&identity, &public_key, code, &cancel)
         .map_err(|e| format!("AUTH-EXCHANGE: {e:?}"))?;
     println!("AUTH-STAGE: verified session saved with DPAPI; checking Promax acceptance");
-    manager.account().map_err(|e| format!("AUTH-RESTORE: {e:?}"))?;
+    manager
+        .account()
+        .map_err(|e| format!("AUTH-RESTORE: {e:?}"))?;
     println!("AUTH-RESULT: verified session accepted; restart Concat to restore it");
     Ok(())
 }

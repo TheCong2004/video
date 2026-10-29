@@ -3,29 +3,61 @@ import { Floword } from "../theme/floword.slint";
 import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
 
+// Two bounded native washes, only in launcher/Studio backgrounds. No shader,
+// backdrop blur, media polling or decorations in the preview/timeline.
+export component LiquidBackground inherits Rectangle {
+    in property <bool> active: !Floword.reduced-motion;
+    property <bool> drift;
+    property <bool> moving: root.active && !Theme.motion-reduced;
+    changed moving => { if !root.moving { root.drift = false; } }
+    Timer {
+        interval: 10s;
+        running: root.moving;
+        triggered => { root.drift = !root.drift; }
+    }
+    clip: true;
+
+    // Ambient soft blob 1 (brand royal blue)
+    Rectangle {
+        x: parent.width * (root.drift ? 0.64 : 0.72);
+        y: root.drift ? -20px : -50px;
+        width: 320px;
+        height: 320px;
+        border-radius: root.drift ? 118px : 160px;
+        background: Theme.brand.with-alpha(0.06);
+        animate x, y, border-radius { duration: root.moving ? 10s : 0ms; easing: ease-in-out; }
+    }
+
+    // Ambient soft blob 2 (warm golden cream)
+    Rectangle {
+        x: root.drift ? -30px : -60px;
+        y: parent.height * (root.drift ? 0.62 : 0.55);
+        width: 280px;
+        height: 280px;
+        border-radius: root.drift ? 104px : 140px;
+        background: Theme.brand-yellow.with-alpha(0.07);
+        animate x, y, border-radius { duration: root.moving ? 10s : 0ms; easing: ease-in-out; }
+    }
+}
+
 export component StudioCard inherits Rectangle {
-    in property <length> spacing: 14px;
-    in property <length> padding-v: 20px;
-    in property <length> padding-h: 20px;
-    border-radius: 16px;
+    in property <length> spacing: Theme.space-md;
+    in property <length> padding-v: 18px;
+    in property <length> padding-h: 18px;
+    in property <bool> elevated: false;
+    border-radius: root.elevated ? Theme.r-card-large : Theme.r-card;
     border-width: 1px;
-    border-color: Floword.line-bright;
-    background: @linear-gradient(180deg, #141D32 0%, #101728 100%);
+    border-color: root.elevated ? Floword.line-bright : Floword.line;
+    background: root.elevated ? Floword.raised : Floword.surface;
     min-width: 0px;
     min-height: body.preferred-height;
     vertical-stretch: 0;
     clip: true;
 
-    // Subtle top border hairline highlight for cinematic depth
-    Rectangle {
-        y: 0px;
-        x: 16px;
-        width: parent.width - 32px;
-        height: 1px;
-        background: @linear-gradient(90deg, #00000000 0%, #39C8FF33 50%, #00000000 100%);
-    }
+    animate background, border-color { duration: Theme.motion-hover; easing: cubic-bezier(0.16, 1, 0.3, 1); }
 
     body := VerticalLayout {
+        alignment: start;
         padding-top: root.padding-v;
         padding-bottom: root.padding-v;
         padding-left: root.padding-h;
@@ -41,11 +73,11 @@ export component StudioHeading inherits HorizontalLayout {
     in property <Glyph> glyph: Glyph.sparkle;
     in property <length> font-size: 16px;
     in property <length> icon-size: 18px;
-    spacing: 8px;
+    spacing: 9px;
     alignment: start;
     VerticalLayout {
         alignment: center;
-        Icon { glyph: root.glyph; size: root.icon-size; tint: Floword.cyan; }
+        Icon { glyph: root.glyph; size: root.icon-size; tint: Floword.accent; }
     }
     Text { text: root.title; color: Floword.text; font-size: root.font-size; font-weight: 700; wrap: word-wrap; horizontal-stretch: 1; vertical-alignment: center; }
 }
@@ -59,27 +91,38 @@ export component StudioButton inherits Rectangle {
     callback clicked();
     min-height: root.compact ? 34px : 40px;
     max-height: root.compact ? 34px : 40px;
-    min-width: Math.min(180px, caption.preferred-width + (root.compact ? 16px : 24px));
-    border-radius: root.compact ? 8px : 10px;
-    border-width: 1px;
-    border-color: focus.has-focus ? Floword.cyan
-        : root.primary ? (touch.has-hover ? Floword.cyan : Floword.button)
+    min-width: Math.min(180px, caption.preferred-width + (root.compact ? 18px : 26px));
+    border-radius: Theme.r-control;
+    border-width: focus.has-focus ? 2px : 1px;
+    border-color: focus.has-focus ? Floword.accent
+        : root.primary ? (touch.has-hover ? Floword.accent-hover : Floword.button)
         : (touch.has-hover ? Floword.line-bright : Floword.line);
     background: root.primary
-        ? (touch.has-hover ? Floword.button-hover : Floword.button)
-        : (touch.has-hover ? Floword.raised : Floword.field);
-    animate background, border-color { duration: 140ms; easing: ease-in-out; }
-    opacity: root.enabled ? 1 : 0.4;
+        ? (touch.pressed ? Floword.accent-hover : touch.has-hover ? Floword.button-hover : Floword.button)
+        : (touch.pressed ? Floword.brand-soft : touch.has-hover ? Floword.raised : Floword.field);
+    animate background, border-color { duration: Theme.motion-hover; easing: cubic-bezier(0.16, 1, 0.3, 1); }
+    opacity: root.enabled ? 1 : 0.55;
+    forward-focus: focus;
     accessible-role: button;
     accessible-label: root.label;
     accessible-enabled: root.enabled;
+    // An outer ring remains distinct even on a brand-filled primary action.
+    if focus.has-focus: Rectangle {
+        x: -3px; y: -3px;
+        width: parent.width + 6px;
+        height: parent.height + 6px;
+        border-radius: Theme.r-control + 3px;
+        border-width: 2px;
+        border-color: Theme.brand;
+        background: transparent;
+    }
     caption := Text {
         x: 8px;
         width: Math.max(0px, root.width - 16px);
         height: root.height;
         text: root.label;
-        color: root.primary ? Floword.on-accent : Floword.text;
-        font-size: root.compact ? 12px : 13.5px;
+        color: root.primary ? Floword.on-accent : root.enabled ? Floword.text : Floword.muted;
+        font-size: root.compact ? 12px : 13px;
         font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -89,7 +132,7 @@ export component StudioButton inherits Rectangle {
     focus := FocusScope {
         enabled: root.enabled;
         key-pressed(event) => {
-            if event.text == Key.Return || event.text == " " { root.clicked(); return accept; }
+            if root.enabled && (event.text == Key.Return || event.text == " ") { root.clicked(); return accept; }
             return reject;
         }
     }
@@ -97,6 +140,24 @@ export component StudioButton inherits Rectangle {
         enabled: root.enabled;
         mouse-cursor: pointer;
         clicked => { focus.focus(); root.clicked(); }
+    }
+}
+
+// Shared presentation only: callers keep ownership of operations and errors.
+export component StudioStatus inherits Rectangle {
+    in property <string> label;
+    in property <int> tone: 0; // 0 neutral, 1 success, 2 warning, 3 error, 4 loading
+    property <color> ink: root.tone == 1 ? Floword.success : root.tone == 2 ? Floword.warning : root.tone == 3 ? Floword.danger : root.tone == 4 ? Floword.accent : Floword.muted;
+    background: root.ink.with-alpha(0.09);
+    border-radius: Theme.r-control;
+    border-width: 1px;
+    border-color: root.ink.with-alpha(0.2);
+    min-width: 0px;
+    min-height: 32px;
+    vertical-stretch: 0;
+    status-body := VerticalLayout {
+        padding: 8px;
+        Text { text: root.label; color: root.ink; font-size: 12px; font-weight: 500; wrap: word-wrap; vertical-stretch: 0; }
     }
 }
 
@@ -110,8 +171,9 @@ export component StudioField inherits Rectangle {
     in property <bool> secret;
     in property <bool> enabled: true;
     in property <bool> compact: false;
+    forward-focus: input;
     callback edited(text: string);
-    in property <length> input-height: root.multiline ? 128px : root.compact ? 32px : 40px;
+    in property <length> input-height: root.multiline ? 128px : root.compact ? 34px : 40px;
     property <string> draft;
     init => { root.draft = root.value; }
     changed value => { if root.secret || !input.has-focus { root.draft = root.value; } }
@@ -120,33 +182,36 @@ export component StudioField inherits Rectangle {
     vertical-stretch: 0;
     background: transparent;
     field-body := VerticalLayout {
-        spacing: root.compact ? 5px : 9px;
-        Text { text: root.label; color: Floword.text; font-size: root.compact ? 12px : 14px; wrap: word-wrap; }
+        spacing: root.compact ? 5px : 8px;
+        Text { text: root.label; color: Floword.text; font-size: root.compact ? 12px : 13.5px; font-weight: 500; wrap: word-wrap; }
         Rectangle {
             height: root.input-height;
             background: Floword.field;
-            border-radius: root.compact ? 8px : 10px;
-            border-width: 1px;
-            border-color: input.has-focus ? Floword.cyan : Floword.line;
-            animate border-color { duration: 140ms; easing: ease-in-out; }
+            border-radius: Theme.r-control;
+            border-width: input.has-focus ? 2px : 1px;
+            border-color: input.has-focus ? Floword.accent : Floword.line;
+            animate border-color { duration: Theme.motion-hover; easing: cubic-bezier(0.16, 1, 0.3, 1); }
             clip: true;
             input := TextInput {
-                x: 10px; y: root.compact ? 6px : 10px; width: Math.max(0px, parent.width - 20px); height: Math.max(0px, parent.height - (root.compact ? 12px : 20px));
+                x: 10px; y: root.compact ? 6px : 9px; width: Math.max(0px, parent.width - 20px); height: Math.max(0px, parent.height - (root.compact ? 12px : 18px));
                 text <=> root.draft;
                 single-line: !root.multiline;
                 input-type: root.secret ? password : text;
                 wrap: word-wrap;
                 read-only: !root.enabled;
+                accessible-label: root.label;
+                selection-background-color: Floword.brand-soft;
+                selection-foreground-color: Floword.text;
                 color: Floword.text;
-                font-size: root.compact ? 12px : 14px;
+                font-size: root.compact ? 12px : 13.5px;
                 edited => { root.edited(self.text); }
             }
             if root.draft == "" && !input.has-focus: Text {
-                x: 10px; y: root.compact ? 6px : 10px; width: Math.max(0px, parent.width - 20px); height: Math.max(0px, parent.height - (root.compact ? 12px : 20px));
+                x: 10px; y: root.compact ? 6px : 9px; width: Math.max(0px, parent.width - 20px); height: Math.max(0px, parent.height - (root.compact ? 12px : 18px));
                 text: root.placeholder;
                 wrap: word-wrap;
                 color: Floword.muted;
-                font-size: root.compact ? 12px : 14px;
+                font-size: root.compact ? 12px : 13.5px;
                 vertical-alignment: center;
             }
         }
@@ -156,6 +221,6 @@ export component StudioField inherits Rectangle {
 export component StudioMetric inherits StudioCard {
     in property <string> label;
     in property <string> value;
-    Text { text: root.label; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+    Text { text: root.label; color: Floword.muted; font-size: 13px; font-weight: 500; wrap: word-wrap; }
     Text { text: root.value; color: Floword.text; font-size: 26px; font-weight: 700; wrap: word-wrap; }
 }

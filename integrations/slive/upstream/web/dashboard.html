@@ -1,0 +1,2300 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slive Vip Studio</title>
+  <link rel="shortcut icon" href="favicon.png" type="image/png">
+  <link rel="stylesheet" href="studio.css?v=2.3.2">
+<script data-agency-branding>
+document.addEventListener('DOMContentLoaded', async () => {
+  if (location.protocol === 'file:') return;
+  try {
+    const response = await fetch('/api/agency/site', {cache: 'no-store'});
+    const site = await response.json();
+    if (!response.ok) throw new Error(site.error || 'Không tải được cấu hình đại lý.');
+    const name = site.name || site.branding?.siteName;
+    if (name) {
+      document.title = name;
+      document.querySelectorAll('[data-agency-name], .logo-title, .brand-name, .auth-product-title').forEach(el => { el.textContent = name; });
+    }
+    const logo = site.logo || site.branding?.logoUrl;
+    if (logo) {
+      document.querySelectorAll('img.brand-mark, img[data-agency-logo], .navbar-brand img').forEach(el => { el.src = logo; el.alt = name || 'Logo'; });
+      document.querySelectorAll('link[rel~="icon"]').forEach(el => { el.href = site.favicon || logo; });
+      const title = document.querySelector('.logo-title');
+      if (title && !document.querySelector('img[data-agency-logo]')) {
+        const image = document.createElement('img');
+        image.src = logo; image.alt = name || 'Logo'; image.dataset.agencyLogo = '';
+        image.style.cssText = 'display:block;width:64px;height:64px;object-fit:contain;margin:0 auto 12px';
+        title.before(image);
+      }
+    }
+    if (/^#[0-9a-f]{6}$/i.test(site.theme?.primaryColor || '')) document.documentElement.style.setProperty('--agency-primary', site.theme.primaryColor);
+  } catch (error) {
+    console.warn('Không tải được cấu hình thương hiệu đại lý:', error);
+  }
+});
+</script>
+</head>
+
+<body>
+  <div class="app-shell">
+    <!-- Top Status Header (S-LIVE Modern Neon Style) -->
+    <header class="top-bar">
+      <!-- 1. Left: Brand Logo -->
+      <div class="top-bar-left">
+        <div class="brand-badge-modern">
+          <img src="favicon.png" class="brand-logo-icon" alt="S-LIVE">
+          <span class="brand-title">S-LIVE</span>
+        </div>
+      </div>
+
+      <!-- 2. Center: Live Timer, VIP Time Remaining, Top-up Button -->
+      <div class="top-bar-center">
+        <!-- Pill 1: Live Status & Neon LED Clock -->
+        <div class="header-led-pill live-led-pill" id="header-live-pill" title="Thời gian phiên Live hiện tại">
+          <span class="live-dot-pulse"></span>
+          <span class="pill-label">LIVE</span>
+          <span class="pill-led-clock" id="top-live-timer">00:00:00</span>
+        </div>
+
+        <!-- Pill 2: VIP Time Remaining (Việt Hóa) -->
+        <div class="header-led-pill vip-led-pill" id="header-vip-pill" onclick="openPriceModal()"
+          title="Bấm để nạp thêm thời gian VIP">
+          <svg class="pill-svg-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 22h14" />
+            <path d="M5 2h14" />
+            <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+            <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+          </svg>
+          <span class="pill-label">THỜI GIAN CÒN LẠI</span>
+          <span class="pill-led-time" id="top-time-balance">00:00:00</span>
+        </div>
+
+        <!-- Top-up Action Button -->
+        <button class="btn-header-topup" id="btn-topbar-topup" onclick="openPriceModal()"
+          title="Nạp thêm thời gian Live VIP">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="6" />
+            <path d="M18.09 10.37A6 6 0 1 1 10.34 18" />
+            <path d="m7 6 2 2-2 2" />
+            <path d="M17 14h4v4" />
+          </svg>
+          <span>NẠP THỜI GIAN VIP</span>
+        </button>
+      </div>
+
+      <!-- 3. Right: Profile Dropdown Menu & Quick Actions -->
+      <div class="top-bar-right">
+        <!-- Hidden DOM bridges to preserve 100% backward compatibility for JS lookups without breaking -->
+        <div style="display:none;" aria-hidden="true">
+          <span id="top-hourly-rate">--</span>
+          <span id="top-server-status"><span
+              style="width:6px;height:6px;background:#10b981;border-radius:50%;"></span>Online</span>
+          <button id="btn-topbar-avatar" onclick="openAvatarModal()"></button>
+          <button id="topbar-playlist-btn" onclick="openPlaylistModal()"><span
+              id="topbar-tiktok-ext-dot"></span></button>
+          <div id="resource-header-wrap">
+            <span id="resource-callout"></span>
+            <button id="btn-topbar-resources" onclick="openResourceModal()"></button>
+          </div>
+          <div id="version-card" onclick="openUpdateModal()"></div>
+          <button id="btn-topbar-logout" onclick="openLogoutModal()"></button>
+          <div id="top-username-card" onclick="openUserHistoryModal()"></div>
+        </div>
+
+        <!-- Profile Dropdown Container -->
+        <div class="profile-dropdown-container" id="profile-dropdown-container">
+          <button type="button" class="profile-pill-btn" id="profile-pill-trigger" onclick="toggleProfileMenu(event)"
+            title="Xem cài đặt và tài khoản">
+            <img src="favicon.png" class="profile-avatar-thumb" alt="User Avatar">
+            <div class="profile-user-info">
+              <span class="profile-user-role">KHÁCH:</span>
+              <span class="profile-username" id="top-username">--</span>
+            </div>
+            <svg class="profile-dropdown-arrow-svg" width="11" height="11" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+
+          <!-- Dropdown Menu Box -->
+          <div class="profile-dropdown-menu hidden" id="profile-dropdown-menu">
+            <div class="profile-dropdown-header">
+              <div class="profile-menu-name" id="menu-display-username">Tài khoản Live VIP</div>
+              <div class="profile-menu-sub">Gói Studio Độc Quyền</div>
+            </div>
+
+            <div class="profile-menu-list">
+              <button type="button" class="profile-menu-item" onclick="openUserHistoryModal(); closeProfileMenu();">
+                <svg class="menu-item-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span class="menu-item-text">Thông tin & Lịch sử tài khoản</span>
+              </button>
+
+              <button type="button" class="profile-menu-item" onclick="openResourceModal(); closeProfileMenu();">
+                <svg class="menu-item-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" x2="12" y1="15" y2="3" />
+                </svg>
+                <span class="menu-item-text">Tải bộ tài nguyên AI</span>
+                <span class="profile-badge-resource" id="resource-header-badge">Kiểm tra</span>
+              </button>
+
+              <button type="button" class="profile-menu-item" onclick="openExtensionGuideModal(); closeProfileMenu();">
+                <svg class="menu-item-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path
+                    d="M19.439 7.85c0-1.571-1.28-2.85-2.849-2.85a2.85 2.85 0 0 0-2.85 2.85v.571H10.26V7.85A2.85 2.85 0 0 0 7.41 5C5.84 5 4.56 6.279 4.56 7.85v2.41H5.13a2.85 2.85 0 0 1 2.85 2.85 2.85 2.85 0 0 1-2.85 2.85h-.57v2.41c0 1.57 1.28 2.85 2.85 2.85a2.85 2.85 0 0 0 2.85-2.85v-.57h3.48v.57a2.85 2.85 0 0 0 2.85 2.85c1.57 0 2.85-1.28 2.85-2.85v-2.41h.57a2.85 2.85 0 0 0 2.85-2.85 2.85 2.85 0 0 0-2.85-2.85h-.57V7.85Z" />
+                </svg>
+                <span class="menu-item-text">Cài TikTok Extension Auto-Pin</span>
+              </button>
+
+              <button type="button" class="profile-menu-item" onclick="openUpdateModal(); closeProfileMenu();">
+                <svg class="menu-item-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="16 12 12 8 8 12" />
+                  <line x1="12" x2="12" y1="16" y2="8" />
+                </svg>
+                <span class="menu-item-text">Phiên bản & Cập nhật</span>
+                <span class="profile-version-badge" id="top-app-version">--</span>
+              </button>
+
+              <div class="profile-menu-divider"></div>
+
+              <button type="button" class="profile-menu-item danger" onclick="openLogoutModal(); closeProfileMenu();">
+                <svg class="menu-item-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" x2="9" y1="12" y2="12" />
+                </svg>
+                <span class="menu-item-text">Đăng xuất (Sign Out)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Container (3 Columns Studio Layout) -->
+    <main class="main-workspace">
+      <div class="studio-grid studio-grid-3col">
+
+        <!-- ============================================== -->
+        <!-- ============================================== -->
+        <!-- COLUMN 1: LEFT - STUDIO SETUP & CONTROLS      -->
+        <!-- ============================================== -->
+        <!-- ============================================== -->
+        <!-- COLUMN 1: LEFT - STUDIO SETUP & WORKFLOW       -->
+        <!-- ============================================== -->
+        <div class="studio-col studio-left">
+          <!-- BƯỚC 1: CHỌN MẪU LIVE -->
+          <section class="panel avatar-selection-panel">
+            <div class="panel-head"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px;">
+              <span style="display:flex; align-items:center; gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span>1. CHỌN MẪU LIVE</span>
+              </span>
+            </div>
+
+            <div class="avatar-panel-body" style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
+              <!-- Avatar Horizontal Carousel Section -->
+              <div class="avatar-carousel-section">
+                <div class="avatar-carousel-header">
+                  <div class="avatar-carousel-title">
+                    <span>MẪU:</span>
+                    <strong id="avatar-carousel-selected-name" class="avatar-selected-highlight">Đang tải...</strong>
+                  </div>
+                  <div class="avatar-carousel-actions">
+                    <button type="button" class="btn-avatar-add-pill" onclick="openAvatarModal()"
+                      title="Tải video lên để tạo mẫu live AI mới">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <line x1="19" x2="19" y1="8" y2="14" />
+                        <line x1="22" x2="16" y1="11" y2="11" />
+                      </svg>
+                      <span>+ Thêm Mẫu Live</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Carousel Slider Track with Prev/Next Navigation -->
+                <div class="avatar-carousel-wrapper">
+                  <button type="button" class="carousel-nav-btn prev" id="btn-avatar-prev"
+                    onclick="scrollAvatarCarousel(-1)" title="Cuộn sang trái">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                  </button>
+                  <div class="avatar-carousel-track" id="avatar-carousel-track">
+                    <!-- Cards rendered dynamically via JS -->
+                  </div>
+                  <button type="button" class="carousel-nav-btn next" id="btn-avatar-next"
+                    onclick="scrollAvatarCarousel(1)" title="Cuộn sang phải">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Hidden select-avatar to maintain 100% backend/WebRTC engine compatibility -->
+                <select class="select" id="select-avatar" style="display:none;"></select>
+                <button class="btn btn-green btn-block" id="btn_select_avatar" style="display:none;">✓ CHỌN
+                  MẪU LIVE</button>
+              </div>
+
+              <!-- Hidden video hook for WebRTC streaming -->
+              <div class="mini-video-hook" style="display:none;">
+                <video id="video" autoplay playsinline></video>
+                <audio id="audio" autoplay></audio>
+                <div id="video-placeholder"></div>
+              </div>
+              <input type="checkbox" id="use-stun" hidden>
+            </div>
+          </section>
+
+          <!-- MÀN HÌNH 1: Camera Gốc Giám Sát (Tự động hiển thị khi chọn Webcam Trực tiếp, ẩn khi dùng Avatar có sẵn) -->
+          <section class="panel camera-monitor-panel hidden" id="camera-monitor-panel">
+            <div class="panel-head" id="cam-panel-header" style="cursor: pointer;"
+              title="Bấm để thu nhỏ / mở rộng Camera">
+              <div class="cam-panel-title">
+                <span class="live-cam-pulse"></span>
+                <span style="display:inline-flex; align-items:center; gap:6px;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m22 8-6 4 6 4V8Z" />
+                    <rect width="14" height="12" x="2" y="6" rx="2" />
+                  </svg>
+                  <span>MÀN HÌNH 1: CAMERA GỐC</span>
+                </span>
+              </div>
+              <div class="cam-head-actions" style="display:flex; align-items:center; gap:6px;">
+                <span class="cam-badge-clean">CAM SẠCH</span>
+                <button type="button" class="btn-toggle-cam" id="btn-toggle-cam"
+                  title="Thu nhỏ / Mở rộng Camera">▲</button>
+              </div>
+            </div>
+            <div class="camera-monitor-body">
+              <div class="camera-video-wrapper">
+                <img id="raw-camera-stream" class="raw-camera-img" src="" alt="Camera Preview">
+                <div class="camera-monitor-overlay" id="camera-stream-loading">
+                  <span class="camera-loading-spinner"></span>
+                  <span class="camera-loading-text">Đang kết nối Camera trực tiếp...</span>
+                </div>
+              </div>
+              <div class="camera-monitor-footer">
+                <div class="cam-footer-info">
+                  <span class="cam-footer-dot"></span>
+                  <span id="cam-active-name">Webcam thời gian thực</span>
+                </div>
+                <button type="button" class="btn-refresh-cam" id="btn-refresh-camera" title="Làm mới kết nối Camera">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                  </svg>
+                  <span>Làm mới Cam</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- BƯỚC 2: KỊCH BẢN LIVE -->
+          <section class="panel prompt-panel">
+            <div class="panel-head"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px;">
+              <span style="display:inline-flex; align-items:center; gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  <polyline points="10 8 7 11 10 14" />
+                  <polyline points="14 8 17 11 14 14" />
+                </svg>
+                <span>2. KỊCH BẢN LIVE</span>
+              </span>
+              <button type="button" class="btn btn-purple btn-optimize-header-pill" id="btn-optimize-prompt"
+                onclick="handleOptimizePromptClick()" title="Gửi kịch bản để AI tối ưu hóa chi tiết">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path
+                    d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                </svg>
+                <span>Tạo kịch bản live</span>
+              </button>
+            </div>
+            <div class="prompt-panel-body" style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
+              <form id="chat-form" class="prompt-form" onsubmit="event.preventDefault();">
+                <div class="prompt-input-wrap" style="height: auto; min-height: 54px;">
+                  <textarea class="field prompt-textarea" id="chat-message" rows="2"
+                    placeholder="Nhập chủ đề hoặc nội dung cơ bản về sản phẩm/buổi live..."></textarea>
+                </div>
+              </form>
+
+              <!-- Widget: Kịch bản đã lưu & Xem/sửa -->
+              <div class="active-prompt-card" id="active-prompt-card" style="margin-top: 0;">
+                <div class="active-prompt-card-header">
+                  <div class="active-prompt-badge">
+                    <span class="pulse-dot"></span>
+                    <span>KỊCH BẢN ĐÃ LƯU</span>
+                  </div>
+                  <button type="button" class="btn-view-prompt" id="btn-view-prompt" onclick="openPromptModal()"
+                    title="Xem và chỉnh sửa kịch bản chi tiết">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <span>Sửa kịch bản live</span>
+                  </button>
+                </div>
+                <div class="active-prompt-topic" id="active-prompt-topic">Chưa có kịch bản nào được tối ưu</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- BƯỚC 3: BẮT ĐẦU PHIÊN LIVE -->
+          <section class="panel control-panel compact-control-panel session-start-panel">
+            <div class="panel-head"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px;">
+              <span style="display:flex; align-items:center; gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+                  <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" />
+                  <circle cx="12" cy="12" r="2" />
+                  <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
+                  <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" />
+                </svg>
+                <span>3. BẮT ĐẦU PHIÊN LIVE</span>
+              </span>
+              <div class="live-status-pill status-ready" id="live-indicator-badge">
+                <span class="status-dot"></span>
+                <span class="status-name" id="live-indicator-text">Sẵn sàng</span>
+              </div>
+              <span id="mini-live-timer" style="display:none;">00:00:00</span>
+              <span id="session-label" style="display:none;">SID: -</span>
+              <span id="billing-status" style="display:none;">Chưa bắt đầu</span>
+            </div>
+
+            <div class="control-compact-body"
+              style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
+              <div class="session-btn-row">
+                <button class="btn btn-cyan btn-start-action" id="start">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="6 3 20 12 6 21 6 3" />
+                  </svg>
+                  <span>BẮT ĐẦU PHIÊN LIVE</span>
+                </button>
+                <button class="btn btn-pink btn-start-action hidden" id="stop">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <rect width="16" height="16" x="4" y="4" rx="2" />
+                  </svg>
+                  <span>DỪNG PHIÊN LIVE</span>
+                </button>
+              </div>
+              <div style="font-size: 10.5px; color: #94a3b8; text-align: center;">
+                Khởi động cửa sổ Mẫu Live & tự động phát kịch bản đã lưu
+              </div>
+            </div>
+          </section>
+
+          <!-- GIỌNG ĐỌC & ÂM THANH (Ở DƯỚI CÙNG THEO YÊU CẦU) -->
+          <section class="panel voice-settings-panel">
+            <div class="panel-head"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px;">
+              <span style="display:inline-flex; align-items:center; gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
+                <span>GIỌNG ĐỌC & ÂM THANH</span>
+              </span>
+            </div>
+            <div class="voice-settings-body">
+              <div class="voice-select-field">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <label for="tts-voice-select" style="margin-bottom: 0;">Giọng đọc Mẫu Live AI:</label>
+                  <button type="button" class="btn-voice-clone" onclick="openVoiceModal()"
+                    title="Tạo & Quản lý giọng AI cá nhân">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <path
+                        d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                    </svg>
+                    <span>Clone giọng</span>
+                  </button>
+                </div>
+                <select class="select full-voice-select" id="tts-voice-select">
+                  <optgroup label="Giọng Nữ">
+                    <option value="Mai Anh">Mai Anh (Nữ Bắc - Tươi sáng, Livestream)</option>
+                    <option value="Trúc Ly">Trúc Ly (Nữ Bắc - Ngọt ngào, Tự nhiên)</option>
+                    <option value="Ngọc Linh" selected>Ngọc Linh (Nữ Bắc - Nhẹ nhàng, Tâm sự)</option>
+                    <option value="Đoan Trang">Đoan Trang (Nữ Bắc - Đĩnh đạc, Tin tức)</option>
+                    <option value="Thục Đoan">Thục Đoan (Nữ Nam - Dịu dàng, Cuốn hút)</option>
+                    <option value="Thùy Dung">Thùy Dung (Nữ Nam - Năng động, Tin tức)</option>
+                    <option value="Ngọc Trân">Ngọc Trân (Nữ Trung - Duyên dáng, Tự nhiên)</option>
+                  </optgroup>
+                  <optgroup label="Giọng Nam">
+                    <option value="Minh Đức">Minh Đức (Nam Bắc - Tin tức, MC)</option>
+                    <option value="Phạm Tuyên">Phạm Tuyên (Nam Bắc - Tự nhiên)</option>
+                    <option value="Xuân Vĩnh">Xuân Vĩnh (Nam Nam - Ấm áp, Nam Bộ)</option>
+                    <option value="Thái Sơn">Thái Sơn (Nam Bắc - Trầm ấm, Truyền cảm)</option>
+                    <option value="Thanh Bình">Thanh Bình (Nam Bắc - Trẻ trung)</option>
+                    <option value="Minh Triết">Minh Triết (Nam Nam - Chững chạc, Tin tức)</option>
+                    <option value="Quang Sơn">Quang Sơn (Nam Trung - Ấm áp, Tự nhiên)</option>
+                  </optgroup>
+                </select>
+              </div>
+
+              <div class="voice-sliders-grid">
+                <div class="voice-slider-item">
+                  <div class="voice-slider-label">
+                    <span style="display:inline-flex; align-items:center; gap:5px;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                      </svg>
+                      <span>Âm lượng</span>
+                    </span>
+                    <strong id="tts-volume-value">80%</strong>
+                  </div>
+                  <input type="range" id="tts-volume" min="0" max="1" step="0.05" value="0.8">
+                </div>
+                <div class="voice-slider-item">
+                  <div class="voice-slider-label">
+                    <span style="display:inline-flex; align-items:center; gap:5px;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                      </svg>
+                      <span>Tốc độ</span>
+                    </span>
+                    <strong id="tts-speed-value">1.00x</strong>
+                  </div>
+                  <input type="range" id="tts-speed" min="0.8" max="1.6" step="0.05" value="1">
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- COLUMN 2: CENTER - LIVE CONTROL CENTER        -->
+        <!-- ============================================== -->
+        <div class="studio-col studio-center">
+          <section class="panel control-center-panel">
+            <div class="panel-head-clean center-tab-bar">
+              <div class="center-tabs-nav">
+                <button type="button" class="center-tab-btn active" id="tab-btn-live-control"
+                  onclick="switchCenterTab('live-control')">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="m9 8 6 4-6 4Z" />
+                  </svg>
+                  <span>ĐIỀU HÀNH PHIÊN LIVE</span>
+                </button>
+                <button type="button" class="center-tab-btn" id="tab-btn-avatar-preview"
+                  onclick="switchCenterTab('avatar-preview')">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="23 7 16 12 23 17 23 7" />
+                    <rect width="15" height="14" x="1" y="5" rx="2" ry="2" />
+                  </svg>
+                  <span>XEM VIDEO MẪU LIVE</span>
+                  <span class="center-tab-badge" id="preview-tab-avatar-name">MAU10</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="center-panel-body" id="center-tab-content-control">
+              <!-- BLOCK 1: AI ĐANG PHÁT TRỰC TIẾP -->
+              <div class="center-block ai-speaking-block">
+                <div class="block-subhead">
+                  <div class="block-title">
+                    <span class="speaking-icon-pulse" style="display:inline-flex; align-items:center;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                      </svg>
+                    </span>
+                    <span>AI ĐANG PHÁT TRỰC TIẾP</span>
+                  </div>
+                  <span class="speaking-tag hidden" id="reading-state" style="display:none;">SẴN SÀNG</span>
+                </div>
+
+                <!-- Animated Waveform Visualizer -->
+                <div class="waveform-box">
+                  <div class="voice-wave" id="speech-wave" aria-hidden="true">
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  </div>
+                </div>
+
+                <!-- Active Subtitle Container -->
+                <div class="active-speaking-subtitle-card" id="active-sentence-card">
+                  <span class="active-sentence-number" id="reading-num">00</span>
+                  <div class="active-subtitle-text" id="reading-text">
+                    Chào mừng bạn đến với phiên Live VIP! Hãy nhập kịch bản bên trái để bắt đầu.
+                  </div>
+                </div>
+
+                <!-- Progress Bar & Reading Timeline (Đã comment theo yêu cầu) -->
+                <!--
+                <div class="speaking-timeline-row">
+                  <div class="reading-progress-track">
+                    <div class="reading-progress-fill" id="reading-progress-bar" style="width: 35%;"></div>
+                  </div>
+                  <div class="speaking-time-display">
+                    <span id="reading-progress-percent">0%</span>
+                  </div>
+                </div>
+                -->
+              </div>
+
+              <!-- BLOCK 2: SẢN PHẨM ĐANG GHIM -->
+              <div class="center-block pinned-product-block" id="center-pinned-product-block">
+                <div class="block-subhead">
+                  <div class="block-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" y1="17" x2="12" y2="22"></line>
+                      <path
+                        d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.77V6a3 3 0 0 0-6 0v4.77a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z">
+                      </path>
+                    </svg>
+                    <span>SẢN PHẨM ĐANG GHIM</span>
+                  </div>
+                  <div class="pinned-subhead-actions">
+                    <button type="button" class="btn-manage-cart-head" onclick="openPlaylistModal()"
+                      title="Mở danh sách quản lý giỏ hàng TikTok">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="8" cy="21" r="1" />
+                        <circle cx="19" cy="21" r="1" />
+                        <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+                      </svg>
+                      <span>Quản lý giỏ hàng</span>
+                    </button>
+                    <span class="pinned-badge-active" id="main-pinned-status">CHƯA GHIM</span>
+                  </div>
+                </div>
+
+                <div class="pinned-empty-line" id="main-pinned-empty"
+                  style="padding: 10px 14px; color: #94a3b8; font-size: 12px; background: rgba(5, 10, 24, 0.65); border: 1px dashed rgba(0, 240, 255, 0.2); border-radius: 8px; text-align: center;">
+                  Chưa có sản phẩm
+                </div>
+
+                <div class="pinned-product-card" id="main-pinned-card" style="display:none;">
+                  <div class="pinned-img-box">
+                    <img id="main-pinned-img" src="favicon.png" alt="Pinned Product" class="pinned-img"
+                      onerror="this.src='favicon.png'">
+                  </div>
+
+                  <div class="pinned-info-box">
+                    <div class="pinned-title" id="main-pinned-title">Chưa có sản phẩm ghim</div>
+                    <div class="pinned-price-line">
+                      <span class="pinned-price-label">GIÁ:</span>
+                      <strong class="pinned-price-val" id="main-pinned-price">-- đ</strong>
+                    </div>
+                    <div class="pinned-stock-line">
+                      <span class="stock-label" id="main-pinned-stock">Kho: --</span>
+                      <span class="stock-dot">·</span>
+                      <span class="stock-cart-index" id="main-pinned-index">Giỏ: 0 SP</span>
+                    </div>
+                  </div>
+
+                  <div class="pinned-action-box">
+                    <button type="button" class="btn-change-product" onclick="nextPlaylistProduct()"
+                      title="Chuyển sang sản phẩm kế tiếp trong giỏ">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                      </svg>
+                      <span>ĐỔI SẢN PHẨM</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- BLOCK 3: HÀNG ĐỢI KỊCH BẢN LIVE -->
+              <div class="center-block live-script-block">
+                <div class="block-subhead">
+                  <div class="block-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span>DANH SÁCH KỊCH BẢN LIVE</span>
+                  </div>
+                  <small style="color:var(--text-muted); font-size:10px;">Danh sách câu tiếp theo</small>
+                </div>
+
+                <div class="script-stream-container log-stream llm-result" id="chat-messages">
+                  <div class="script-empty-state">
+                    Bắt đầu phiên Live VIP và nhập chủ đề ở cột bên trái để AI tạo nội dung.
+                  </div>
+                </div>
+
+                <!-- Nút nổi thông minh: Quay lại câu đang nói / Cuộn về tin mới -->
+                <button type="button" class="floating-scroll-resume-btn" id="btn-scroll-active-chat"
+                  title="Bấm để cuộn về câu đang nói" style="display: none;">
+                  <span class="pulse-dot"></span>
+                  <span class="btn-text">Quay lại câu đang nói</span>
+                  <svg class="scroll-arrow-icon" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M19 12l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+
+            </div>
+
+            <!-- TAB 2: XEM VIDEO MẪU LIVE TO TOÀN KHUNG GIỮA -->
+            <div class="avatar-video-stage-container hidden" id="center-tab-content-preview">
+              <div class="avatar-video-wrapper-full">
+                <img id="center-avatar-preview-fallback-img" class="center-avatar-fallback-img" alt="Mẫu Live"
+                  style="display:none;" />
+                <video id="center-avatar-preview-video" autoplay loop muted playsinline
+                  class="center-avatar-video-element"></video>
+                <div class="avatar-video-overlay-info" style="justify-content: flex-end;">
+                  <div class="avatar-video-actions">
+                    <button type="button" class="btn-preview-replay" onclick="replayAvatarPreviewVideo()"
+                      title="Phát lại từ đầu">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                      </svg>
+                      <span>Phát lại</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="avatar-video-webcam-notice hidden" id="center-preview-webcam-notice">
+                  <div class="webcam-notice-icon">📷</div>
+                  <div class="webcam-notice-title">ĐANG CHỌN CHẾ ĐỘ CAMERA TRỰC TIẾP</div>
+                  <div class="webcam-notice-sub">Xem khung hình giám sát ở Màn hình 1 bên cột trái.</div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- COLUMN 3: RIGHT - REAL-TIME COMMENTS & AI     -->
+        <!-- ============================================== -->
+        <div class="studio-col studio-right">
+          <section class="panel comments-panel">
+            <div class="panel-head-clean">
+              <div class="panel-head-title">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                </svg>
+                <span>BÌNH LUẬN & TRẢ LỜI TỰ ĐỘNG</span>
+              </div>
+            </div>
+
+            <div class="comments-panel-body" style="padding-bottom: 8px;">
+              <!-- Top Interaction Bar: Input & Connect Button -->
+              <div class="comment-input-bar">
+                <div class="comment-input-wrap">
+                  <input class="field comment-input-field" id="tiktok-username"
+                    placeholder="Nhập username TikTok hoặc bình luận...">
+                </div>
+                <button class="btn-tiktok-connect" id="btn-connect-tiktok" type="button"
+                  title="Kết nối phiên TikTok Live">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18V5l12-2v13" />
+                    <circle cx="6" cy="18" r="3" />
+                    <circle cx="18" cy="16" r="3" />
+                  </svg>
+                  <span>KẾT NỐI</span>
+                </button>
+              </div>
+
+              <div class="tiktok-error-banner" id="tiktok-error-banner" style="display: none;"></div>
+
+              <!-- Two-layer Threaded Comments & AI Q&A Stream (Full Height - Không bị giới hạn bởi bảng thời gian) -->
+              <div class="comments-thread-stream log-stream comments-list" id="event-messages"
+                style="flex: 1; height: 100%;">
+                <div class="comments-empty-state">
+                  Đang chờ bình luận TikTok và phản hồi từ AI...
+                </div>
+              </div>
+
+              <!-- Nút nổi thông minh: Quay lại câu đang nói / Cuộn về tin mới -->
+              <button type="button" class="floating-scroll-resume-btn" id="btn-scroll-active-event"
+                title="Bấm để cuộn về câu đang nói" style="display: none;">
+                <span class="pulse-dot"></span>
+                <span class="btn-text">Quay lại câu đang nói</span>
+                <svg class="scroll-arrow-icon" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 5v14M19 12l-7 7-7-7" />
+                </svg>
+              </button>
+
+              <!-- BỘ ĐẾM 4 THÔNG SỐ: THỜI GIAN & CHI PHÍ (ẨN THEO YÊU CẦU, GIỮ NGUYÊN ID CHO JS) -->
+              <div class="comments-billing-panel" style="display: none !important;" aria-hidden="true">
+                <div class="comments-billing-head">
+                  <span>⏱ THỜI GIAN & CHI PHÍ</span>
+                  <span id="service-type-label" class="compact-service-badge">GÓI LIVE VIP</span>
+                </div>
+                <div class="comments-billing-grid">
+                  <div class="comment-billing-box timer">
+                    <small>Thời gian phiên</small>
+                    <strong id="billing-timer">00:00:00</strong>
+                  </div>
+                  <div class="comment-billing-box">
+                    <small>Số dư còn lại</small>
+                    <strong id="billing-balance-left" style="color:var(--success);">00:00:00</strong>
+                  </div>
+                  <div class="comment-billing-box">
+                    <small>Bắt đầu lúc</small>
+                    <strong id="billing-start-time">--:--:--</strong>
+                  </div>
+                  <div class="comment-billing-box">
+                    <small>Tạm tính</small>
+                    <strong id="billing-amount" style="color:var(--danger);">0 xu</strong>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </section>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Floating Hover Snapshot Preview Card (Root Level - Hoàn toàn không bị tràn hay cắt bởi cột) -->
+  <div class="avatar-hover-preview-card hidden" id="avatar-hover-card">
+    <div class="avatar-hover-img-wrap">
+      <img id="avatar-hover-img" src="" alt="Avatar Preview">
+      <span class="avatar-hover-badge">Xem trước</span>
+    </div>
+    <div class="avatar-hover-footer"
+      style="padding: 6px 10px; background: rgba(8,14,28,0.95); border-top: 1px solid rgba(0,240,255,0.2);">
+      <strong id="avatar-hover-title" style="color:#00f0ff; font-size:12px; display:block;">Tên Mẫu</strong>
+      <span id="avatar-hover-sub" style="color:#94a3b8; font-size:10px;">Khung hình mẫu AI</span>
+    </div>
+  </div>
+
+  <input type="hidden" id="sessionid" value="0">
+
+  <!-- MODAL 1: USER ACCOUNT & HISTORY MODAL (Strictly Exclusive Tabs) -->
+  <div class="modal-overlay" id="user-history-modal">
+    <div class="modal-content wide">
+      <div class="modal-header">
+        <h3>◎ Thông Tin & Lịch Sử Tài Khoản Live VIP</h3>
+        <button class="modal-close" onclick="closeUserHistoryModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="account-tabs">
+          <button class="account-tab-btn active" id="tab-profile-btn" onclick="switchHistoryTab('profile')">1. THÔNG TIN
+            TÀI KHOẢN</button>
+          <button class="account-tab-btn" id="tab-invoices-btn" onclick="switchHistoryTab('invoices')">2. GIAO DỊCH LIVE
+            VIP</button>
+          <button class="account-tab-btn" id="tab-sessions-btn" onclick="switchHistoryTab('sessions')">3. PHIÊN LIVE
+            VIP</button>
+        </div>
+
+        <!-- TAB 1: THÔNG TIN TÀI KHOẢN (Strictly Profile Only) -->
+        <div id="tab-profile-content" class="account-tab-content active">
+          <div
+            style="padding:8px 12px; background:rgba(0,240,255,0.05); border:1px solid rgba(0,240,255,0.2); border-radius:8px; font-size:11.5px; color:#cbd5e1; margin-bottom:12px;">
+            💡 <strong>Tài khoản S-Live dùng chung</strong> nhưng số dư, đơn giá, hóa đơn và phiên của <strong>Live
+              VIP</strong> và <strong>Live Thường</strong> là hai ví thời gian hoàn toàn độc lập.
+          </div>
+          <div class="profile-info-grid">
+            <div class="info-item"><label>Tên đăng nhập</label><span id="profile-username">--</span></div>
+            <div class="info-item"><label>Email liên hệ</label><span id="profile-email">--</span></div>
+            <div class="info-item"><label>Số điện thoại</label><span id="profile-phone">--</span></div>
+            <div class="info-item"><label>Trạng thái tài khoản</label><span id="profile-status"
+                style="color:var(--success)">--</span></div>
+            <div class="info-item"><label>Số dư Live VIP (Ví chính)</label><span id="profile-balance-vip"
+                style="color:var(--primary); font-family:var(--font-cyber); font-size:14px;">00:00:00</span></div>
+            <div class="info-item"><label>Đơn giá Live VIP</label><span id="profile-rate-vip">-- xu/giờ</span></div>
+            <div class="info-item"><label>Số dư Live Thường (Ví riêng)</label><span id="profile-balance-noface"
+                style="color:var(--success); font-family:var(--font-cyber);">00:00:00</span></div>
+            <div class="info-item"><label>Đơn giá Live Thường</label><span id="profile-rate-noface">-- xu/giờ</span>
+            </div>
+            <div class="info-item"><label>Ngày tạo tài khoản</label><span id="profile-created-at">--</span></div>
+            <div class="info-item"><label>Lần đăng nhập gần nhất</label><span id="profile-last-login-at">--</span></div>
+          </div>
+        </div>
+
+        <!-- TAB 2: GIAO DỊCH LIVE VIP (Table Layout) -->
+        <div id="tab-invoices-content" class="account-tab-content">
+          <div style="max-height: 320px; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: #64748b;">
+                  <th style="padding: 8px;">MÃ HĐ</th>
+                  <th style="padding: 8px;">NGÀY TẠO</th>
+                  <th style="padding: 8px;">SỐ XU</th>
+                  <th style="padding: 8px;">THỜI GIAN VIP</th>
+                  <th style="padding: 8px;">TRẠNG THÁI</th>
+                </tr>
+              </thead>
+              <tbody id="user-invoices-tbody">
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">Đang tải giao dịch...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 3: PHIÊN LIVE VIP (Table Layout) -->
+        <div id="tab-sessions-content" class="account-tab-content">
+          <div style="max-height: 320px; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: #64748b;">
+                  <th style="padding: 8px;">BẮT ĐẦU</th>
+                  <th style="padding: 8px;">KẾT THÚC</th>
+                  <th style="padding: 8px;">THỜI GIAN DÙNG</th>
+                  <th style="padding: 8px;">TRẠNG THÁI</th>
+                </tr>
+              </thead>
+              <tbody id="user-sessions-tbody">
+                <tr>
+                  <td colspan="4" style="text-align: center; padding: 15px; color: #64748b;">Đang tải phiên...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-gray" onclick="closeUserHistoryModal()">Đóng</button>
+        <button class="btn btn-green" onclick="closeUserHistoryModal(); openPriceModal();">💰 Nạp xu VIP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: INVOICE DETAIL MODAL -->
+  <div class="modal-overlay" id="invoice-detail-modal">
+    <div class="modal-content" style="max-width:440px;">
+      <div class="modal-header">
+        <h3>🧾 Chi Tiết Hóa Đơn Live VIP</h3>
+        <button class="modal-close" onclick="closeInvoiceDetailModal()">×</button>
+      </div>
+      <div class="modal-body" style="gap:10px;">
+        <div
+          style="background:rgba(6,12,24,0.6); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:12px; font-size:12px; display:flex; flex-direction:column; gap:6px;">
+          <div>Mã hóa đơn: <strong id="det-code" style="color:var(--primary)">--</strong></div>
+          <div>Ngày tạo: <span id="det-time">--</span></div>
+          <div>Số xu: <strong id="det-amount" style="color:var(--success)">--</strong></div>
+          <div>Thời gian quy đổi: <strong id="det-hours" style="color:var(--primary)">--</strong></div>
+          <div>Trạng thái: <strong id="det-status">--</strong></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-gray btn-block" onclick="closeInvoiceDetailModal()">Quay lại danh sách</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: PRICE & PACKAGE SELECTION MODAL (6 Packages 50k-500k) -->
+  <div class="modal-overlay" id="price-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="price-modal-title">💰 Chọn Gói Nạp Xu Live VIP</h3>
+        <button class="modal-close" onclick="closePriceModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div
+          style="padding:10px 12px; background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:8px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+          <span>⚡ Đơn giá hiện tại của <strong>Live VIP</strong>:</span>
+          <strong id="price-modal-rate" style="color:var(--success); font-size:14px;">-- xu/giờ</strong>
+        </div>
+
+        <div class="topup-promo-banner" aria-live="polite">
+          <div class="promo-eyebrow">Ưu đãi tháng 8 · Giảm 50%</div>
+          <div class="promo-title">Giá Live VIP ưu đãi từ 50.000 xu/giờ còn 20.000 xu/giờ</div>
+          <div class="promo-price-line">
+            <span class="promo-old-price">50.000 xu/giờ</span>
+            <span class="promo-new-price">20.000 xu/giờ</span>
+          </div>
+          <div class="promo-countdown" id="august-promo-countdown">
+            <div class="promo-countdown-cell"><strong id="promo-days">00</strong><span>Ngày</span></div>
+            <div class="promo-countdown-cell"><strong id="promo-hours">00</strong><span>Giờ</span></div>
+            <div class="promo-countdown-cell"><strong id="promo-minutes">00</strong><span>Phút</span></div>
+            <div class="promo-countdown-cell"><strong id="promo-seconds">00</strong><span>Giây</span></div>
+          </div>
+        </div>
+
+        <div class="price-grid" style="margin-top:10px; display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
+          <div class="price-btn" id="pbtn-50000" onclick="selectPrice(50000)">
+            <span class="amount">50.000 xu</span>
+            <span class="duration" id="price-desc-50k">~0 giờ</span>
+          </div>
+          <div class="price-btn active" id="pbtn-100000" onclick="selectPrice(100000)">
+            <span class="amount">100.000 xu</span>
+            <span class="duration" id="price-desc-100k">~0 giờ</span>
+          </div>
+          <div class="price-btn" id="pbtn-150000" onclick="selectPrice(150000)">
+            <span class="amount">150.000 xu</span>
+            <span class="duration" id="price-desc-150k">~0 giờ</span>
+          </div>
+          <div class="price-btn" id="pbtn-200000" onclick="selectPrice(200000)">
+            <span class="amount">200.000 xu</span>
+            <span class="duration" id="price-desc-200k">~0 giờ</span>
+          </div>
+          <div class="price-btn" id="pbtn-250000" onclick="selectPrice(250000)">
+            <span class="amount">250.000 xu</span>
+            <span class="duration" id="price-desc-250k">~0 giờ</span>
+          </div>
+          <div class="price-btn" id="pbtn-500000" onclick="selectPrice(500000)">
+            <span class="amount">500.000 xu</span>
+            <span class="duration" id="price-desc-500k">~0 giờ</span>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <label style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase;">Hoặc nhập số xu tùy
+            chỉnh (1 VNĐ = 1 Xu, Tối thiểu 50.000 xu):</label>
+          <input class="field" type="number" id="custom-price-input" min="50000" step="10000"
+            placeholder="Ví dụ: 100000" oninput="calculateCustomHours()" style="margin-top:4px;">
+          <div id="custom-price-hours-desc"
+            style="font-size:11.5px; color:var(--primary); margin-top:4px; font-weight:700;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-gray" onclick="closePriceModal()">Hủy</button>
+        <button class="btn btn-green" id="btn-confirm-price" onclick="confirmPriceSelection()">✓ Tạo hóa đơn nạp
+          xu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: QR PAYMENT & POLLING MODAL -->
+  <div class="modal-overlay" id="qr-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📲 Chuyển Khoản Nạp Xu Live VIP</h3>
+        <button class="modal-close" onclick="closeQrModal()">×</button>
+      </div>
+      <div class="modal-body" style="align-items:center; text-align:center;">
+        <div id="qr-loading-spinner"
+          style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px;">
+          <div
+            style="width:32px; height:32px; border:3px solid rgba(0,240,255,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite;">
+          </div>
+          <span style="font-size:12px; color:var(--primary)">Đang khởi tạo hóa đơn hệ thống...</span>
+        </div>
+
+        <img id="qr-image"
+          style="width:210px; height:210px; border-radius:10px; border:1px solid rgba(0,240,255,0.3); display:none; background:#fff;"
+          alt="QR Code">
+
+        <div
+          style="width:100%; text-align:left; background:rgba(6,12,24,0.6); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:10px; font-size:12px; display:flex; flex-direction:column; gap:4px; margin-top:10px;">
+          <div>Đơn giá áp dụng: <strong id="modal-rate" style="color:var(--primary)">--</strong></div>
+          <div>Ngân hàng: <strong id="modal-bank-name" style="color:var(--primary)">--</strong></div>
+          <div>Số tài khoản: <strong id="modal-bank-acc" style="color:#ffffff">--</strong></div>
+          <div>Chủ tài khoản: <strong id="modal-bank-owner" style="color:#ffffff">--</strong></div>
+          <div>Số tiền thanh toán: <strong id="modal-amount" style="color:var(--success); font-size:14px;">--</strong>
+          </div>
+          <div>Nội dung chuyển khoản: <strong id="modal-bank-memo"
+              style="color:var(--danger); font-size:14px;">--</strong></div>
+        </div>
+
+        <div id="polling-status-msg" style="font-size:12px; color:var(--primary); font-weight:700; margin-top:8px;">
+          🕒 Hệ thống đang kiểm tra thanh toán (Tự động kích hoạt trong vòng 20 giây sau khi nhận tiền)...
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-red" id="btn-cancel-pending-invoice" onclick="cancelPendingInvoice()">Hủy hóa đơn
+          này</button>
+        <button class="btn btn-gray" onclick="closeQrModal()">Đóng (Tiếp tục poll ẩn)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: CANCEL CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="cancel-confirm-modal">
+    <div class="modal-content" style="max-width:400px;">
+      <div class="modal-header">
+        <h3>⚠️ Xác Nhận Hủy Hóa Đơn</h3>
+        <button class="modal-close" onclick="closeCancelConfirmModal()">×</button>
+      </div>
+      <div class="modal-body" style="font-size:13px; line-height:1.5;">
+        Bạn có chắc chắn muốn hủy hóa đơn nạp xu đang chờ này không?
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-gray" id="btn-close-cancel-confirm" onclick="closeCancelConfirmModal()">Bỏ qua</button>
+        <button class="btn btn-red" id="btn-execute-cancel-invoice" onclick="executeCancelPendingInvoice()">Đồng ý
+          hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: PAYMENT SUCCESS MODAL -->
+  <div class="modal-overlay" id="payment-success-modal">
+    <div class="modal-content" style="max-width:420px; text-align:center;">
+      <div class="modal-header">
+        <h3 style="color:var(--success)">🎉 Nạp Xu Thành Công!</h3>
+        <button class="modal-close" onclick="closePaymentSuccessModal()">×</button>
+      </div>
+      <div class="modal-body" style="align-items:center; gap:8px;">
+        <div style="font-size:40px; color:var(--success)">✓</div>
+        <div style="font-size:14px; font-weight:700;">Đã cộng xu vào ví Live VIP</div>
+        <div
+          style="font-size:12px; color:#94a3b8; text-align:left; width:100%; background:rgba(6,12,24,0.6); padding:10px; border-radius:8px; display:flex; flex-direction:column; gap:4px;">
+          <div>Mã hóa đơn: <strong id="success-det-code" style="color:var(--primary)">--</strong></div>
+          <div>Thời gian: <span id="success-det-time">--</span></div>
+          <div>Số xu: <strong id="success-det-amount" style="color:var(--success)">--</strong></div>
+          <div>Thời gian nhận được: <strong id="success-det-hours" style="color:var(--primary)">--</strong></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-green btn-block" onclick="closePaymentSuccessModal()">Hoàn tất</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: APPLICATION ALERT DIALOG -->
+  <div class="modal-overlay" id="app-alert-modal" style="z-index: 2000010;">
+    <div class="modal-content" style="max-width:400px;">
+      <div class="modal-header">
+        <h3 id="app-alert-title">📢 Thông báo</h3>
+        <button class="modal-close" onclick="closeAppAlertModal()">×</button>
+      </div>
+      <div class="modal-body" style="font-size:13px; line-height:1.5;" id="app-alert-message">
+        --
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cyan btn-block" onclick="closeAppAlertModal()">Đã hiểu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: EXPIRED BALANCE MODAL -->
+  <div class="modal-overlay" id="expired-modal">
+    <div class="modal-content" style="max-width:420px; text-align:center;">
+      <div class="modal-header">
+        <h3 style="color:var(--danger)">⌛ Hết Thời Gian Live VIP</h3>
+        <button class="modal-close" onclick="closeExpiredModal()">×</button>
+      </div>
+      <div class="modal-body" style="align-items:center; gap:8px;">
+        <div style="font-size:40px; color:var(--danger)">⚠️</div>
+        <div style="font-size:14px; font-weight:700;">Phiên Live VIP đã kết thúc do hết thời gian sử dụng</div>
+        <div style="font-size:12px; color:#94a3b8; text-align:center;">
+          Số dư Live VIP hiện tại của bạn đã về 00:00:00. Vui lòng nạp thêm xu Live VIP để tiếp tục livestream.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-gray" onclick="closeExpiredModal()">Đóng</button>
+        <button class="btn btn-green" onclick="closeExpiredModal(); openPriceModal();">💰 Nạp xu VIP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 9: AVATAR MANAGEMENT MODAL -->
+  <div class="modal-overlay" id="avatar-modal">
+    <div class="modal-content avatar-modal-content">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <h3 style="margin: 0;">✦ Quản Lý & Tạo Mẫu Live VIP</h3>
+          <button type="button" class="btn-avatar-guide-pill" onclick="openAvatarGuideModal()"
+            title="Xem hướng dẫn cách quay video chuẩn cho Mẫu Live AI" style="padding: 3px 9px; font-size: 11px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="m22 8-6 4 6 4V8Z" />
+              <rect width="14" height="12" x="2" y="6" rx="2" />
+            </svg>
+            <span>Cách quay mẫu</span>
+          </button>
+        </div>
+        <button class="modal-close" onclick="closeAvatarModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="avatar-modal-grid">
+          <!-- Left Column: Create Avatar -->
+          <div class="avatar-form-col">
+            <div style="font-family:var(--font-cyber); font-size:12px; font-weight:700; color:var(--primary);">
+              ✦ TẠO MẪU LIVE MỚI
+            </div>
+            <form id="avatarTaskForm" style="display:flex; flex-direction:column; gap:8px;">
+              <div>
+                <label style="font-size:10.5px; color:#94a3b8; font-weight:700;">Mô hình xử lý</label>
+                <select class="select" name="model" id="modelSelect" required>
+                  <option value="wav2lip">Mô hình Tiêu chuẩn — Tự nhiên & Mượt mà</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:10.5px; color:#94a3b8; font-weight:700;">Mã Mẫu Live (ID)</label>
+                <input class="field" type="text" name="avatar_id" id="avatarIdInput" placeholder="Ví dụ: mc_live_01"
+                  pattern="[A-Za-z0-9_-]+" required>
+                <small style="font-size:9.5px; color:#64748b;">Chữ không dấu, số, dấu - hoặc _.</small>
+              </div>
+
+              <div>
+                <label style="font-size:10.5px; color:#94a3b8; font-weight:700;">Video khuôn mặt (MP4/MOV)</label>
+                <input type="file" name="video_file" id="videoFileInput" accept="video/*" style="display:none;" required
+                  onchange="handleVideoFileSelect(this)">
+                <button class="btn btn-gray btn-block" type="button"
+                  onclick="document.getElementById('videoFileInput').click()">
+                  📁 Select Video File
+                </button>
+                <div id="videoFileName"
+                  style="font-size:10.5px; color:var(--primary); margin-top:3px; word-break:break-all;">Chưa chọn video
+                </div>
+              </div>
+
+              <details>
+                <summary>⚙ Tham số nâng cao</summary>
+                <div class="advanced-grid">
+                  <div>
+                    <label style="font-size:9px; color:#64748b;">Kích thước ảnh</label>
+                    <input class="field" type="number" name="img_size" value="384" min="64" step="64">
+                  </div>
+                  <div>
+                    <label style="font-size:9px; color:#64748b;">BBox shift</label>
+                    <input class="field" type="number" name="bbox_shift" value="0">
+                  </div>
+                  <div>
+                    <label style="font-size:9px; color:#64748b;">Khoảng đệm (pads)</label>
+                    <input class="field" type="text" name="pads" value="0 10 0 0">
+                  </div>
+                  <div>
+                    <label style="font-size:9px; color:#64748b;">Face batch size</label>
+                    <input class="field" type="number" name="face_det_batch_size" value="4" min="1">
+                  </div>
+                </div>
+              </details>
+
+              <button class="btn btn-cyan btn-block" id="submitAvatarTaskBtn" type="submit" style="margin-top:6px;">
+                ↑ TẢI LÊN & TẠO MẪU LIVE
+              </button>
+              <div id="avatarTaskNotice" style="font-size:11px; font-weight:700; margin-top:4px;"></div>
+            </form>
+          </div>
+
+          <!-- Right Column: Avatar List & Task Progress -->
+          <div class="avatar-task-col">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-family:var(--font-cyber); font-size:12px; font-weight:700; color:var(--primary);">
+                ☷ DANH SÁCH & TIẾN TRÌNH MẪU LIVE
+              </span>
+              <button class="btn btn-gray" id="refreshAvatarTasksBtn" type="button" onclick="refreshAvatarTasks()"
+                style="height:26px; padding:0 8px; font-size:10px;">
+                ↻ Làm mới
+              </button>
+            </div>
+
+            <div class="avatar-task-list" id="avatarTaskList">
+              <div style="color:#64748b; font-size:12px; text-align:center; padding:16px;">Đang tải danh sách tác vụ...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-gray" onclick="closeAvatarModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CHI TIẾT PROMPT & KỊCH BẢN LIVE VIP -->
+  <div class="modal-overlay" id="prompt-details-modal">
+    <div class="modal-content" style="max-width: 640px;">
+      <div class="modal-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path
+              d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+          </svg>
+          <span>Kịch Bản Bán Hàng Tối Ưu (AI Live VIP)</span>
+        </h3>
+        <button class="modal-close" onclick="closePromptModal()">×</button>
+      </div>
+      <div class="modal-body prompt-modal-body">
+        <div class="prompt-modal-section">
+          <div class="prompt-modal-label">📌 CHỦ ĐỀ GỐC BẠN ĐÃ NHẬP</div>
+          <div class="prompt-modal-topic-box" id="modal-prompt-topic">Chưa có chủ đề nào được gửi</div>
+        </div>
+
+        <div class="prompt-modal-section">
+          <div class="prompt-modal-section-header">
+            <div class="prompt-modal-label">🤖 KỊCH BẢN TỐI ƯU CHI TIẾT (CHỈNH SỬA TRỰC TIẾP TẠI ĐÂY)</div>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn-copy-prompt" id="btn-reoptimize-prompt"
+                onclick="reoptimizePromptFromModal()" title="Yêu cầu AI viết lại kịch bản">🔄 Tối ưu lại</button>
+              <button type="button" class="btn-copy-prompt" id="btn-copy-prompt" onclick="copyOptimizedPrompt()"
+                title="Sao chép toàn bộ kịch bản">📋 Sao chép</button>
+            </div>
+          </div>
+          <textarea class="prompt-modal-edit-box" id="modal-prompt-edit-textarea" rows="11"
+            placeholder="Nhập hoặc chờ AI tạo kịch bản tối ưu chi tiết..."></textarea>
+          <div id="modal-prompt-content" style="display:none;"></div>
+          <div
+            style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#94a3b8; margin-top:2px;">
+            <span>💡 Bạn có thể chỉnh sửa câu từ kịch bản trực tiếp, sau đó bấm <strong>Lưu kịch bản</strong>.</span>
+            <span id="modal-prompt-char-count"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <button class="btn btn-gray" onclick="closePromptModal()">Đóng</button>
+        <button class="btn btn-cyan" id="btn-save-modal-prompt" onclick="saveOptimizedPromptFromModal()"
+          style="display:flex; align-items:center; gap:6px; font-weight:700;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          <span>💾 LƯU KỊCH BẢN</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 10: LOGOUT CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="logout-modal">
+    <div class="modal-content" style="max-width:400px;">
+      <div class="modal-header">
+        <h3>🔒 Xác Nhận Đăng Xuất</h3>
+        <button class="modal-close" onclick="closeLogoutModal()">×</button>
+      </div>
+      <div class="modal-body" style="font-size:13px; line-height:1.5;">
+        Bạn có chắc chắn muốn đăng xuất tài khoản S-Live khỏi hệ thống Live VIP không?
+        <div style="font-size:11px; color:#94a3b8; margin-top:6px;">
+          Nếu đang có phiên Live VIP hoạt động, phiên sẽ được kết thúc an toàn.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-gray" id="btn-close-logout-modal" onclick="closeLogoutModal()">Bỏ qua</button>
+        <button class="btn btn-red" id="btn-execute-logout" onclick="executeLogout()">Đăng xuất</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAYLIST & TIKTOK AUTO-PIN MODAL -->
+  <div id="playlist-modal" class="modal-overlay" style="display: none; z-index: 999990;">
+    <div class="modal-content"
+      style="max-width: 980px; width: 96%; max-height: 88vh; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; padding: 14px 18px; position: relative;">
+
+      <!-- Toast notification inside modal -->
+      <div id="pl-toast-box"
+        style="display: none; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 100; background: rgba(10, 24, 45, 0.96); border: 1px solid var(--primary); border-radius: 20px; padding: 6px 18px; color: #00f0ff; font-size: 12px; font-weight: 600; box-shadow: 0 4px 20px rgba(0, 240, 255, 0.35); pointer-events: none; transition: all 0.3s ease;">
+        <span id="pl-toast-icon">✨</span> <span id="pl-toast-msg">Đã cập nhật</span>
+      </div>
+
+      <div class="modal-header"
+        style="padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid rgba(0, 240, 255, 0.15);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="21" r="1" />
+            <circle cx="19" cy="21" r="1" />
+            <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+          </svg>
+          <h3 style="margin: 0; font-size: 15px; letter-spacing: 0.5px; font-family: var(--font-cyber);">QUẢN LÝ GIỎ
+            HÀNG & GHIM SẢN PHẨM TIKTOK SHOP</h3>
+        </div>
+        <button type="button" class="modal-close close-modal-btn" onclick="closePlaylistModal()">&times;</button>
+      </div>
+
+      <div class="modal-body"
+        style="padding: 0; overflow-y: auto; overflow-x: hidden; flex: 1; display: flex; flex-direction: column; gap: 8px;">
+        <!-- Connection & Action Bar -->
+        <div
+          style="display: flex; gap: 8px; align-items: center; justify-content: space-between; background: rgba(0, 240, 255, 0.04); border: 1px solid rgba(0, 240, 255, 0.12); border-radius: 8px; padding: 6px 12px;">
+          <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+            <span id="pl-ext-status-dot"
+              style="width: 9px; height: 9px; border-radius: 50%; background: #ff0055; display: inline-block; box-shadow: 0 0 6px #ff0055; flex-shrink: 0;"></span>
+            <span id="pl-ext-status-text"
+              style="font-size: 12px; font-weight: 600; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">TikTok
+              Helper: Đang kiểm tra...</span>
+          </div>
+
+          <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+            <a href="https://shop.tiktok.com/streamer/live/product/dashboard" target="_blank" class="btn-cyan"
+              style="font-size: 11px; height: 26px; padding: 0 10px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; border-radius: 5px;">
+              <span>Mở TikTok Live</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 17l9.2-9.2M17 17V7H7" />
+              </svg>
+            </a>
+            <button type="button" class="btn-gray" onclick="openExtensionGuideModal()"
+              style="font-size: 11px; height: 26px; padding: 0 10px; border-radius: 5px; display: inline-flex; align-items: center; gap: 5px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M19.439 7.85c0-1.571-1.28-2.85-2.849-2.85a2.85 2.85 0 0 0-2.85 2.85v.571H10.26V7.85A2.85 2.85 0 0 0 7.41 5C5.84 5 4.56 6.279 4.56 7.85v2.41H5.13a2.85 2.85 0 0 1 2.85 2.85 2.85 2.85 0 0 1-2.85 2.85h-.57v2.41c0 1.57 1.28 2.85 2.85 2.85a2.85 2.85 0 0 0 2.85-2.85v-.57h3.48v.57a2.85 2.85 0 0 0 2.85 2.85c1.57 0 2.85-1.28 2.85-2.85v-2.41h.57a2.85 2.85 0 0 0 2.85-2.85 2.85 2.85 0 0 0-2.85-2.85h-.57V7.85Z" />
+              </svg>
+              <span>Cài Extension</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Rotation Engine Controls & Active Status Card -->
+        <div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 8px;">
+          <!-- Active Live Product Card -->
+          <div
+            style="background: rgba(13, 20, 38, 0.75); border: 1px solid rgba(0, 240, 255, 0.18); border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
+            <div style="min-width: 0;">
+              <div
+                style="font-size: 10.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; font-family: var(--font-cyber); display: flex; justify-content: space-between; align-items: center;">
+                <span>🔴 ĐANG PHÁT & GHIM</span>
+                <span id="pl-active-timer-badge" style="color: var(--primary); font-weight: bold;">--:--</span>
+              </div>
+              <div id="pl-active-title"
+                style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                title="Chưa chọn sản phẩm">
+                Chưa chọn sản phẩm
+              </div>
+              <div
+                style="display: flex; gap: 8px; align-items: center; font-size: 11.5px; margin-bottom: 6px; flex-wrap: wrap;">
+                <span style="color: var(--success); font-weight: 600;" id="pl-active-price">-- đ</span>
+                <span style="color: var(--text-muted);">|</span>
+                <span style="color: var(--text-main);" id="pl-active-index">Giỏ: #-</span>
+                <span id="pl-active-pin-status-badge"
+                  style="font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; background: rgba(0, 240, 255, 0.1); color: #00f0ff;">--</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="btn-cyan" onclick="pinCurrentActiveProduct()"
+                style="flex: 1; height: 26px; font-size: 11px; border-radius: 5px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+                <span>Ghim lại SP</span>
+              </button>
+              <button type="button" class="btn-green" onclick="nextPlaylistProduct()"
+                style="flex: 1; height: 26px; font-size: 11px; border-radius: 5px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="5 4 15 12 5 20 5 4" />
+                  <line x1="19" x2="19" y1="5" y2="19" />
+                </svg>
+                <span>SP Kế tiếp</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Auto-Rotation & Auto-Pin Settings Card -->
+          <div
+            style="background: rgba(13, 20, 38, 0.75); border: 1px solid rgba(0, 240, 255, 0.18); border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
+            <div
+              style="font-size: 10.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; font-family: var(--font-cyber); display:flex; align-items:center; gap:5px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>CẤU HÌNH TỰ ĐỘNG XOAY VÒNG & GHIM</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+              <span style="font-size: 11.5px; color: #cbd5e1; white-space: nowrap; font-weight: 500;">Tự động chuyển
+                theo giờ:</span>
+              <label class="switch" style="transform: scale(0.85); transform-origin: right center; margin: 0;">
+                <input type="checkbox" id="pl-toggle-rotation" onchange="onToggleRotation(this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+              <span style="font-size: 11.5px; color: #cbd5e1; white-space: nowrap; font-weight: 500;"
+                title="Khi khách bình luận hỏi về sản phẩm, hệ thống tự động ghim sản phẩm đó lên TikTok Shop và đổi kịch bản">🎯
+                Khách hỏi → Tự ghim & đổi kịch bản:</span>
+              <label class="switch" style="transform: scale(0.85); transform-origin: right center; margin: 0;">
+                <input type="checkbox" id="pl-toggle-comment-pin" onchange="onToggleCommentPin(this.checked)" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+              <span style="font-size: 11.5px; color: #cbd5e1; white-space: nowrap; font-weight: 500;"
+                title="Mỗi 30s tự động kiểm tra sản phẩm đang nói theo kịch bản: nếu chưa ghim thì ghim, nếu đã ghim thì bỏ ghim và ghim lại để kích hoạt lại pop-up sản phẩm cho người xem">🔄
+                Tự kiểm tra & ghim lại mỗi 30s:</span>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <select id="pl-recheck-pin-interval" onchange="onRepinIntervalChange(this.value)"
+                  style="height: 20px; padding: 0 4px; font-size: 10px; border-radius: 4px; background: #0a1020; color: #00f0ff; border: 1px solid rgba(0,240,255,0.25);"
+                  title="Chu kỳ kiểm tra ghim">
+                  <option value="20">20s</option>
+                  <option value="30" selected>30s</option>
+                  <option value="45">45s</option>
+                  <option value="60">60s</option>
+                </select>
+                <label class="switch" style="transform: scale(0.85); transform-origin: right center; margin: 0;">
+                  <input type="checkbox" id="pl-toggle-auto-repin" onchange="onToggleAutoRepin(this.checked)" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+              <span style="font-size: 11.5px; color: #cbd5e1; white-space: nowrap; font-weight: 500;"
+                title="Phát ngay câu thoại mở đầu tự nhiên (<0.3s) khi chuyển hoặc ghim sản phẩm, triệt tiêu khoảng lặng chờ AI tạo kịch bản">⚡
+                Nói mở đầu tức thì (Không khoảng lặng):</span>
+              <label class="switch" style="transform: scale(0.85); transform-origin: right center; margin: 0;">
+                <input type="checkbox" id="pl-toggle-instant-transition"
+                  onchange="onToggleInstantTransition(this.checked)" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11.5px; color: #cbd5e1; white-space: nowrap;">Thời lượng / SP:</span>
+              <select id="pl-default-duration" onchange="onDurationChange(this.value)"
+                style="height: 22px; padding: 1px 6px; font-size: 11px; border-radius: 4px; background: #0a1020; color: #fff; border: 1px solid rgba(0,240,255,0.2);">
+                <option value="60">1 Phút (Test)</option>
+                <option value="120">2 Phút</option>
+                <option value="180" selected>3 Phút (Chuẩn)</option>
+                <option value="300">5 Phút</option>
+                <option value="600">10 Phút</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Product Table Header & Actions -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+          <div
+            style="font-size: 11.5px; font-weight: 600; color: #cbd5e1; display: flex; align-items: center; gap: 6px;">
+            <span>DANH SÁCH SẢN PHẨM GIỎ HÀNG (<strong id="pl-total-count"
+                style="color: var(--primary);">0</strong>)</span>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button type="button" class="btn-green" onclick="requestSyncCartFromTikTok()" id="btn-modal-sync-cart"
+              title="Lấy toàn bộ sản phẩm từ TikTok Shop Live Dashboard"
+              style="height: 26px; padding: 0 12px; font-size: 11px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);">
+              <span>📥</span> <span>LẤY SẢN PHẨM TỪ TIKTOK</span>
+            </button>
+            <button type="button" class="btn-cyan" onclick="openEditProductModal()"
+              style="height: 26px; padding: 0 10px; font-size: 11px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
+              <span>➕</span> <span>Thêm thủ công</span>
+            </button>
+            <button type="button" class="btn-pink" onclick="clearAllPlaylistProducts()" id="btn-modal-clear-cart"
+              title="Xóa toàn bộ sản phẩm trong giỏ"
+              style="height: 26px; padding: 0 8px; font-size: 11px; border-radius: 5px; display: inline-flex; align-items: center; gap: 3px;">
+              <span>🗑️</span> <span>Xóa hết</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Table Container with fixed header and custom scrollbar -->
+        <div
+          style="max-height: 240px; overflow-y: auto; overflow-x: hidden; border: 1px solid rgba(0, 240, 255, 0.15); border-radius: 8px; background: rgba(6, 9, 19, 0.65);">
+          <table
+            style="width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 11.5px; text-align: left;">
+            <thead style="position: sticky; top: 0; z-index: 5; background: #0c1426;">
+              <tr
+                style="color: var(--primary); font-family: var(--font-cyber); border-bottom: 1px solid rgba(0, 240, 255, 0.2);">
+                <th style="padding: 7px 8px; width: 40px; text-align: center;">STT</th>
+                <th style="padding: 7px 8px;">Tên sản phẩm & Kịch bản</th>
+                <th style="padding: 7px 8px; width: 80px;">Giá bán</th>
+                <th style="padding: 7px 8px; width: 55px; text-align: center;">Thời gian</th>
+                <th style="padding: 7px 8px; width: 75px; text-align: center;">Trạng thái</th>
+                <th style="padding: 7px 8px; width: 145px; text-align: right;">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="pl-table-body">
+              <tr>
+                <td colspan="6" style="padding: 16px; text-align: center; color: var(--text-muted);">
+                  Đang tải danh sách sản phẩm...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer"
+        style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.06);">
+        <button type="button" class="btn-gray" onclick="closePlaylistModal()"
+          style="height: 30px; padding: 0 16px; border-radius: 5px; font-size: 11.5px; font-weight: 600;">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT / ADD PRODUCT MODAL -->
+  <div id="edit-product-modal" class="modal-overlay" style="display: none; z-index: 1000000;">
+    <div class="modal-content" style="max-width: 580px; width: 95%;">
+      <div class="modal-header">
+        <h3 id="edit-prod-modal-title" style="margin: 0; font-size: 14px;">➕ Thêm sản phẩm vào giỏ hàng</h3>
+        <button type="button" class="modal-close close-modal-btn" onclick="closeEditProductModal()">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 12px 0;">
+        <form id="edit-product-form" onsubmit="event.preventDefault(); saveProductForm();"
+          style="display: flex; flex-direction: column; gap: 10px;">
+          <input type="hidden" id="ep-id" value="" />
+
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 10px;">
+            <div>
+              <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">#STT
+                giỏ</label>
+              <input type="number" id="ep-index" min="1" max="99" value="1" required class="field text-input"
+                style="height: 32px; text-align: center; font-weight: bold; color: var(--primary);" />
+            </div>
+            <div>
+              <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Tên sản phẩm
+                (*)</label>
+              <input type="text" id="ep-title" placeholder="VD: Khăn giấy rút đáy PIO 400 tờ" required
+                class="field text-input" style="height: 32px;" />
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+              <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Giá bán / Ưu
+                đãi</label>
+              <input type="text" id="ep-price" placeholder="VD: 59.000 đ" class="field text-input"
+                style="height: 32px;" />
+            </div>
+            <div>
+              <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Thời lượng
+                live (giây)</label>
+              <input type="number" id="ep-duration" min="30" max="3600" value="180" class="field text-input"
+                style="height: 32px;" />
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Link sản phẩm
+              (TikTok / Shopee / Web)</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="url" id="ep-link" placeholder="https://shop.tiktok.com/..." class="field text-input"
+                style="height: 32px; flex: 1;" />
+              <button type="button" class="btn-cyan" onclick="generateAiScriptForProduct()" id="btn-ai-gen-script"
+                style="height: 32px; padding: 0 12px; font-size: 11px; border-radius: 6px; white-space: nowrap;">
+                ✨ AI Tạo kịch bản
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Kịch bản lời
+              thoại AI nói cho sản phẩm này (*):</label>
+            <textarea id="ep-script" rows="5" placeholder="Nhập lời thoại bán hàng của MC AI..." required class="field"
+              style="width: 100%; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,240,255,0.15); color: #fff; padding: 8px; font-size: 12px; box-sizing: border-box; resize: vertical;"></textarea>
+          </div>
+
+          <div style="display: flex; gap: 15px; align-items: center; margin-top: 4px;">
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="ep-autopin" checked />
+              <span>Tự động Ghim sản phẩm này khi bắt đầu nói</span>
+            </label>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="ep-enabled" checked />
+              <span>Kích hoạt trong vòng lặp</span>
+            </label>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+        <button type="button" class="btn-gray" onclick="closeEditProductModal()"
+          style="height: 34px; padding: 0 14px; border-radius: 6px;">Hủy bỏ</button>
+        <button type="button" class="btn-green" onclick="saveProductForm()"
+          style="height: 34px; padding: 0 18px; border-radius: 6px;">Lưu sản phẩm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXTENSION INSTALLATION GUIDE MODAL -->
+  <div id="extension-guide-modal" class="modal-overlay" style="display: none; z-index: 1000001;">
+    <div class="modal-content" style="max-width: 620px; width: 95%;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">📥</span>
+          <h3 style="margin: 0; font-size: 15px;">HƯỚNG DẪN CÀI ĐẶT EXTENSION GHIM TIKTOK SHOP</h3>
+        </div>
+        <button type="button" class="modal-close close-modal-btn" onclick="closeExtensionGuideModal()">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 12px 0; font-size: 13px; line-height: 1.6;">
+        <div
+          style="background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+          <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+            <strong style="color: var(--primary);">📍 Thư mục Extension trên máy của bạn:</strong>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="btn-cyan" onclick="openExtensionFolderOnDisk()"
+                style="padding: 3px 10px; font-size: 11px; height: 26px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                <span>📂</span> <span>Mở thư mục</span>
+              </button>
+              <button type="button" class="btn-gray" onclick="copyExtensionPath()"
+                style="padding: 3px 10px; font-size: 11px; height: 26px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                <span>📋</span> <span id="btn-copy-ext-text">Sao chép</span>
+              </button>
+            </div>
+          </div>
+          <div
+            style="background: rgba(0,0,0,0.4); padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 12px; color: #00f0ff; user-select: all; word-break: break-all; border: 1px dashed rgba(0, 240, 255, 0.3);"
+            id="ext-folder-path">
+            Đang lấy đường dẫn thư mục...
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span
+              style="background: var(--primary); color: #060913; font-weight: bold; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px;">1</span>
+            <div>Mở trình duyệt <strong>Google Chrome</strong> hoặc <strong>Microsoft Edge</strong>, gõ vào thanh địa
+              chỉ: <code
+                style="color: var(--primary); background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">chrome://extensions</code>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span
+              style="background: var(--primary); color: #060913; font-weight: bold; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px;">2</span>
+            <div>Gạt công tắc <strong>"Developer mode" (Chế độ dành cho nhà phát triển)</strong> ở góc trên bên phải màn
+              hình sang <strong>BẬT</strong>.</div>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span
+              style="background: var(--primary); color: #060913; font-weight: bold; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px;">3</span>
+            <div>Bấm nút <strong>"Load unpacked" (Tải tiện ích đã giải nén)</strong> và chọn thư mục <strong
+                style="color: var(--primary);">tiktok_pin_extension</strong> ở trên.</div>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span
+              style="background: var(--success); color: #060913; font-weight: bold; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px;">✓</span>
+            <div>Mở tab <a href="https://shop.tiktok.com/streamer/live/product/dashboard" target="_blank"
+                style="color: var(--primary);">TikTok Shop Streamer Dashboard</a>. Góc dưới sẽ hiện huy hiệu <strong
+                style="color: var(--success);">🟢 SLive AI Auto-Pin</strong> là hoàn tất!</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+        <button type="button" class="btn-green" onclick="closeExtensionGuideModal()"
+          style="height: 34px; padding: 0 16px; border-radius: 6px;">Đã hiểu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODERN CUSTOM CONFIRM MODAL -->
+  <div id="custom-confirm-modal" class="modal-overlay"
+    style="display: none; z-index: 1000010; backdrop-filter: blur(12px); background: rgba(3, 6, 16, 0.85); transition: all 0.25s ease;">
+    <div class="modal-content"
+      style="max-width: 440px; width: 92%; text-align: center; padding: 28px 24px; border: 1px solid rgba(0, 240, 255, 0.35); border-radius: 16px; background: linear-gradient(160deg, rgba(13, 22, 45, 0.98), rgba(6, 11, 24, 0.99)); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 35px rgba(0, 240, 255, 0.2); position: relative;">
+      <div id="custom-confirm-icon-box"
+        style="width: 58px; height: 58px; border-radius: 50%; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; font-size: 26px; box-shadow: 0 0 24px rgba(245, 158, 11, 0.25);">
+        <span id="custom-confirm-icon">⚠️</span>
+      </div>
+      <h3 id="custom-confirm-title"
+        style="margin: 0 0 10px 0; font-size: 16.5px; color: #fff; font-weight: 700; letter-spacing: 0.5px; font-family: var(--font-cyber);">
+        XÁC NHẬN HỦY TẢI TÀI NGUYÊN</h3>
+      <p id="custom-confirm-msg"
+        style="font-size: 13.5px; color: #94a3b8; line-height: 1.6; margin: 0 0 24px 0; white-space: pre-line;">
+        Quá trình tải các thành phần vận hành Slive VIP đang diễn ra. Nếu hủy, các tính năng Livestream và AI sẽ tạm
+        dừng cho đến khi bạn tải lại.
+      </p>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button type="button" id="custom-confirm-cancel-btn" onclick="closeCustomConfirm(false)"
+          style="flex: 1; height: 42px; border-radius: 9px; font-weight: 600; font-size: 13.5px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #cbd5e1; cursor: pointer; transition: all 0.2s ease;">
+          Tiếp tục tải
+        </button>
+        <button type="button" id="custom-confirm-ok-btn" onclick="closeCustomConfirm(true)"
+          style="flex: 1; height: 42px; border-radius: 9px; font-weight: 700; font-size: 13.5px; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; color: #fff; box-shadow: 0 0 18px rgba(239, 68, 68, 0.45); cursor: pointer; transition: all 0.2s ease;">
+          Xác nhận dừng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESOURCE MODAL: shared by the light bootstrap and the installed app. -->
+  <div class="modal-overlay" id="resource-modal" onclick="if(event.target===this)closeResourceModal()">
+    <div class="modal-content resource-modal-content">
+      <div class="modal-header">
+        <div>
+          <h3>⬇ File tài nguyên Slive Vip</h3>
+          <div class="resource-modal-sub">Bạn có thể chọn “Đóng” và mở lại từ nút Tài nguyên trên header.</div>
+        </div>
+        <button class="modal-close" id="resource-modal-x" onclick="handleCloseResourceClick()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="resource-bundles"></div>
+        <div class="resource-progress">
+          <div id="resource-progress-bar"></div>
+        </div>
+        <div class="resource-progress-line"><span id="resource-status">Đang kiểm tra...</span><b
+            id="resource-percent">0%</b></div>
+        <div class="resource-metrics-row" id="dashboard-resource-metrics"
+          style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;margin:8px 0 10px;background:#091322;border:1px solid #1a2c44;border-radius:8px;font-size:12.5px;color:#8295ad;">
+          <div>Dung lượng: <b id="dashboard-resource-size" style="color:#dbe9f8;">-- / --</b></div>
+          <div>Tốc độ: <b id="dashboard-resource-speed" style="color:#08d7e5;">-- MB/s</b></div>
+          <div>Thời gian còn lại: <b id="dashboard-resource-eta" style="color:#12d79d;">--</b></div>
+        </div>
+        <div class="resource-error" id="resource-error"></div>
+        <div id="resource-download-notice"
+          style="text-align:center;font-size:13px;color:#f59e0b;margin-top:12px;font-weight:600;padding:10px 14px;background:rgba(245,158,11,0.12);border:1px dashed rgba(245,158,11,0.35);border-radius:8px;display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span>⚠️</span> <span>Vui lòng không đóng app khi đang tải</span>
+        </div>
+      </div>
+      <div class="modal-footer resource-actions" style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-danger" id="resource-cancel-btn" onclick="confirmCancelFromModal()"
+          style="display:none;background:#ef4444;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;">⏹
+          HỦY TẢI</button>
+        <button class="btn btn-cyan" id="resource-action" onclick="handleCloseResourceClick()"
+          style="background:#00f0ff;color:#050b14;border:none;padding:8px 22px;border-radius:8px;font-weight:700;cursor:pointer;">ĐÓNG</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="update-modal">
+    <div class="modal-content"
+      style="max-width:540px; padding:22px 24px; border-radius:16px; background:#0f172a; border:1px solid rgba(0, 240, 255, 0.3); box-shadow:0 16px 48px rgba(0,0,0,0.75);">
+      <div class="modal-header"
+        style="border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:12px; margin-bottom:14px;">
+        <h3 style="margin:0; font-size:17px; font-weight:800; display:flex; align-items:center; gap:8px; color:#fff;">
+          <span style="font-size:20px;">🚀</span> Cập nhật Slive VIP
+        </h3>
+        <button class="modal-close" onclick="closeUpdateModal()">×</button>
+      </div>
+      <div class="modal-body" style="padding:0;">
+        <div id="update-status" style="font-size:13.5px; line-height:1.6; color:#e2e8f0;">Đang kiểm tra phiên bản mới...
+        </div>
+        <div id="update-notes"
+          style="margin-top:10px; color:#94a3b8; font-size:12.5px; line-height:1.5; white-space:pre-wrap; background:rgba(0,0,0,0.25); padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.05); max-height:120px; overflow-y:auto;">
+        </div>
+
+        <!-- THANH TIẾN TRÌNH TẢI BẢN CẬP NHẬT -->
+        <div id="update-progress-container"
+          style="display:none; margin-top:16px; background:rgba(15, 23, 42, 0.7); padding:14px; border-radius:12px; border:1px solid rgba(0, 240, 255, 0.25);">
+          <div
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:12.5px;">
+            <span id="update-progress-label" style="font-weight:700; color:#00f0ff;">Đang tải bản cập nhật...</span>
+            <span id="update-progress-percent" style="font-weight:800; font-size:14px; color:#00f0ff;">0%</span>
+          </div>
+          <div
+            style="width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:6px; overflow:hidden; position:relative;">
+            <div id="update-progress-bar"
+              style="width:0%; height:100%; background:linear-gradient(90deg, #00c6ff, #0072ff); border-radius:6px; transition:width 0.15s ease; box-shadow:0 0 10px rgba(0, 198, 255, 0.5);">
+            </div>
+          </div>
+          <div
+            style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:11.5px; color:#94a3b8;">
+            <span id="update-speed">Tốc độ: 0.0 MB/s</span>
+            <span id="update-size">0 MB / 0 MB</span>
+            <span id="update-eta" style="color:#38bdf8; font-weight:600;">Còn: --s</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="margin-top:18px; display:flex; justify-content:flex-end; gap:10px;">
+        <button class="btn btn-gray" id="update-later" onclick="closeUpdateModal()">ĐỂ SAU</button>
+        <button class="btn btn-cyan" id="update-action" onclick="installAvailableUpdate()" disabled>CẬP NHẬT
+          NGAY</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="locked-modal" class="modal-overlay" style="display:none; z-index:10000;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="force-logout-modal-title">Tài khoản bị khóa</h3>
+      </div>
+      <div class="modal-body" style="text-align:center; padding:18px 0;">
+        <p id="force-logout-modal-message" style="font-size:15px; color:#fff; line-height:1.5; margin:0;">
+          Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.
+        </p>
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.5; margin:12px 0 0;">
+          Hệ thống sẽ tự động đăng xuất sau <span id="force-logout-countdown">10</span> giây.
+        </p>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:center; margin-top:15px;">
+        <button id="force-logout-button" type="button" class="btn btn-red" onclick="logoutForcedAccount()"
+          style="width:100%; height:38px; border-radius:8px;">Đăng xuất (10)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VOICE CLONE & MANAGEMENT MODAL -->
+  <div id="voice-modal" class="modal-overlay" style="display: none; z-index: 999990;">
+    <div class="modal-content"
+      style="max-width: 580px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; padding: 18px 22px;">
+      <div class="modal-header"
+        style="padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid rgba(0, 240, 255, 0.15);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">🎙️</span>
+          <h3
+            style="margin: 0; font-size: 15px; letter-spacing: 0.5px; font-family: var(--font-cyber); color: var(--primary);">
+            QUẢN LÝ & CLONE GIỌNG ĐỌC AI
+          </h3>
+        </div>
+        <button type="button" class="modal-close" onclick="closeVoiceModal()">&times;</button>
+      </div>
+
+      <!-- Tab Headers -->
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 14px; gap: 8px;">
+        <div style="display: flex; gap: 4px;">
+          <button type="button" id="tab-vc-create-btn" class="vc-tab-btn active"
+            onclick="switchVoiceModalTab('create')">
+            ➕ Clone giọng mới
+          </button>
+          <button type="button" id="tab-vc-list-btn" class="vc-tab-btn" onclick="switchVoiceModalTab('list')">
+            📋 Giọng cá nhân (<span id="vc-count-badge">0</span>)
+          </button>
+        </div>
+        <button type="button" class="btn-voice-guide-pill" onclick="openVoiceGuideModal()"
+          title="Xem hướng dẫn thu âm giọng mẫu chuẩn để clone hay nhất" style="padding: 4px 10px; font-size: 10.5px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 16v-4" />
+            <path d="M12 8h.01" />
+          </svg>
+          <span>Hướng dẫn thu âm giọng</span>
+        </button>
+      </div>
+
+      <div class="modal-body" style="padding: 0; overflow-y: auto; flex: 1;">
+        <!-- TAB 1: CREATE VOICE -->
+        <div id="vc-tab-create-content">
+          <div
+            style="background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 8px; padding: 10px 13px; margin-bottom: 12px; font-size: 12px; color: #94a3b8; line-height: 1.5; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+            <div>
+              <span style="color: var(--primary); font-weight: 700;">💡 AI Studio Voice Cloning (48kHz):</span>
+              Khuyến nghị thu hoặc tải file từ <strong>5 - 8 giây</strong> (nói liên tục, tự nhiên, không ngập ngừng).
+              Hệ thống tự động cắt tỉa khoảng lặng thừa và chuẩn hóa âm lượng tối ưu.
+            </div>
+            <button type="button" class="btn-cyan" onclick="openVoiceGuideModal()"
+              style="height: 28px; padding: 0 10px; font-size: 11px; white-space: nowrap; flex-shrink: 0; border-radius: 5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+              <span>Xem mẹo thu âm</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Voice Name & Gender -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div>
+              <label style="font-size: 11px; margin-bottom: 4px; display: block; color: #94a3b8; font-weight: 600;">Tên
+                giọng <span style="color: var(--danger);">*</span></label>
+              <input type="text" id="vc-name" placeholder="Ví dụ: Giọng Livestream 1"
+                style="width: 100%; height: 34px; font-size: 12px; background: rgba(5, 10, 22, 0.75); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 6px; color: #fff; padding: 0 10px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; margin-bottom: 4px; display: block; color: #94a3b8; font-weight: 600;">Giới
+                tính</label>
+              <select id="vc-gender"
+                style="width: 100%; height: 34px; font-size: 12px; padding: 4px 8px; background: rgba(10, 16, 32, 0.85); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 6px;">
+                <option value="Nữ">Nữ</option>
+                <option value="Nam">Nam</option>
+                <option value="Khác">Khác / Trung tính</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 10px;">
+            <label style="font-size: 11px; margin-bottom: 4px; display: block; color: #94a3b8; font-weight: 600;">Mô tả
+              ngắn (tùy chọn)</label>
+            <input type="text" id="vc-desc" placeholder="Ví dụ: Giọng chốt đơn, tươi vui sôi nổi"
+              style="width: 100%; height: 32px; font-size: 12px; background: rgba(5, 10, 22, 0.75); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 6px; color: #fff; padding: 0 10px;">
+          </div>
+
+          <!-- Denoise Quality Control -->
+          <div
+            style="margin-bottom: 12px; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 8px 10px;">
+            <label
+              style="font-size: 11px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 600; color: #cbd5e1;">Chế độ Lọc ồn & Khử tạp âm:</span>
+              <span style="color: var(--primary); font-size: 10.5px; font-weight: 600;">⭐ Quyết định độ giống
+                giọng</span>
+            </label>
+            <select id="vc-denoise-mode"
+              style="width: 100%; height: 32px; font-size: 11.5px; padding: 2px 8px; background: rgba(10, 16, 32, 0.85); border: 1px solid rgba(0, 240, 255, 0.25); color: #fff; border-radius: 6px;">
+              <option value="auto" selected>✨ Tự động nhận diện (Tắt nếu yên tĩnh, Bật nếu có ồn - Khuyên dùng)</option>
+              <option value="false">🛡️ Tắt khử ồn (Giữ 100% âm sắc gốc - Dành cho Mic tốt / Phòng yên tĩnh)</option>
+              <option value="true">🧹 Bật khử ồn AI (Dành cho bản thu có tạp âm / tiếng quạt)</option>
+            </select>
+            <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">
+              <em>Gợi ý: Nếu phòng yên tĩnh, hãy chọn <strong>"Tắt khử ồn"</strong> để AI sao chép nguyên vẹn độ ấm và
+                âm sắc thật nhất.</em>
+            </div>
+          </div>
+
+          <!-- Source Selection -->
+          <label style="font-size: 11px; margin-bottom: 6px; display: block; color: #94a3b8; font-weight: 600;">Nguồn âm
+            thanh mẫu</label>
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <div id="vc-source-card-file" class="vc-source-card active" onclick="setVoiceSourceMode('file')">
+              <div style="font-size: 18px; margin-bottom: 3px;">📁</div>
+              <div style="font-size: 12px; font-weight: 600; color: #fff;">Tải file âm thanh</div>
+              <div style="font-size: 10.5px; color: var(--text-muted);">WAV hoặc MP3 từ máy tính</div>
+            </div>
+            <div id="vc-source-card-mic" class="vc-source-card" onclick="setVoiceSourceMode('mic')">
+              <div style="font-size: 18px; margin-bottom: 3px;">🎙️</div>
+              <div style="font-size: 12px; font-weight: 600; color: #fff;">Ghi âm trực tiếp</div>
+              <div style="font-size: 10.5px; color: var(--text-muted);">Đọc trực tiếp qua Micro</div>
+            </div>
+          </div>
+
+          <!-- Source Mode: File Upload -->
+          <div id="vc-panel-file" style="margin-bottom: 12px;">
+            <div
+              style="border: 2px dashed rgba(0, 240, 255, 0.25); border-radius: 10px; padding: 16px; text-align: center; background: rgba(0, 240, 255, 0.02); cursor: pointer;"
+              onclick="document.getElementById('vc-file-input').click()">
+              <input type="file" id="vc-file-input" accept=".wav,.mp3,.m4a,.aac,.ogg,.flac,.webm,audio/*"
+                style="display: none;" onchange="handleVoiceFileSelected(this)">
+              <div style="font-size: 26px; margin-bottom: 4px;">🎵</div>
+              <div id="vc-file-label" style="font-size: 12.5px; color: #cbd5e1; font-weight: 500;">
+                Nhấp để chọn file <strong style="color: var(--primary);">.WAV, .MP3, .M4A</strong>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                Độ dài khuyến nghị: 3 đến 15 giây (tối đa 30s)
+              </div>
+            </div>
+            <div id="vc-file-audio-box"
+              style="display: none; margin-top: 8px; align-items: center; gap: 10px; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+              <span style="font-size: 11px; color: var(--primary); font-weight: 600;">Nghe thử:</span>
+              <audio id="vc-file-preview" controls style="height: 28px; flex: 1;"></audio>
+            </div>
+          </div>
+
+          <!-- Source Mode: Mic Recording -->
+          <div id="vc-panel-mic" style="display: none; margin-bottom: 12px;">
+            <div
+              style="background: rgba(10, 20, 35, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; margin-bottom: 10px;">
+              <div
+                style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">
+                📜 Đoạn văn đọc mẫu (Hãy đọc tự nhiên, rõ chữ):
+              </div>
+              <div
+                style="font-size: 12.5px; color: #f1f5f9; line-height: 1.5; font-style: italic; background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 6px; border-left: 3px solid var(--primary);">
+                "Chào mừng tất cả các bạn đã đến với phiên livestream hôm nay! Hãy nhanh tay nhấn vào giỏ hàng bên dưới
+                góc trái màn hình để săn ngay deal hot và voucher giảm giá cực khủng nhé."
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px;">
+              <button type="button" id="vc-record-btn" class="btn btn-pink" onclick="toggleVoiceRecording()"
+                style="height: 36px; padding: 0 16px; border-radius: 8px; font-weight: 600; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: none;">
+                <span id="vc-rec-dot"
+                  style="width: 10px; height: 10px; border-radius: 50%; background: #fff; display: inline-block;"></span>
+                <span id="vc-rec-text">Bắt đầu ghi âm</span>
+              </button>
+              <span id="vc-rec-timer"
+                style="font-family: var(--font-cyber); font-size: 16px; color: #fff; min-width: 60px;">00:00</span>
+            </div>
+            <div id="vc-rec-hint" style="text-align: center; font-size: 11px; color: var(--text-muted);">
+              Ghi âm từ 5 đến 15 giây rồi bấm dừng.
+            </div>
+
+            <div id="vc-mic-audio-box"
+              style="display: none; margin-top: 8px; align-items: center; gap: 10px; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+              <span style="font-size: 11px; color: var(--success); font-weight: 600;">Nghe lại:</span>
+              <audio id="vc-mic-preview" controls style="height: 28px; flex: 1;"></audio>
+            </div>
+          </div>
+
+          <!-- Status/Error Message -->
+          <div id="vc-status-msg"
+            style="display: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 10px;"></div>
+
+          <!-- Progress Bar -->
+          <div id="vc-progress-box" style="display: none; margin-bottom: 12px;">
+            <div
+              style="display: flex; justify-content: space-between; font-size: 11.5px; color: var(--primary); margin-bottom: 4px;">
+              <span id="vc-progress-text">Đang phân tích và trích xuất chất giọng AI...</span>
+              <span>⏳</span>
+            </div>
+            <div
+              style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; position: relative;">
+              <div
+                style="position: absolute; top: 0; left: 0; height: 100%; width: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); animation: vc-bar-move 1.5s infinite linear;">
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+            <button type="button" class="btn btn-gray" onclick="closeVoiceModal()"
+              style="height: 36px; padding: 0 14px; border-radius: 6px; cursor: pointer;">Đóng</button>
+            <button type="button" id="vc-submit-btn" class="btn btn-cyan" onclick="submitVoiceClone()"
+              style="height: 36px; padding: 0 18px; border-radius: 6px; font-weight: bold; font-size: 12.5px; cursor: pointer;">
+              🚀 Bắt đầu Clone giọng
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 2: LIST CUSTOM VOICES -->
+        <div id="vc-tab-list-content" style="display: none;">
+          <div id="vc-list-container"
+            style="display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; padding-right: 4px;">
+            <!-- Custom voice cards will render here dynamically -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: HƯỚNG DẪN QUAY VIDEO MẪU CHO AI AVATAR -->
+  <div class="modal-overlay" id="avatar-guide-modal">
+    <div class="modal-content" style="max-width: 620px;">
+      <div class="modal-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+          <span>📷</span>
+          <span>HƯỚNG DẪN QUAY VIDEO MẪU LIVE AI</span>
+        </h3>
+        <button class="modal-close" onclick="closeAvatarGuideModal()">×</button>
+      </div>
+      <div class="modal-body" style="padding: 16px; gap: 12px; max-height: 520px; overflow-y: auto;">
+
+        <div
+          style="padding: 10px 14px; background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.25); border-radius: 8px; font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+          💡 <strong>Quy tắc quan trọng:</strong> Video đầu vào càng nét, ánh sáng đều và góc quay cố định thì AI đồng
+          bộ khẩu hình môi và cử động sẽ càng mượt mà, chân thật, không bị méo.
+        </div>
+
+        <div class="guide-steps-list" style="display:flex; flex-direction:column; gap:10px;">
+
+          <div class="guide-step-card"
+            style="display:flex; gap:12px; padding:12px; background:rgba(12,20,38,0.75); border:1px solid rgba(0,240,255,0.18); border-radius:8px;">
+            <div style="font-size:24px; line-height:1;">📱</div>
+            <div style="flex:1;">
+              <strong style="color:#00f0ff; font-size:13px; display:block; margin-bottom:4px;">1. Góc quay & Khung hình
+                cố định</strong>
+              <div style="font-size:11.5px; color:#cbd5e1; line-height:1.5;">
+                • Đặt điện thoại/camera lên <strong>giá đỡ cố định</strong>, ngang tầm mắt. Tuyệt đối <strong>không cầm
+                  tay rung lắc</strong>.<br>
+                • Quay khung dọc <strong>9:16</strong> (hoặc 16:9), canh khung hình lấy từ <strong>ngực hoặc thắt lưng
+                  trở lên (bán thân)</strong>.
+              </div>
+            </div>
+          </div>
+
+          <div class="guide-step-card"
+            style="display:flex; gap:12px; padding:12px; background:rgba(12,20,38,0.75); border:1px solid rgba(16,185,129,0.22); border-radius:8px;">
+            <div style="font-size:24px; line-height:1;">💡</div>
+            <div style="flex:1;">
+              <strong style="color:#10b981; font-size:13px; display:block; margin-bottom:4px;">2. Ánh sáng & Phông
+                nền</strong>
+              <div style="font-size:11.5px; color:#cbd5e1; line-height:1.5;">
+                • Dùng đèn chiếu sáng đều hai bên mặt, không để bóng tối đổ dưới cằm hoặc mắt.<br>
+                • Phông nền phía sau sạch sẽ, hoặc tốt nhất dùng <strong>phông xanh lá (Green Screen)</strong> để phần
+                mềm Avatar Live tự động tách nền livestream.
+              </div>
+            </div>
+          </div>
+
+          <div class="guide-step-card"
+            style="display:flex; gap:12px; padding:12px; background:rgba(12,20,38,0.75); border:1px solid rgba(251,191,36,0.22); border-radius:8px;">
+            <div style="font-size:24px; line-height:1;">😊</div>
+            <div style="flex:1;">
+              <strong style="color:#fbbf24; font-size:13px; display:block; margin-bottom:4px;">3. Thần thái & Cử động tự
+                nhiên</strong>
+              <div style="font-size:11.5px; color:#cbd5e1; line-height:1.5;">
+                • Nhìn thẳng vào ống kính máy quay, mắt chớp tự nhiên, nụ cười tươi thân thiện.<br>
+                • Khẩu hình mở rõ ràng khi nói. Cử động đầu và hai tay nhẹ nhàng vừa phải, <strong>tránh đưa tay che mặt
+                  hoặc quay ngoắt 90 độ</strong>.
+              </div>
+            </div>
+          </div>
+
+          <div class="guide-step-card"
+            style="display:flex; gap:12px; padding:12px; background:rgba(12,20,38,0.75); border:1px solid rgba(168,85,247,0.22); border-radius:8px;">
+            <div style="font-size:24px; line-height:1;">⏱️</div>
+            <div style="flex:1;">
+              <strong style="color:#c084fc; font-size:13px; display:block; margin-bottom:4px;">4. Độ dài video & Âm
+                thanh</strong>
+              <div style="font-size:11.5px; color:#cbd5e1; line-height:1.5;">
+                • Độ dài tối ưu: từ <strong>30 giây đến 1 phút 30 giây</strong> (nói chuyện liên tục, định dạng MP4 hoặc
+                MOV).<br>
+                • Thu âm ở nơi yên tĩnh, không mở nhạc nền to trong clip quay mẫu để AI nhận diện chuyển động môi chuẩn
+                xác nhất.
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+      <div class="modal-footer"
+        style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.08);">
+        <button type="button" class="btn btn-cyan" onclick="closeAvatarGuideModal(); openAvatarModal();"
+          style="padding:0 18px; height:36px; font-weight:700;">
+          + Tải Video Tạo Avatar Ngay
+        </button>
+        <button type="button" class="btn btn-gray" onclick="closeAvatarGuideModal()"
+          style="padding:0 16px; height:36px;">
+          Đã Hiểu
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: HƯỚNG DẪN THU ÂM & CLONE GIỌNG ĐỌC AI -->
+  <div class="modal-overlay" id="voice-guide-modal" style="z-index: 999995;">
+    <div class="modal-content" style="max-width: 630px;">
+      <div class="modal-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" x2="12" y1="19" y2="22" />
+          </svg>
+          <span>HƯỚNG DẪN THU ÂM ĐỂ CLONE GIỌNG AI HAY & CHUẨN</span>
+        </h3>
+        <button type="button" class="modal-close" onclick="closeVoiceGuideModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px; gap: 12px; max-height: 540px; overflow-y: auto;">
+
+        <div
+          style="padding: 10px 14px; background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.25); border-radius: 8px; font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+          💡 <strong>Nguyên lý AI Voice Cloning (AI Studio 48kHz):</strong> Mô hình sao chép trực tiếp <em>âm sắc, độ
+            ấm, ngữ điệu và hơi thở</em> từ file thu âm mẫu. Bản thu đầu vào càng rõ ràng, ít tạp âm thì giọng AI đọc
+          kịch bản Live sẽ càng giống người thật 100%.
+        </div>
+
+        <div class="guide-steps-list" style="display:flex; flex-direction:column; gap:10px;">
+
+          <!-- Step 1: Thiết bị & Môi trường -->
+          <div class="guide-step-card"
+            style="display:flex; gap:12px; padding:12px; background:rgba(12,20,38,0.75); border:1px solid rgba(0,240,255,0.18); border-radius:8px;">
+            <div style="font-size:24px; line-height:1;">🎙️</div>
+            <div style="flex:1;">
+              <strong style="color:#00f0ff; font-size:13px; display:block; margin-bottom:4px;">1. Micro & Môi trường thu
+                âm</strong>
+              <div style="font-size:11.5px; color:#cbd5e1; line-height:1.5;">
+                • Dùng tai nghe có micro (tai nghe điện thoại, tai nghe gaming) hoặc micro thu âm chuyên dụng.<br>
+                • Đặt mic cách miệng <strong>10 - 15cm</strong>, hơi chếch sang một bên để <strong>tránh hơi thở phì
+                  trực tiếp</strong> làm vỡ âm.<br>
+                • Thu âm trong <strong>phòng yên tĩnh</strong>, đóng kín cửa, tắt quạt gió hoặc tránh gió điều hòa phả
+                vào micro.
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Thời lượng vàng -->
+          <div class="guide-step-card"
+            style="display:flex; gap:12px; padding:12px; background:rgba(12,20,38,0.75); border:1px solid rgba(16,185,129,0.22); border-radius:8px;">
+            <div style="font-size:24px; line-height:1;">⏱️</div>
+            <div style="flex:1;">
+              <strong style="color:#10b981; font-size:13px; display:block; margin-bottom:4px;">2. Thời lượng lý tưởng (5
+                đến 8 giây)</strong>
+              <div style="font-size:11.5px; color:#cbd5e1; line-height:1.5;">
+                • <strong>Không cần thu quá dài</strong>: Bản thu chuẩn nhất là từ <strong>5 đến 8 giây</strong> (tối đa
+                15 giây).<br>
+                • Nói <strong>liên tục, dứt khoát</strong>, tốc độ vừa phải, không ngập ngừng hoặc khoảng lặng quá dài
+                giữa các từ.
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Ngữ điệu & Cảm xúc -->
+          <div class="guide-step-card"
+            style="display:flex; gap:12px; padding:12px; background:rgba(12,20,38,0.75); border:1px solid rgba(251,191,36,0.22); border-radius:8px;">
+            <div style="font-size:24px; line-height:1;">🗣️</div>
+            <div style="flex:1;">
+              <strong style="color:#fbbf24; font-size:13px; display:block; margin-bottom:4px;">3. Ngữ điệu & Giọng điệu
+                Livestream</strong>
+              <div style="font-size:11.5px; color:#cbd5e1; line-height:1.5;">
+                • Đọc đúng tông giọng bạn mong muốn khi phát Live (tươi vui, sôi nổi chốt đơn hoặc nhẹ nhàng, tâm
+                sự).<br>
+                • Phát âm tròn vành rõ chữ, giữ âm lượng ổn định từ đầu đến cuối câu, tránh hét to gây méo tiếng.
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Mẫu câu đọc tham khảo -->
+          <div class="guide-step-card"
+            style="display:flex; gap:12px; padding:12px; background:rgba(12,20,38,0.75); border:1px solid rgba(168,85,247,0.25); border-radius:8px;">
+            <div style="font-size:24px; line-height:1;">📖</div>
+            <div style="flex:1;">
+              <strong style="color:#c084fc; font-size:13px; display:block; margin-bottom:4px;">4. Câu mẫu gợi ý để bạn
+                đọc theo khi thu âm</strong>
+              <div style="font-size:11.5px; color:#cbd5e1; line-height:1.5; margin-bottom:6px;">
+                Bạn có thể đọc 1 trong các câu mẫu dưới đây (đã được tối ưu đầy đủ thanh điệu tiếng Việt):
+              </div>
+              <div
+                style="padding:8px 10px; background:rgba(6,11,24,0.7); border-left:3px solid #c084fc; border-radius:4px; font-size:11px; color:#e2e8f0; margin-bottom:6px; font-style:italic;">
+                "Chào mừng cả nhà đã đến với buổi livestream hôm nay! Em xin gửi tặng mọi người rất nhiều ưu đãi độc
+                quyền cực kỳ hấp dẫn nhé!"
+              </div>
+              <div
+                style="padding:8px 10px; background:rgba(6,11,24,0.7); border-left:3px solid #10b981; border-radius:4px; font-size:11px; color:#e2e8f0; font-style:italic;">
+                "Dạ em cảm ơn anh chị đã ghé xem và ủng hộ shop. Chúc mọi người một ngày thật vui vẻ và chọn được sản
+                phẩm ưng ý nhất ạ!"
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 5: Khử ồn -->
+          <div class="guide-step-card"
+            style="display:flex; gap:12px; padding:12px; background:rgba(12,20,38,0.75); border:1px solid rgba(0,240,255,0.18); border-radius:8px;">
+            <div style="font-size:24px; line-height:1;">🛡️</div>
+            <div style="flex:1;">
+              <strong style="color:#00f0ff; font-size:13px; display:block; margin-bottom:4px;">5. Lựa chọn chế độ Khử ồn
+                (Denoise)</strong>
+              <div style="font-size:11.5px; color:#cbd5e1; line-height:1.5;">
+                • <strong>Tắt khử ồn</strong>: Khuyên dùng nếu phòng rất yên tĩnh và mic sạch — AI sẽ giữ 100% độ ấm và
+                tiếng thở tự nhiên nhất.<br>
+                • <strong>Tự động nhận diện (hoặc Bật khử ồn)</strong>: Dành cho môi trường có tiếng quạt gió hoặc tiếng
+                rít nhẹ.
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+      <div class="modal-footer"
+        style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.08);">
+        <button type="button" class="btn btn-cyan" onclick="closeVoiceGuideModal(); openVoiceModal();"
+          style="padding:0 18px; height:36px; font-weight:700;">
+          + Bắt Đầu Clone Giọng Ngay
+        </button>
+        <button type="button" class="btn btn-gray" onclick="closeVoiceGuideModal()"
+          style="padding:0 16px; height:36px;">
+          Đã Hiểu
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes spin {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+
+  <script src="client.js"></script>
+  <script src="dashboard-app.js?v=2.3.2"></script>
+</body>
+
+</html>

@@ -407,6 +407,76 @@ mod tests {
         }
     }
     #[test]
+    fn transcript_selection_and_correction_use_native_draft_and_one_undo() {
+        let mut review = crate::transcript::Review::new(
+            vec![
+                TimedSegment {
+                    id: 8,
+                    start: 10.0,
+                    end: 13.0,
+                    text: "Xin chào".into(),
+                },
+                TimedSegment {
+                    id: 3,
+                    start: 15.0,
+                    end: 20.0,
+                    text: "Câu cuối".into(),
+                },
+            ],
+            100.0,
+        )
+        .unwrap();
+        review.edit(8, "Xin chào Việt Nam").unwrap();
+        let pick = review
+            .candidate(
+                8,
+                3,
+                &crate::highlight::Options {
+                    min_duration: 4.0,
+                    max_duration: 30.0,
+                    ..Default::default()
+                },
+                1,
+            )
+            .unwrap();
+        let mut editor = Editor::new();
+        let before = editor.project().clone();
+        let draft = propose(
+            &editor,
+            media(),
+            &pick,
+            video(),
+            review.cues(),
+            CaptionPreset::Clean,
+        )
+        .unwrap();
+        assert_eq!(
+            editor.project(),
+            &before,
+            "review must never mutate the real project"
+        );
+        let clips = &draft.project().active().clips;
+        let visual = clips.iter().find(|c| c.text.is_none()).unwrap();
+        assert_eq!(
+            (visual.source_start, visual.start, visual.duration),
+            (10.0, 0.0, 10.0)
+        );
+        let captions = clips
+            .iter()
+            .filter(|c| c.text.is_some())
+            .collect::<Vec<_>>();
+        assert_eq!(captions.len(), 2);
+        assert_eq!((captions[0].start, captions[0].duration), (0.0, 3.0));
+        assert_eq!((captions[1].start, captions[1].duration), (5.0, 5.0));
+        assert_eq!(
+            captions[0].text.as_ref().unwrap().content,
+            "Xin chào Việt Nam"
+        );
+        editor.commit_draft(draft).unwrap();
+        editor.undo();
+        assert_eq!(editor.project(), &before);
+    }
+    #[test]
     fn native_stitched_draft_preserves_original_one_undo_redo_and_metadata() {
         let mut editor = Editor::new();
         let before = editor.project().clone();

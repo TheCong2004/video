@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.kedi.local/live-event.v1.schema.json",
+  "title": "LiveEvent v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "trace_id",
+    "session_id",
+    "tenant_id",
+    "store_id",
+    "platform",
+    "event_type",
+    "received_at",
+    "viewer_ref"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "store_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "simulator",
+        "tiktok",
+        "shopee",
+        "douyin",
+        "taobao",
+        "operator",
+        "other"
+      ]
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "viewer.comment",
+        "viewer.like",
+        "viewer.follow",
+        "viewer.join",
+        "platform.product",
+        "operator.command",
+        "system.health"
+      ]
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "viewer_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "text": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 1000
+    },
+    "platform_product_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "maxProperties": 24,
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "integer",
+          "boolean",
+          "null"
+        ]
+      }
+    },
+    "source_event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

@@ -13,6 +13,7 @@ import { TimelinePane } from "timeline-pane.slint";
 import { KeyframesPane } from "keyframes-pane.slint";
 import { MetersPane } from "meters-pane.slint";
 import { AiEditingPane } from "ai-editing-pane.slint";
+import { HotclipPane } from "hotclip-pane.slint";
 
 // One box of the workspace, showing whichever view its `kind` names.
 //
@@ -60,6 +61,13 @@ export component Seat inherits Rectangle {
         pane-removable: Editor.seats.length > 1;
         pane-picked(kind) => { root.picked(kind); }
         pane-removed => { root.removed(); }
+    }
+
+    if root.kind == PaneKind.hotclip: HotclipPane {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
     }
     property <length> margin-y: Math.max(1px, Math.min(72px, root.height / 4));
 
@@ -184,7 +192,7 @@ export component Seat inherits Rectangle {
             playhead-free: Editor.playhead-free && !SourcePreview.open;
             playing: SourcePreview.open ? SourcePreview.playing : Editor.playing;
             source-name: SourcePreview.open ? SourcePreview.name : "";
-            has-picture: Editor.has-picture;
+            has-picture: SourcePreview.open ? true : Editor.has-picture;
             clip-name: Editor.preview-clip-name;
             frame: Editor.preview-frame;
             stage-items: SourcePreview.open ? [] : Editor.stage-items;

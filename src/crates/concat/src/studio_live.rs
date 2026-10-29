@@ -8,7 +8,7 @@ use crate::{
         StudioProducts,
     },
 };
-use concat_studio::live::{LiveFrame, LiveFrameKind};
+use concat_studio::live::{LiveFrame, LiveFrameKind, viewer_name};
 use concat_studio::live_runtime::{
     LiveRuntime, LiveRuntimeConfig, LiveRuntimeError, LiveRuntimeStatus,
 };
@@ -56,6 +56,7 @@ pub(crate) fn play_tts(
     playback: &concat_host::playback::Playback,
     audio: concat_host::studio_opentalking::TtsAudio,
 ) -> Result<(), &'static str> {
+    let epoch = crate::studio_lipsync::epoch();
     static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
     let extension = match audio.media_type.as_str() {
         "audio/mpeg" | "audio/mp3" => "mp3",
@@ -82,37 +83,34 @@ pub(crate) fn play_tts(
         .and_then(|()| std::io::Write::flush(&mut file))
         .map_err(|_| "could not write temporary speech audio")?;
     drop(file);
-    if playback.speak_file_once(&path).is_ok() {
-        return Ok(());
+    let clock = playback
+        .speak_synced_file_cancellable(&path, || !crate::studio_lipsync::current(epoch))
+        .map_err(|_| "Concat audio output is unavailable")?;
+    if !crate::studio_lipsync::current(epoch) {
+        clock.finish();
+        return Err("Speech cancelled before output");
     }
-
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        let script = format!(
-            "Add-Type -AssemblyName presentationCore; $p = New-Object System.Windows.Media.MediaPlayer; $p.Open([System.Uri]'{}'); $p.Play(); Start-Sleep -Seconds 3; $p.Close()",
-            path.to_string_lossy().replace('\\', "/")
-        );
-        let res = std::process::Command::new("powershell")
-            .creation_flags(CREATE_NO_WINDOW)
-            .args([
-                "-NoProfile",
-                "-NonInteractive",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                &script,
-            ])
-            .output();
-        if let Ok(out) = res {
-            if out.status.success() {
-                return Ok(());
-            }
+    clock.acknowledge_picture(); // Voice-only path has no video barrier.
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !clock.finished() {
+        if !crate::studio_kedi_live::observe_audio(clock.seconds() > 0.0) {
+            clock.finish();
+            return Err("Kedi speech generation cancelled");
         }
+        if Instant::now() > deadline {
+            clock.finish();
+            return Err("Speech output stalled");
+        }
+        std::thread::sleep(Duration::from_millis(15));
     }
-
-    Err("Concat could not play speech audio")
+    if clock.completed() {
+        if !crate::studio_kedi_live::observe_audio(clock.seconds() > 0.0) {
+            return Err("Kedi speech generation cancelled");
+        }
+        Ok(())
+    } else {
+        Err("Speech was interrupted or the audio device failed")
+    }
 }
 
 fn public_error(error: LiveRuntimeError) -> slint::SharedString {
@@ -216,11 +214,7 @@ fn frame_line(frame: &LiveFrame) -> Option<String> {
     }
     let value = &frame.value;
     let actor = value.get("actor")?;
-    let name = actor
-        .get("displayId")
-        .and_then(serde_json::Value::as_str)
-        .or_else(|| actor.get("userName").and_then(serde_json::Value::as_str))
-        .unwrap_or("viewer");
+    let name = viewer_name(Some(actor));
     let kind = value.get("eventKind")?.as_str()?;
     let payload = value.get("payload")?;
     let content = payload
@@ -229,7 +223,6 @@ fn frame_line(frame: &LiveFrame) -> Option<String> {
         .or_else(|| payload.get("comment").and_then(serde_json::Value::as_str))
         .or_else(|| payload.get("giftName").and_then(serde_json::Value::as_str))
         .unwrap_or(kind);
-    let name: String = name.chars().take(64).collect();
     let content: String = content.chars().take(500).collect();
     Some(format!("{name}: {content}"))
 }
@@ -250,13 +243,7 @@ fn live_event(frame: &LiveFrame) -> Option<(String, String, String, String, Stri
         .unwrap_or("chat")
         .to_string();
     let actor = value.get("actor");
-    let username = actor
-        .and_then(|a| a.get("displayId").and_then(serde_json::Value::as_str))
-        .or_else(|| actor.and_then(|a| a.get("userName").and_then(serde_json::Value::as_str)))
-        .unwrap_or("viewer")
-        .chars()
-        .take(64)
-        .collect::<String>();
+    let username = viewer_name(actor);
     let payload = value.get("payload");
     let content = match kind.as_str() {
         "gift" => {
@@ -325,14 +312,38 @@ fn bounded_reply(reply: &str) -> Option<String> {
     Some(format!("{}…", short[..boundary].trim_end()))
 }
 
-fn synthesize_and_play(
+pub(crate) fn synthesize_and_play(
     playback: &concat_host::playback::Playback,
     text: &str,
     voice: &str,
+    weak: &slint::Weak<App>,
 ) -> Result<(), &'static str> {
-    let audio = crate::studio_opentalking::synthesize_speech_robust(text, voice)
+    let _turn = crate::studio_live_director::turn()?;
+    let epoch = crate::studio_lipsync::epoch();
+    let audio = crate::studio_live_director::synthesize(text, voice)
         .map_err(|_| "OpenTalking speech synthesis failed")?;
-    play_tts(playback, audio)
+    if !crate::studio_lipsync::current(epoch) || !crate::studio_kedi_live::observe_audio(false) {
+        return Err("Speech cancelled during synthesis");
+    }
+    play_live_audio(playback, audio, weak, text)
+}
+
+fn play_live_audio(
+    playback: &concat_host::playback::Playback,
+    audio: concat_host::studio_opentalking::TtsAudio,
+    weak: &slint::Weak<App>,
+    text: &str,
+) -> Result<(), &'static str> {
+    match crate::studio_lipsync::play(playback, audio, weak, text) {
+        Ok(Some(audio)) => play_tts(playback, audio),
+        Ok(None) => Ok(()),
+        Err(error) => {
+            let _ = weak.upgrade_in_event_loop(|app| {
+                app.global::<StudioLive>().set_lipsync_status("Chưa phát được câu trả lời. Kiểm tra thiết bị loa/tai nghe và trạng thái GPU; không tự phát tiếng lệch môi.".into());
+            });
+            Err(error)
+        }
+    }
 }
 
 fn generate_and_send_reply(
@@ -342,7 +353,10 @@ fn generate_and_send_reply(
     playback: &concat_host::playback::Playback,
     username: &str,
     comment: &str,
+    weak: &slint::Weak<App>,
 ) -> Result<(String, bool), &'static str> {
+    let _turn = crate::studio_live_director::turn()?;
+    let epoch = crate::studio_lipsync::epoch();
     let model = model
         .lock()
         .ok()
@@ -357,14 +371,17 @@ fn generate_and_send_reply(
         .lock()
         .ok()
         .and_then(|voice| voice.clone())
-        .ok_or("OpenTalking voice not selected")?;
-    let audio = match crate::studio_opentalking::synthesize_speech_robust(&reply, &voice) {
+        .unwrap_or_else(|| "edge-tts:vi-VN-HoaiMyNeural".into());
+    let audio = match crate::studio_live_director::synthesize(&reply, &voice) {
         Ok(a) => a,
         Err(_) => {
             log::warn!("Speech synthesis failed for reply");
             return Ok((reply, false));
         }
     };
+    if !crate::studio_lipsync::current(epoch) {
+        return Err("Reply cancelled during generation");
+    }
     runtime
         .lock()
         .map_err(|_| "LIVE runtime unavailable")?
@@ -372,7 +389,7 @@ fn generate_and_send_reply(
         .ok_or("LIVE runtime unavailable")?
         .send_message(&reply)
         .map_err(|_| "Could not send the AI reply")?;
-    let spoken = match play_tts(playback, audio) {
+    let spoken = match play_live_audio(playback, audio, weak, &reply) {
         Ok(()) => true,
         Err(error) => {
             log::warn!("TikTok LIVE reply was sent but speech playback failed: {error}");
@@ -409,6 +426,7 @@ fn monitor(
                     loop {
                         match runtime.try_next_frame() {
                             Ok(Some(frame)) => {
+                                crate::studio_kedi_live::receive_frame(&frame);
                                 if let Some(line) = frame_line(&frame) {
                                     lines.push(line);
                                 }
@@ -505,7 +523,13 @@ fn monitor(
                                     app.global::<StudioLive>().set_is_speaking(true);
                                 });
                                 let result = generate_and_send_reply(
-                                    &slot, &model, &voice, &playback, &username, &comment,
+                                    &slot,
+                                    &model,
+                                    &voice,
+                                    &playback,
+                                    &username,
+                                    &comment,
+                                    &weak_reply,
                                 );
                                 inflight.store(false, Ordering::Release);
                                 let _ = weak_reply.upgrade_in_event_loop(move |app| {
@@ -662,8 +686,11 @@ fn monitor(
 
 pub(crate) fn bind(app: &App) {
     crate::studio_live_video::bind(app);
+    crate::studio_lipsync::bind(app);
+    crate::studio_live_director::bind(app);
     let runtime: RuntimeSlot = Arc::new(Mutex::new(None));
     let auto_reply = Arc::new(AtomicBool::new(false));
+    crate::studio_kedi_live::bind(app, Arc::clone(&auto_reply));
     let reply_model: ReplyModel = Arc::new(Mutex::new(None));
     let reply_voice: ReplyVoice = Arc::new(Mutex::new(None));
     let reply_inflight = Arc::new(AtomicBool::new(false));
@@ -774,6 +801,10 @@ pub(crate) fn bind(app: &App) {
     app.global::<StudioLive>().on_connect(move |username| {
         let Some(app) = weak.upgrade() else { return };
         let live = app.global::<StudioLive>();
+        if app.global::<StudioOpenTalking>().get_gesture_busy() {
+            live.set_status("Chờ tạo xong bộ cử chỉ trước khi kết nối LIVE.".into());
+            return;
+        }
         if live.get_busy() {
             return;
         }
@@ -855,6 +886,10 @@ pub(crate) fn bind(app: &App) {
     app.global::<StudioLive>().on_toggle_auto_reply(move || {
         let Some(app) = weak.upgrade() else { return };
         let live = app.global::<StudioLive>();
+        if crate::studio_kedi_live::active() {
+            live.set_status("Kedi đang điều phối phản hồi. Dừng Kedi trước khi đổi chế độ trả lời.".into());
+            return;
+        }
         if auto.load(Ordering::Acquire) {
             auto.store(false, Ordering::Release);
             if let Ok(mut model) = selected_model.lock() {
@@ -1101,7 +1136,7 @@ pub(crate) fn bind(app: &App) {
                         app.global::<StudioLive>().set_is_speaking(true);
                     });
                     let result = generate_and_send_reply(
-                        &slot, &model, &voice, &playback, &username, &comment,
+                        &slot, &model, &voice, &playback, &username, &comment, &weak,
                     );
                     worker_inflight.store(false, Ordering::Release);
                     let _ = weak.upgrade_in_event_loop(move |app| {
@@ -1174,6 +1209,7 @@ pub(crate) fn bind(app: &App) {
         let Some(app) = weak.upgrade() else { return };
         let live = app.global::<StudioLive>();
         let to_speak = text.trim().to_string();
+        if live.get_is_speaking() || live.get_director_busy() || live.get_voice_server_busy() { return; }
         if to_speak.is_empty() {
             return;
         }
@@ -1205,7 +1241,7 @@ pub(crate) fn bind(app: &App) {
         let _ = std::thread::Builder::new()
             .name("concat-tiktok-live-speak".into())
             .spawn(move || {
-                let res = synthesize_and_play(&playback, &to_speak, &selected_voice);
+                let res = synthesize_and_play(&playback, &to_speak, &selected_voice, &weak);
                 let _ = weak.upgrade_in_event_loop(move |app| {
                     let live = app.global::<StudioLive>();
                     live.set_is_speaking(false);
@@ -1220,6 +1256,8 @@ pub(crate) fn bind(app: &App) {
     // Interrupt speech callback
     let weak = app.as_weak();
     app.global::<StudioLive>().on_interrupt_speech(move || {
+        crate::studio_lipsync::cancel();
+        crate::host::Shell::with(|shell, _| shell.studio.borrow().host.playback.stop_speech());
         if let Some(app) = weak.upgrade() {
             app.global::<StudioLive>().set_is_speaking(false);
         }

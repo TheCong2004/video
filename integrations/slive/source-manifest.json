@@ -1,0 +1,983 @@
+﻿{
+    "source":  "D:\\topttop\\Slive Vip\\Slive Vip",
+    "importedAt":  "2026-10-10T10:03:14.1152538Z",
+    "precedence":  [
+                       "app",
+                       "updates",
+                       "web"
+                   ],
+    "files":  [
+                  {
+                      "path":  "agency_core.py",
+                      "layer":  "updates",
+                      "sha256":  "fe8c419418b3967943e304a4b439b8720a9016e98f3ce6af672de04c8e11c3bd",
+                      "bytes":  2870
+                  },
+                  {
+                      "path":  "agency_runtime.py",
+                      "layer":  "updates",
+                      "sha256":  "96ddd4fe8e976d864637af00ed87211cf083ef404b6b9f989d1617c1d7e16086",
+                      "bytes":  14436
+                  },
+                  {
+                      "path":  "app.py",
+                      "layer":  "updates",
+                      "sha256":  "ef79b60994cf1e7ffe4d6d68ad4c2043b05f6252052e5689737e0965fe8d4c25",
+                      "bytes":  11790
+                  },
+                  {
+                      "path":  "avatars/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                      "bytes":  0
+                  },
+                  {
+                      "path":  "avatars/audio_features/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                      "bytes":  0
+                  },
+                  {
+                      "path":  "avatars/audio_features/base_asr.py",
+                      "layer":  "updates",
+                      "sha256":  "66bfbfa3dcbc5c79f33322735eba425ca631a3d38586759002e742726a1fe03d",
+                      "bytes":  7102
+                  },
+                  {
+                      "path":  "avatars/audio_features/hubert.py",
+                      "layer":  "updates",
+                      "sha256":  "7a8c43508a0dfad7a53771824d77157e3029329305cb9a7447d2d4dbc5cc11d4",
+                      "bytes":  2126
+                  },
+                  {
+                      "path":  "avatars/audio_features/mel.py",
+                      "layer":  "updates",
+                      "sha256":  "1c2112a1ce9e90119e4ea19cc5e23fbfd8ff69c7cf9924a9f9b716bd11320c66",
+                      "bytes":  2866
+                  },
+                  {
+                      "path":  "avatars/audio_features/whisper.py",
+                      "layer":  "updates",
+                      "sha256":  "733d9f4427e2e1ef4b2c52b6a17d006892267a5a29d2536a0e3967a60e198f0f",
+                      "bytes":  3842
+                  },
+                  {
+                      "path":  "avatars/base_avatar.py",
+                      "layer":  "updates",
+                      "sha256":  "c3a0b3bacaa8f700af1f3d594ec22ad187a7d954df0642d29bbd87147b8bae80",
+                      "bytes":  26363
+                  },
+                  {
+                      "path":  "avatars/musetalk/genavatar.py",
+                      "layer":  "updates",
+                      "sha256":  "12d672be4b8a993f6155d66f0f31f2777c2ac5c6a263cdaa0ddeb6ac540ba597",
+                      "bytes":  15838
+                  },
+                  {
+                      "path":  "avatars/musetalk/myutil.py",
+                      "layer":  "updates",
+                      "sha256":  "a00b9befb3f43fbb400c40ab15976d47a36d8faa2efcea126acb6f1cd6b235ef",
+                      "bytes":  991
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "2ad6e9ae2c90ed7edc1e8bf98ae62bea0b2a96f87005ea7f9db1aa935d93754e",
+                      "bytes":  165
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/audio_processor.py",
+                      "layer":  "updates",
+                      "sha256":  "90c076bae47ddee11f362bd31a8f2dacb2f09dd0a6911fbf15c885552b896ecb",
+                      "bytes":  4329
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/blending.py",
+                      "layer":  "updates",
+                      "sha256":  "acc87ced360c424d07da14481f8c5d1de5688432cb477d82be195cf842ad8649",
+                      "bytes":  5473
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/dwpose/default_runtime.py",
+                      "layer":  "updates",
+                      "sha256":  "5f59885220727d7e9eeab11147a0fdb4ab0a9fddd4168dfaffbcfc2ce1c6bc2c",
+                      "bytes":  1485
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/dwpose/rtmpose-l_8xb32-270e_coco-ubody-wholebody-384x288.py",
+                      "layer":  "updates",
+                      "sha256":  "c220e73a52396b5a4739fa35c6f929f45415e00885640f6a82425f0ca020ea2f",
+                      "bytes":  7621
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "41bf59d3861e538d9eb6a2eadf52f7acac39617832f1148eab4d1c8d274bf6e0",
+                      "bytes":  203
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/api.py",
+                      "layer":  "updates",
+                      "sha256":  "527286f6ae0a25e5717022d9041fa1c01eaf1d8268198359ac28466a5844a81c",
+                      "bytes":  10339
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/detection/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "1f3233930bfb7ac8b1726e4af8ed9b93925046d16edc640afd218f9d02b6d235",
+                      "bytes":  30
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/detection/core.py",
+                      "layer":  "updates",
+                      "sha256":  "17b1baabfe0dc39feff4834f0850d111ccbe72d61cb81c3d039c2f716a31a26e",
+                      "bytes":  4998
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/detection/sfd/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "6fbfb62eccc1a14de7c0a8cb1ca6f3c59af42479955ac08acbf548f28ec1feed",
+                      "bytes":  53
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/detection/sfd/bbox.py",
+                      "layer":  "updates",
+                      "sha256":  "5bd1db6be9975433506b6b4b83e9bfe854ba8d0727c3dd0e4d0095d127d02bd4",
+                      "bytes":  4408
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/detection/sfd/detect.py",
+                      "layer":  "updates",
+                      "sha256":  "3bc0f57b9e00467e9eb4b2ce135a7d1e62dffa679c61053d1284b023fcb830fe",
+                      "bytes":  3906
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/detection/sfd/net_s3fd.py",
+                      "layer":  "updates",
+                      "sha256":  "1b86272e48d33f49169a249ec2c3b88af0551a9287362ce7c5906b24e3324477",
+                      "bytes":  5420
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/detection/sfd/sfd_detector.py",
+                      "layer":  "updates",
+                      "sha256":  "772da464e91525cb892c849496477088868486ef713a0f646f0a0bc78aa50b38",
+                      "bytes":  1868
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/models.py",
+                      "layer":  "updates",
+                      "sha256":  "cfec2574ec90511e35eeb5596af00e54be599e6f6b178a20a561962ac9dfd180",
+                      "bytes":  8880
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/README.md",
+                      "layer":  "app",
+                      "sha256":  "f41720c331cfb2f079b465643237904d0ce53d7365959c7f1814a582963e00a3",
+                      "bytes":  209
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_detection/utils.py",
+                      "layer":  "updates",
+                      "sha256":  "0665c12697b14fee3bfb49f9eff4c2d86d1c99a12bf6f27d7a3429da6fb34bb8",
+                      "bytes":  12121
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_parsing/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "fecc1fb39366a89f8886e2c5a4093ca09926c26e03c0a7effedce909f42cfdb9",
+                      "bytes":  4817
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_parsing/model.py",
+                      "layer":  "updates",
+                      "sha256":  "84beb8e9ff4f87f0a66a7e91b25e13b04882d46ed0a963604e01bd728b29e31f",
+                      "bytes":  10959
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/face_parsing/resnet.py",
+                      "layer":  "updates",
+                      "sha256":  "f70de4e36f0ef7ddd1577e0c3658210c525f9237fbc5a2aa5b722b486f1d7ebe",
+                      "bytes":  3815
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/preprocessing.py",
+                      "layer":  "updates",
+                      "sha256":  "c7e991e72f74cb7fba330800e0b2d2d72c98b594ab086c05955b476841405072",
+                      "bytes":  7126
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/training_utils.py",
+                      "layer":  "updates",
+                      "sha256":  "6ad25821f15674988ee31bb83b7f11ffdeb6c81e3f862cb5fbd67955a0b2d7ac",
+                      "bytes":  12552
+                  },
+                  {
+                      "path":  "avatars/musetalk/utils/utils.py",
+                      "layer":  "updates",
+                      "sha256":  "5f7a12932288fc88871f2ea64fe1c9fa831d104d88ab8ae9137d50452376060a",
+                      "bytes":  12071
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/audio2feature.py",
+                      "layer":  "updates",
+                      "sha256":  "10d2b9e7f410dba71216fd50b5e0dfb9b93753c49ec981ec5efe1983fc9518cb",
+                      "bytes":  6413
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "57dd15825a4332dfabad59b8f43b17dd03aa2539fddc53a6fc5a4f523de674a3",
+                      "bytes":  5645
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/__main__.py",
+                      "layer":  "updates",
+                      "sha256":  "b87a72b8e9d4332bf971061878d507ce22f0d4a2f18b7c7a0bfa91895ff057ca",
+                      "bytes":  40
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/audio.py",
+                      "layer":  "updates",
+                      "sha256":  "66b17aa7219011510497716fe90716909413b7582ec5081d553ac472c97a4927",
+                      "bytes":  4196
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/decoding.py",
+                      "layer":  "updates",
+                      "sha256":  "3bead4cddea9c73a611dba5643d17b4b8f416ccf56814e47e3d29aa9fa1a8a7b",
+                      "bytes":  31659
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/model.py",
+                      "layer":  "updates",
+                      "sha256":  "639645dbd27dc5b35241689c9801aa55c81a5a18c7b125a457628e5f7060814a",
+                      "bytes":  10881
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/normalizers/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "4bcaad9592f7f7309022e9ae832862c271a23305d3996b34ec0a752fe2f34ae6",
+                      "bytes":  84
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/normalizers/basic.py",
+                      "layer":  "updates",
+                      "sha256":  "c10d93c1a14c66ae36375720f028fe8f900f3e58374fe79c8d24e2e5e4a7ec6d",
+                      "bytes":  1953
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/normalizers/english.py",
+                      "layer":  "updates",
+                      "sha256":  "ea87f4bf963266e3c5244214adcd73f476a5ee94b78d0d0935e47b1a9d608269",
+                      "bytes":  21336
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/tokenizer.py",
+                      "layer":  "updates",
+                      "sha256":  "cb7d45abdee67d309629268618a7bb1b11093a8b4101913dcd9c45ce832e7720",
+                      "bytes":  10168
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/transcribe.py",
+                      "layer":  "updates",
+                      "sha256":  "f69a25caf82599b06964bd0d3b8eb2fa600e527af164c12ad25c40e697f11079",
+                      "bytes":  10949
+                  },
+                  {
+                      "path":  "avatars/musetalk/whisper/whisper/utils.py",
+                      "layer":  "updates",
+                      "sha256":  "292ba9d51a7f819ea17658855145e577aa3b5cdb1e9d5be634fab8383cc228a1",
+                      "bytes":  2747
+                  },
+                  {
+                      "path":  "avatars/musetalk_avatar.py",
+                      "layer":  "updates",
+                      "sha256":  "7532cca651c218d1382c588e76c0bb9f1b7c21f15b5c3099a773ccfb53877022",
+                      "bytes":  6938
+                  },
+                  {
+                      "path":  "avatars/ultralight/audio2feature.py",
+                      "layer":  "updates",
+                      "sha256":  "30496a8aee8e18771339f0edfa7f1342ab2bbf8a502f96124974aac9674b7409",
+                      "bytes":  5134
+                  },
+                  {
+                      "path":  "avatars/ultralight/face_detect_utils/base_module.py",
+                      "layer":  "updates",
+                      "sha256":  "b2cd1e2d6c1fba25703b501cde34c227f84935e3730eb5ae6975faf085c387c4",
+                      "bytes":  17917
+                  },
+                  {
+                      "path":  "avatars/ultralight/face_detect_utils/detect_face.py",
+                      "layer":  "updates",
+                      "sha256":  "76971487055f11ffdc5d59a000fa11ca39feb767ffd8ae60d317e1f0e7eaba83",
+                      "bytes":  5242
+                  },
+                  {
+                      "path":  "avatars/ultralight/face_detect_utils/get_landmark.py",
+                      "layer":  "updates",
+                      "sha256":  "0324ed71bdebd4cf9cbedfa7beb5a9c940440eba82e75ccd6e7c94286855a73a",
+                      "bytes":  5045
+                  },
+                  {
+                      "path":  "avatars/ultralight/face_detect_utils/pfld_mobileone.py",
+                      "layer":  "updates",
+                      "sha256":  "2301a1071fa45d4e154f6bfca952713d39489321e6283694349ff6a072ade873",
+                      "bytes":  17350
+                  },
+                  {
+                      "path":  "avatars/ultralight/genavatar.py",
+                      "layer":  "updates",
+                      "sha256":  "015a8727220ee8411f290d10f16234d0c406179f10d4dd039e2775acd212688f",
+                      "bytes":  3498
+                  },
+                  {
+                      "path":  "avatars/ultralight/genavatar-bak.py",
+                      "layer":  "updates",
+                      "sha256":  "c0dc6e58487af1d2c9929546d21f71b2c9f670803a58df71aaba5f196fd504f0",
+                      "bytes":  3969
+                  },
+                  {
+                      "path":  "avatars/ultralight/unet.py",
+                      "layer":  "updates",
+                      "sha256":  "b5f1fc9928a48d4830de7f98edf82dce4557d54eae4b4acc5512b88ba4e51455",
+                      "bytes":  10412
+                  },
+                  {
+                      "path":  "avatars/ultralight_avatar.py",
+                      "layer":  "updates",
+                      "sha256":  "008c0ed8fa002eca00f4eb656d2faa0f6dc28de358760a2384489eebf8f3fa49",
+                      "bytes":  10913
+                  },
+                  {
+                      "path":  "avatars/wav2lip/audio.py",
+                      "layer":  "updates",
+                      "sha256":  "65794735479005094337519e479153c4fc9fc793a3b875d7f82b5efeccf05ae6",
+                      "bytes":  7185
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "e631b4ba18a818c3be7d2564086b2902e490c016d2dc44ae7c3b131d85609387",
+                      "bytes":  190
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/api.py",
+                      "layer":  "updates",
+                      "sha256":  "6fe265239a214b7e9a5e99080b0a9f886b8af573a6c58bf186801b28f8582c31",
+                      "bytes":  2360
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/detection/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "1f3233930bfb7ac8b1726e4af8ed9b93925046d16edc640afd218f9d02b6d235",
+                      "bytes":  30
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/detection/core.py",
+                      "layer":  "updates",
+                      "sha256":  "17b1baabfe0dc39feff4834f0850d111ccbe72d61cb81c3d039c2f716a31a26e",
+                      "bytes":  4998
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/detection/sfd/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "6fbfb62eccc1a14de7c0a8cb1ca6f3c59af42479955ac08acbf548f28ec1feed",
+                      "bytes":  53
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/detection/sfd/bbox.py",
+                      "layer":  "updates",
+                      "sha256":  "5bd1db6be9975433506b6b4b83e9bfe854ba8d0727c3dd0e4d0095d127d02bd4",
+                      "bytes":  4408
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/detection/sfd/detect.py",
+                      "layer":  "updates",
+                      "sha256":  "351e9648e66e298ae13d218805564aecb7d1eb53954b3de6db34d1d55b4382e2",
+                      "bytes":  3881
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/detection/sfd/net_s3fd.py",
+                      "layer":  "updates",
+                      "sha256":  "1b86272e48d33f49169a249ec2c3b88af0551a9287362ce7c5906b24e3324477",
+                      "bytes":  5420
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/detection/sfd/sfd_detector.py",
+                      "layer":  "updates",
+                      "sha256":  "4f0b57cba71314dccd525ecb244044ae075a75d9c49fd6cb503f740f9d45ea4f",
+                      "bytes":  2004
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/models.py",
+                      "layer":  "updates",
+                      "sha256":  "cfec2574ec90511e35eeb5596af00e54be599e6f6b178a20a561962ac9dfd180",
+                      "bytes":  8880
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/README.md",
+                      "layer":  "app",
+                      "sha256":  "f41720c331cfb2f079b465643237904d0ce53d7365959c7f1814a582963e00a3",
+                      "bytes":  209
+                  },
+                  {
+                      "path":  "avatars/wav2lip/face_detection/utils.py",
+                      "layer":  "updates",
+                      "sha256":  "0665c12697b14fee3bfb49f9eff4c2d86d1c99a12bf6f27d7a3429da6fb34bb8",
+                      "bytes":  12121
+                  },
+                  {
+                      "path":  "avatars/wav2lip/genavatar.py",
+                      "layer":  "updates",
+                      "sha256":  "579bb9fbbc06c46a477c0175fb595f3993ea11327d1bc9ed8d3b27c551c0953d",
+                      "bytes":  8559
+                  },
+                  {
+                      "path":  "avatars/wav2lip/hparams.py",
+                      "layer":  "updates",
+                      "sha256":  "c519e29147a5642e1f572e3e474da0ac2ebf8925dc00b04234a31aeac6fd43ed",
+                      "bytes":  3657
+                  },
+                  {
+                      "path":  "avatars/wav2lip/inference_silence.py",
+                      "layer":  "updates",
+                      "sha256":  "27914ef6dc67c33f515ad56d2d473f222ef09d7279ecd62f923e91d95b9531b9",
+                      "bytes":  11106
+                  },
+                  {
+                      "path":  "avatars/wav2lip/models/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "3cd466402733aded9ccba5d0d0925c5d894302b5c3aca6e8f885e9d0bd0b3dbe",
+                      "bytes":  129
+                  },
+                  {
+                      "path":  "avatars/wav2lip/models/conv.py",
+                      "layer":  "updates",
+                      "sha256":  "9cdf6a033f3105daee400df8f8e32711c161b16f1811387b7409be2d0ef5d1bb",
+                      "bytes":  1620
+                  },
+                  {
+                      "path":  "avatars/wav2lip/models/syncnet.py",
+                      "layer":  "updates",
+                      "sha256":  "e4ce43bbc3df936a4b51fe043c3e2b9686976d6cb6e50afd7846009507ff709c",
+                      "bytes":  3220
+                  },
+                  {
+                      "path":  "avatars/wav2lip/models/wav2lip.py",
+                      "layer":  "updates",
+                      "sha256":  "8e458c862e66e86175300728c6dd8af1f19916701b2a5227f2915458d3069868",
+                      "bytes":  9784
+                  },
+                  {
+                      "path":  "avatars/wav2lip/models/wav2lip_v2.py",
+                      "layer":  "updates",
+                      "sha256":  "5d93a3ec5ebce3df61cc5d775239bfa9621451521538658cfc93e3044a4e67b8",
+                      "bytes":  10892
+                  },
+                  {
+                      "path":  "avatars/wav2lip_avatar.py",
+                      "layer":  "updates",
+                      "sha256":  "ba6ec3f0649ecc49b1a008ece4f40a85eb9a337345b1b992decdf00623eadad6",
+                      "bytes":  30512
+                  },
+                  {
+                      "path":  "avatars/webcam_stream.py",
+                      "layer":  "updates",
+                      "sha256":  "4396a74cab3e70cd6d2a86384d1266c82d34ade23d619cd0c74f044f304167e9",
+                      "bytes":  11429
+                  },
+                  {
+                      "path":  "BUILD_FULL_AI.md",
+                      "layer":  "app",
+                      "sha256":  "3216007d8b1fd7922bb085acfd89cd7db4f696a78c91283db52d54c634f81138",
+                      "bytes":  434
+                  },
+                  {
+                      "path":  "config.py",
+                      "layer":  "updates",
+                      "sha256":  "b0e690ddc61579c03d3334d539d7c6210547a88eee30ca574303639e597ae6b9",
+                      "bytes":  5540
+                  },
+                  {
+                      "path":  "live.py",
+                      "layer":  "updates",
+                      "sha256":  "54442915165c55c9abaa3a446d6bc2bffec177ebabdd6fb4d0bcdafb9a5b14c0",
+                      "bytes":  45520
+                  },
+                  {
+                      "path":  "llm.py",
+                      "layer":  "updates",
+                      "sha256":  "c5967959d8e8f610587f5ce2fdbcdb2a8c79190ba39ec622ee98eae93609c8e3",
+                      "bytes":  42774
+                  },
+                  {
+                      "path":  "playlist_manager.py",
+                      "layer":  "updates",
+                      "sha256":  "7ac78a35ba54927f7908a2255f2fa2188cc74b31d34275209188cb8ee1dda44d",
+                      "bytes":  50559
+                  },
+                  {
+                      "path":  "process_supervisor.py",
+                      "layer":  "updates",
+                      "sha256":  "a25df59b74989217b1aa552f6bb2a2c8caf54f87bb3e33486814bf8bb83c8a61",
+                      "bytes":  4167
+                  },
+                  {
+                      "path":  "registry.py",
+                      "layer":  "updates",
+                      "sha256":  "3caffecc9f48b2d26be528bce3a8142f2a3464509b79dace962e1df9e4c6e24c",
+                      "bytes":  1764
+                  },
+                  {
+                      "path":  "resource_manager.py",
+                      "layer":  "updates",
+                      "sha256":  "d9184da5cb2c8ecb9c010b32cabf84e25775b9e9cf2a0168d56a6f36497d4443",
+                      "bytes":  39772
+                  },
+                  {
+                      "path":  "run_app.py",
+                      "layer":  "updates",
+                      "sha256":  "bd9e3db43c769e95ecadfb9c3042d2bf51b867f76eaf41fc41080ae7d9d1d768",
+                      "bytes":  25991
+                  },
+                  {
+                      "path":  "runtime_config.py",
+                      "layer":  "updates",
+                      "sha256":  "8ae6398d75658ad09535bb497d837bd45c477f123ccba691b279b4ee42d019f8",
+                      "bytes":  13396
+                  },
+                  {
+                      "path":  "runtime_paths.py",
+                      "layer":  "updates",
+                      "sha256":  "642edfd930a948c44ed35011cbd027a6da5a746ad828d298c5607c8a1ea4125d",
+                      "bytes":  6766
+                  },
+                  {
+                      "path":  "server/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                      "bytes":  0
+                  },
+                  {
+                      "path":  "server/central_auth.py",
+                      "layer":  "updates",
+                      "sha256":  "a721a4f2e6547e942863a76e9353b1c7958f78006246fb5914a62146b6579578",
+                      "bytes":  14684
+                  },
+                  {
+                      "path":  "server/routes.py",
+                      "layer":  "updates",
+                      "sha256":  "db94a67d24428f47407d05c78eec4c4ed6857c7f48c6df9bbd0b8d79089bdbcd",
+                      "bytes":  77496
+                  },
+                  {
+                      "path":  "server/rtc_manager.py",
+                      "layer":  "updates",
+                      "sha256":  "5807ede81318892178f4b69f6d5c7b30d12b5d74141a08910b25f8cff4a1b945",
+                      "bytes":  5134
+                  },
+                  {
+                      "path":  "server/session_manager.py",
+                      "layer":  "updates",
+                      "sha256":  "3949ff98af602bf9bb67267b2ef9f984bd94d3266ce8043376167bd57a27adc9",
+                      "bytes":  4252
+                  },
+                  {
+                      "path":  "server/webrtc.py",
+                      "layer":  "updates",
+                      "sha256":  "1c8af6efcecae81c7fd505d7bcb93adb6e94fe3f1b7508c3a6a0f28dd8751fac",
+                      "bytes":  9550
+                  },
+                  {
+                      "path":  "ssl_utils.py",
+                      "layer":  "updates",
+                      "sha256":  "d5c13cc5b4d9333d4deda0744d6509f48377f36813e98d53719f2263712921d2",
+                      "bytes":  319
+                  },
+                  {
+                      "path":  "streamout/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                      "bytes":  0
+                  },
+                  {
+                      "path":  "streamout/base_output.py",
+                      "layer":  "updates",
+                      "sha256":  "f9a4219f978c5ee44cbc1881306c8051cbc52769b6dc5bcf122938083d4e6f09",
+                      "bytes":  1627
+                  },
+                  {
+                      "path":  "streamout/rtmp.py",
+                      "layer":  "updates",
+                      "sha256":  "72fd20383ec7b01775687cace408d1b9fb14363b6f6cb4707e5fdb8b975cd655",
+                      "bytes":  4736
+                  },
+                  {
+                      "path":  "streamout/virtualcam.py",
+                      "layer":  "updates",
+                      "sha256":  "39d9a16e044ac69ff959b2d76ba70dd98e2c56f9711d7f52fa54885cb813f48d",
+                      "bytes":  3424
+                  },
+                  {
+                      "path":  "streamout/webrtc.py",
+                      "layer":  "updates",
+                      "sha256":  "1579cd790778b343104bd80b54e0e76782d01189268f5998b04dc223d0c5245a",
+                      "bytes":  1380
+                  },
+                  {
+                      "path":  "tiktok_pin_extension/content.js",
+                      "layer":  "updates",
+                      "sha256":  "f786d6e785e7e4336b881e226e1a03b54ecdfa01d0c60973ee5dd49121fb2c70",
+                      "bytes":  47273
+                  },
+                  {
+                      "path":  "tiktok_pin_extension/manifest.json",
+                      "layer":  "updates",
+                      "sha256":  "05f582c1a1f347a5d622f607970c02d44ce536764d03b13de1895b6f429a714d",
+                      "bytes":  1006
+                  },
+                  {
+                      "path":  "tiktok_pin_extension/popup.html",
+                      "layer":  "updates",
+                      "sha256":  "3af3a9ddda58e2adfd06a8375e073d94be160251e10e42b88311a29f6d0b2f21",
+                      "bytes":  2508
+                  },
+                  {
+                      "path":  "tiktok_pin_extension/popup.js",
+                      "layer":  "updates",
+                      "sha256":  "c440fadcb86cce914deb2c50d7362475d738e8c1a7fd7cc50d5859e00298ce1f",
+                      "bytes":  1798
+                  },
+                  {
+                      "path":  "tts/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "7e408fd8fb743147b8aa27207e6578ea79f1bf9e869beee9d16ef802381965f9",
+                      "bytes":  38
+                  },
+                  {
+                      "path":  "tts/azure.py",
+                      "layer":  "updates",
+                      "sha256":  "c7f0bf29f29d9206fb7f83ce8d5c0e742756978840155a0c9857fa70b956e314",
+                      "bytes":  3646
+                  },
+                  {
+                      "path":  "tts/base_tts.py",
+                      "layer":  "updates",
+                      "sha256":  "fbae7c900ca8a5dda6b4c524565115755836cab7d760aef88222705baa3bc70b",
+                      "bytes":  5062
+                  },
+                  {
+                      "path":  "tts/cosyvoice.py",
+                      "layer":  "updates",
+                      "sha256":  "cddef25b560d4d6ecd5a60ea19de4e8d5205e092ee2c82c13ac54ae1ea15060d",
+                      "bytes":  3195
+                  },
+                  {
+                      "path":  "tts/doubao.py",
+                      "layer":  "updates",
+                      "sha256":  "5866819b325fbab206a146ab6b621390c2f23363aa524faf074951d5a38d6ab0",
+                      "bytes":  6250
+                  },
+                  {
+                      "path":  "tts/edge.py",
+                      "layer":  "updates",
+                      "sha256":  "84e23dcc3c5b406965887bada2c3adb11b6acd55e8f4c98910d214235536b1fd",
+                      "bytes":  3139
+                  },
+                  {
+                      "path":  "tts/f5api.py",
+                      "layer":  "updates",
+                      "sha256":  "16558895612c45cfa39cee9ce1d1b0129da8b3eaeb3c3fcddb608dd6438923b1",
+                      "bytes":  8298
+                  },
+                  {
+                      "path":  "tts/fish.py",
+                      "layer":  "updates",
+                      "sha256":  "d76298907d73ad97d50c17a8662f8898def77004d4187e73277b0462729a6579",
+                      "bytes":  3532
+                  },
+                  {
+                      "path":  "tts/indextts2.py",
+                      "layer":  "updates",
+                      "sha256":  "34736d42ff86a2189e8c89db49d07af6e4d938a27ae15170fcc9e2ca5e88e151",
+                      "bytes":  8382
+                  },
+                  {
+                      "path":  "tts/qwentts.py",
+                      "layer":  "updates",
+                      "sha256":  "0beae31876d93d743fbb18a77d13b1ae259eaece4944cbff57073cd87ff5a966",
+                      "bytes":  8939
+                  },
+                  {
+                      "path":  "tts/sovits.py",
+                      "layer":  "updates",
+                      "sha256":  "db429ddded53cb0602163982133bbb2fb13a268745eb8a6076967d91185a216c",
+                      "bytes":  4540
+                  },
+                  {
+                      "path":  "tts/tencent.py",
+                      "layer":  "updates",
+                      "sha256":  "77bf9988c3b6b31073826c0517a096b0e87f2cde7a124eff83611f5640efa90b",
+                      "bytes":  5604
+                  },
+                  {
+                      "path":  "tts/xtts.py",
+                      "layer":  "updates",
+                      "sha256":  "d45bbc4c098f7ef4c0a2fc3201b9ec0b44e88c3cc23189d5ee60da113f1c3934",
+                      "bytes":  3538
+                  },
+                  {
+                      "path":  "tts_server/__init__.py",
+                      "layer":  "updates",
+                      "sha256":  "bf7d29ba377076ceb3cd2946b5091964e59d6766a8c17b6c1de870da9e0151d7",
+                      "bytes":  64
+                  },
+                  {
+                      "path":  "tts_server/app.py",
+                      "layer":  "updates",
+                      "sha256":  "44d9e1f31916bddf53bcfba19a5d30363a9728bebf4dcdfddde2e0fe69a57511",
+                      "bytes":  37332
+                  },
+                  {
+                      "path":  "update_manager.py",
+                      "layer":  "updates",
+                      "sha256":  "9ddbbc6763ea83a9191cf2742f8fa546caee726dddb474a8341415d86c35989e",
+                      "bytes":  10418
+                  },
+                  {
+                      "path":  "updater.py",
+                      "layer":  "updates",
+                      "sha256":  "4190b4bc6c4c4f5c5059ae048bf5002275f841b4b4b8fbd3f40979ba828e25f1",
+                      "bytes":  2549
+                  },
+                  {
+                      "path":  "utils/async_utils.py",
+                      "layer":  "updates",
+                      "sha256":  "920baecc874d3a684b1d88a22d88b382f9ba69827cf94ece663accd1530ca76c",
+                      "bytes":  1412
+                  },
+                  {
+                      "path":  "utils/audio.py",
+                      "layer":  "updates",
+                      "sha256":  "bde44d29972820ec0bdd25f21f7a77f8b706c193716a1a8b8f14daa65ce88a1d",
+                      "bytes":  1774
+                  },
+                  {
+                      "path":  "utils/audioutil.py",
+                      "layer":  "updates",
+                      "sha256":  "63aa921b132789e499f54dac7a4e2a194f3595f7a172bf4e442fa15834a5bb47",
+                      "bytes":  1133
+                  },
+                  {
+                      "path":  "utils/camera_detector.py",
+                      "layer":  "updates",
+                      "sha256":  "5888dfaa3ab9e6fa4910df1d4af40333f8341c2983be0f2e0583ce909bfbe3cb",
+                      "bytes":  4674
+                  },
+                  {
+                      "path":  "utils/crawler.py",
+                      "layer":  "updates",
+                      "sha256":  "07290e9f54baa149a7eedfda59511f2e671f7833ab8d65e99f42cce31dc88866",
+                      "bytes":  14810
+                  },
+                  {
+                      "path":  "utils/device.py",
+                      "layer":  "updates",
+                      "sha256":  "a9bfaa4b7c6f9fe0e198894ac7a7ae6ec678925cde7f8d9a726f25b17c950a62",
+                      "bytes":  292
+                  },
+                  {
+                      "path":  "utils/image.py",
+                      "layer":  "updates",
+                      "sha256":  "17d5263ca70f42372123c5f57db9836482ebcf3a680dc50ebf1d3acabdf5cf35",
+                      "bytes":  1011
+                  },
+                  {
+                      "path":  "utils/logger.py",
+                      "layer":  "updates",
+                      "sha256":  "9c3b5a5a5345a1d64d873c52a11bc11ed7034b94c45c7ad2b7705339262ac0b5",
+                      "bytes":  866
+                  },
+                  {
+                      "path":  "utils/vietnamese_ecom_normalizer.py",
+                      "layer":  "updates",
+                      "sha256":  "db299181e36d127fd6e26382bfce35d094bfe138427a1d42e6ac8dfac0b51e54",
+                      "bytes":  25071
+                  },
+                  {
+                      "path":  "version.json",
+                      "layer":  "updates",
+                      "sha256":  "226406ec56a016f4fd3facc7c9722e6ac038a525b033da17da48b72d7fc77148",
+                      "bytes":  27
+                  },
+                  {
+                      "path":  "web/admin.html",
+                      "layer":  "updates",
+                      "sha256":  "1a71af63c8e69dd83d846bab857d908b7a2211a7fd33723d85982b529de2582f",
+                      "bytes":  14930
+                  },
+                  {
+                      "path":  "web/asr/index.html",
+                      "layer":  "updates",
+                      "sha256":  "7e6c7ba6d3de342317f6c3e29b361ec635b8f35e2deb870a793c4f644d104241",
+                      "bytes":  3221
+                  },
+                  {
+                      "path":  "web/asr/main.js",
+                      "layer":  "updates",
+                      "sha256":  "ff767b2d6f272929c2a95bf824d0167c7f6dc52c0b089b062565b066c006e7ae",
+                      "bytes":  16316
+                  },
+                  {
+                      "path":  "web/asr/pcm.js",
+                      "layer":  "updates",
+                      "sha256":  "8463f5808af5353c8eab60cf7b2b7109b65271feea71a117930630e3195db5db",
+                      "bytes":  2756
+                  },
+                  {
+                      "path":  "web/asr/recorder-core.js",
+                      "layer":  "updates",
+                      "sha256":  "7cf0448bc059a2b97f29f9ba5f2a1456b018d4672198ee27f9d93b25315b3a36",
+                      "bytes":  53719
+                  },
+                  {
+                      "path":  "web/asr/wav.js",
+                      "layer":  "updates",
+                      "sha256":  "d27a06b6046ad0e9ce96a16b70a8827258370873968720922620f7ab666c2efe",
+                      "bytes":  2641
+                  },
+                  {
+                      "path":  "web/asr/wsconnecter.js",
+                      "layer":  "updates",
+                      "sha256":  "bf5b8b268ded60cf444b141797c8cbeb6080af61b5d865cc334766867791c3ef",
+                      "bytes":  2659
+                  },
+                  {
+                      "path":  "web/avatar.html",
+                      "layer":  "updates",
+                      "sha256":  "32082d0c4f019ed86d1290a6be97b03a1941b231df7b36b6d4c40986a284aca9",
+                      "bytes":  8324
+                  },
+                  {
+                      "path":  "web/avatar-live.html",
+                      "layer":  "updates",
+                      "sha256":  "616bc3e9af9d4545ceebe29427dcfb7087f6223fcc9c83c187475492e3fc4903",
+                      "bytes":  5034
+                  },
+                  {
+                      "path":  "web/client.js",
+                      "layer":  "web",
+                      "sha256":  "b23170ac5a73355e9fa9794b367efcc862532f4e05548b59a370fc3b0b74812b",
+                      "bytes":  4465
+                  },
+                  {
+                      "path":  "web/dashboard.html",
+                      "layer":  "web",
+                      "sha256":  "6488193e9a737f1e592f9b3fa61f088330179f2fe212411c6bc2c01d1c34e28c",
+                      "bytes":  140762
+                  },
+                  {
+                      "path":  "web/dashboard-app.js",
+                      "layer":  "web",
+                      "sha256":  "f75bbec0269941305628044b30578d761051bc23a1fb9f098eea5de9f646d78a",
+                      "bytes":  240650
+                  },
+                  {
+                      "path":  "web/index.html",
+                      "layer":  "updates",
+                      "sha256":  "62af67fd8f3b9ecac0cbe96f3fb5439b0ee28d04f2dab810a4c65650c4d392d4",
+                      "bytes":  22851
+                  },
+                  {
+                      "path":  "web/keepalive.js",
+                      "layer":  "app",
+                      "sha256":  "90f51b700134206b14e22adc0293ef68c821a9373a65602515e156c1b348e474",
+                      "bytes":  4019
+                  },
+                  {
+                      "path":  "web/loading.html",
+                      "layer":  "web",
+                      "sha256":  "d3273a3c1bcf4623087b388b4da2e9aabd151be1ac515908cbd25e2efe8d61f6",
+                      "bytes":  2644
+                  },
+                  {
+                      "path":  "web/login.html",
+                      "layer":  "web",
+                      "sha256":  "a049c1dec7f34fe43fc6c360b19bb0fc658dcc31196b1c54ad18006c6e9f5072",
+                      "bytes":  20340
+                  },
+                  {
+                      "path":  "web/mpegts-1.7.3.min.js",
+                      "layer":  "updates",
+                      "sha256":  "d9391c66e2f18814e9a18d2058d349f792099fe097f87db7e3547bf0a27f0177",
+                      "bytes":  217837
+                  },
+                  {
+                      "path":  "web/resources.html",
+                      "layer":  "web",
+                      "sha256":  "371f202f95573ebd24fed0d87fba41ae8a4722f6d76aa58bf78affef2a630e23",
+                      "bytes":  24193
+                  },
+                  {
+                      "path":  "web/rtcpushapi.html",
+                      "layer":  "updates",
+                      "sha256":  "dbea6e9cb799e844eb52269160f78f9629d5e5746094e5d6bd6e825d4e40fdf3",
+                      "bytes":  4458
+                  },
+                  {
+                      "path":  "web/rtcpushchat.html",
+                      "layer":  "updates",
+                      "sha256":  "2cfbc3bb20919d1c00776d80a04ce649236aea31fe7ee699646d190ebf6f3907",
+                      "bytes":  4449
+                  },
+                  {
+                      "path":  "web/rtmpapi.html",
+                      "layer":  "updates",
+                      "sha256":  "a5ed719153a8b04d6aaa4b83f694aeddb0623be14b0e4adbc90e128eab14dc2b",
+                      "bytes":  2214
+                  },
+                  {
+                      "path":  "web/rtmpchat.html",
+                      "layer":  "updates",
+                      "sha256":  "ce53412b2f799ef6d8843837995bc0fa446741d9ed11d197924d47750fced144",
+                      "bytes":  2214
+                  },
+                  {
+                      "path":  "web/srs.sdk.js",
+                      "layer":  "updates",
+                      "sha256":  "cf6f7998fb2c636c6e610ea84112b3ddb73af7a20cdd6db150170e82c3865c40",
+                      "bytes":  28263
+                  },
+                  {
+                      "path":  "web/studio.css",
+                      "layer":  "web",
+                      "sha256":  "0e03706fa7b2857646ee96b48051b9c736cdbd510a3c1041c894b68376cb63f3",
+                      "bytes":  106734
+                  },
+                  {
+                      "path":  "web/version.json",
+                      "layer":  "updates",
+                      "sha256":  "226406ec56a016f4fd3facc7c9722e6ac038a525b033da17da48b72d7fc77148",
+                      "bytes":  27
+                  },
+                  {
+                      "path":  "web/webrtcapi.html",
+                      "layer":  "updates",
+                      "sha256":  "36a6c539e3655252c6ea9ac4f6b2949e605c98bb220cf590ea4ab86942865936",
+                      "bytes":  6320
+                  },
+                  {
+                      "path":  "web/webrtcapi-asr.html",
+                      "layer":  "updates",
+                      "sha256":  "c21a0f167c8956d5bbf197cb5ff100d4b199dfe362fdd5878e2290bc0daa2d78",
+                      "bytes":  6219
+                  },
+                  {
+                      "path":  "web/whep.js",
+                      "layer":  "updates",
+                      "sha256":  "4f652b83e3007c4e8e8fa0f8f049a88291e6da28656da72e2df6f493f93bb7b6",
+                      "bytes":  2354
+                  }
+              ]
+}

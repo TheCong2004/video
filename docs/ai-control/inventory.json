@@ -1,0 +1,5039 @@
+{
+  "scope": "src/crates (excludes third-party patches, binaries, models and dependencies)",
+  "crates": [
+    "concat",
+    "concat-agent",
+    "concat-android",
+    "concat-api",
+    "concat-cli",
+    "concat-control-ui",
+    "concat-core",
+    "concat-effects",
+    "concat-export",
+    "concat-host",
+    "concat-media",
+    "concat-perf",
+    "concat-project",
+    "concat-render",
+    "concat-server",
+    "concat-shorts",
+    "concat-speech",
+    "concat-studio",
+    "concat-text",
+    "concat-ui",
+    "concat-vision"
+  ],
+  "rustFiles": 277,
+  "slintFiles": 97,
+  "apiMethods": [
+    "version",
+    "project.create",
+    "project.open",
+    "project.close",
+    "project.list",
+    "project.get",
+    "project.document",
+    "project.save",
+    "project.setVideo",
+    "edit.apply",
+    "edit.undo",
+    "edit.redo",
+    "media.probe",
+    "media.import",
+    "catalogue.list",
+    "template.list",
+    "template.instantiate",
+    "template.save",
+    "export.run",
+    "export.cancel",
+    "preview.frame",
+    "session.checkpointCreate",
+    "session.checkpointRestore",
+    "session.leaseAcquire"
+  ],
+  "editingMcpTools": [
+    "concat_get_context",
+    "concat_get_status",
+    "concat_propose_edit",
+    "concat_control_capabilities",
+    "concat_control_status",
+    "concat_control_submit"
+  ],
+  "callbacks": [
+    {
+      "global": "Editor",
+      "callback": "workspace-resized",
+      "signature": "width: length, height: length",
+      "ui": "src/crates/concat/ui/editor.slint:49",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:621"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "dock-set",
+      "signature": "seat: int, kind: PaneKind",
+      "ui": "src/crates/concat/ui/editor.slint:53",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:642"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "ai-library-activated",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:55",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:631"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "dock-add",
+      "signature": "kind: PaneKind",
+      "ui": "src/crates/concat/ui/editor.slint:58",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:678"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "dock-remove",
+      "signature": "seat: int",
+      "ui": "src/crates/concat/ui/editor.slint:61",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:698"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "dock-dropped",
+      "signature": "from: int, onto: int, side: DockSide",
+      "ui": "src/crates/concat/ui/editor.slint:64",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:650"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "divider-pressed",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/editor.slint:69",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:704"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "divider-dragged",
+      "signature": "index: int, delta: length",
+      "ui": "src/crates/concat/ui/editor.slint:70",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:711"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "import-media",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:90",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:786"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "media-filter-changed",
+      "signature": "filter: MediaFilter",
+      "ui": "src/crates/concat/ui/editor.slint:91",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:749"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "media-sort-changed",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/editor.slint:92",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:752"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "media-select",
+      "signature": "id: int, additive: bool",
+      "ui": "src/crates/concat/ui/editor.slint:93",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:755"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "media-band-selected",
+      "signature": "columns: int, from-col: int, to-col: int,\n        from-row: int, to-row: int, additive: bool",
+      "ui": "src/crates/concat/ui/editor.slint:97",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:758"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "media-remove",
+      "signature": "id: int",
+      "ui": "src/crates/concat/ui/editor.slint:99",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:776"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "media-remove-selected",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:100",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:779"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "media-activate",
+      "signature": "id: int",
+      "ui": "src/crates/concat/ui/editor.slint:101",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:821"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "media-context",
+      "signature": "id: int",
+      "ui": "src/crates/concat/ui/editor.slint:104",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1338"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "library-add-text",
+      "signature": "preset: string",
+      "ui": "src/crates/concat/ui/editor.slint:115",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:824"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "library-add-shape",
+      "signature": "shape: string, label: string",
+      "ui": "src/crates/concat/ui/editor.slint:118",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:828"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "library-apply-effect",
+      "signature": "effect-id: string",
+      "ui": "src/crates/concat/ui/editor.slint:119",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:843"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "library-apply-transition",
+      "signature": "transition-id: string",
+      "ui": "src/crates/concat/ui/editor.slint:120",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:849"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "library-apply-filter",
+      "signature": "filter-id: string, label: string",
+      "ui": "src/crates/concat/ui/editor.slint:122",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:835"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "library-audition-filter",
+      "signature": "filter-id: string",
+      "ui": "src/crates/concat/ui/editor.slint:126",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:840"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "library-apply-audio",
+      "signature": "effect-id: string",
+      "ui": "src/crates/concat/ui/editor.slint:130",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:846"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "library-save-template",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:131",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:852"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "library-import-lut",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:133",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:857"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "library-reload-packages",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:137",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:858"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-set",
+      "signature": "field: ClipField, value: float",
+      "ui": "src/crates/concat/ui/editor.slint:149",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1167"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-set-text",
+      "signature": "field: ClipTextField, value: string",
+      "ui": "src/crates/concat/ui/editor.slint:150",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1170"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-set-colour",
+      "signature": "field: ClipTextField, value: color",
+      "ui": "src/crates/concat/ui/editor.slint:151",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1175"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-commit",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:152",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1182"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "import-font",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:159",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:809"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "text-style-default",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:162",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:806"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "adjust-set",
+      "signature": "key: string, value: float",
+      "ui": "src/crates/concat/ui/editor.slint:180",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1211"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "chain-set-colour",
+      "signature": "index: int, key: string, value: color",
+      "ui": "src/crates/concat/ui/editor.slint:192",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1205"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "curve-point",
+      "signature": "entry: int, key: string, point: int, x: float, y: float",
+      "ui": "src/crates/concat/ui/editor.slint:193",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1214"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "curve-remove",
+      "signature": "entry: int, key: string, point: int",
+      "ui": "src/crates/concat/ui/editor.slint:194",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1226"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "chain-add",
+      "signature": "audio: bool, id: string",
+      "ui": "src/crates/concat/ui/editor.slint:206",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1187"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "chain-toggle",
+      "signature": "audio: bool, index: int",
+      "ui": "src/crates/concat/ui/editor.slint:207",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1190"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "chain-move-by",
+      "signature": "audio: bool, index: int, delta: int",
+      "ui": "src/crates/concat/ui/editor.slint:208",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1193"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "chain-remove",
+      "signature": "audio: bool, index: int",
+      "ui": "src/crates/concat/ui/editor.slint:209",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1196"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "chain-set-param",
+      "signature": "audio: bool, index: int, key: string, value: float",
+      "ui": "src/crates/concat/ui/editor.slint:210",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1199"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "add-effect",
+      "signature": "audio: bool",
+      "ui": "src/crates/concat/ui/editor.slint:216",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:863"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "remove-effect",
+      "signature": "id: int",
+      "ui": "src/crates/concat/ui/editor.slint:217",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:866"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "play-toggled",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:234",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1253"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "seek",
+      "signature": "seconds: float",
+      "ui": "src/crates/concat/ui/editor.slint:235",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1237",
+        "src/crates/concat/src/lib.rs:1274"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "step-frames",
+      "signature": "frames: float",
+      "ui": "src/crates/concat/ui/editor.slint:236",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1241"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "ratio-changed",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/editor.slint:237",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1247"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "quality-changed",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/editor.slint:238",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1250"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "stage-pressed",
+      "signature": "x: float, y: float, additive: bool",
+      "ui": "src/crates/concat/ui/editor.slint:250",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1279"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "stage-grip-pressed",
+      "signature": "id: string, grip: int, x: float, y: float",
+      "ui": "src/crates/concat/ui/editor.slint:254",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1282"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "stage-dragged",
+      "signature": "x: float, y: float, snap: bool",
+      "ui": "src/crates/concat/ui/editor.slint:257",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1287"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "stage-released",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:258",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1290"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "cutout-mode",
+      "signature": "mode: int",
+      "ui": "src/crates/concat/ui/editor.slint:275",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1295"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "cutout-tool",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/editor.slint:276",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1298"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "cutout-size",
+      "signature": "size: float",
+      "ui": "src/crates/concat/ui/editor.slint:277",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1301"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "cutout-painting",
+      "signature": "on: bool",
+      "ui": "src/crates/concat/ui/editor.slint:278",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1304"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "cutout-subject",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/editor.slint:279",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1307"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "cutout-clear",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:280",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1310"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-enhance-set",
+      "signature": "on: bool",
+      "ui": "src/crates/concat/ui/editor.slint:281",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1313"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "transition-remove",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:283",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1316"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "transition-duration-set",
+      "signature": "seconds: float",
+      "ui": "src/crates/concat/ui/editor.slint:284",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1319"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "tab-selected",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/editor.slint:337",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:871"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "tab-renamed",
+      "signature": "index: int, name: string",
+      "ui": "src/crates/concat/ui/editor.slint:338",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:883"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "tab-close-requested",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/editor.slint:339",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:909"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "tab-added",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:340",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:903"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "tool-changed",
+      "signature": "tool: TimelineTool",
+      "ui": "src/crates/concat/ui/editor.slint:341",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:923"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "snap-changed",
+      "signature": "snap: bool",
+      "ui": "src/crates/concat/ui/editor.slint:342",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:929"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "magnetic-changed",
+      "signature": "on: bool",
+      "ui": "src/crates/concat/ui/editor.slint:343",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:932"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "pan-changed",
+      "signature": "on: bool",
+      "ui": "src/crates/concat/ui/editor.slint:344",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:926"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "trim-follow-changed",
+      "signature": "on: bool",
+      "ui": "src/crates/concat/ui/editor.slint:345",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:935"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "preview-axis-changed",
+      "signature": "on: bool",
+      "ui": "src/crates/concat/ui/editor.slint:346",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:938"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "preview-axis-audio-changed",
+      "signature": "on: bool",
+      "ui": "src/crates/concat/ui/editor.slint:347",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:941"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "hovered",
+      "signature": "seconds: float",
+      "ui": "src/crates/concat/ui/editor.slint:350",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:946"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "hover-ended",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:351",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:949"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "undo",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:355",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:960"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "redo",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:356",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:963"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "split",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:357",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:966"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "merge",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:358",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:970"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "delete-selected",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:359",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:955"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "captions",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:363",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1674"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "speak",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:364",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1682"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "record-voiceover",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:366",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1677"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "add-track",
+      "signature": "bottom: bool",
+      "ui": "src/crates/concat/ui/editor.slint:371",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:952"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "zoom-to-fit",
+      "signature": "width: length",
+      "ui": "src/crates/concat/ui/editor.slint:372",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:987"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "zoom",
+      "signature": "factor: float, anchor-seconds: float",
+      "ui": "src/crates/concat/ui/editor.slint:373",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:984"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "lanes-resized",
+      "signature": "width: float",
+      "ui": "src/crates/concat/ui/editor.slint:376",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:990"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "scrubbed",
+      "signature": "seconds: float",
+      "ui": "src/crates/concat/ui/editor.slint:377",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:978"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "key-mark-moved",
+      "signature": "from: float, to: float",
+      "ui": "src/crates/concat/ui/editor.slint:379",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:975"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-pressed",
+      "signature": "id: string, additive: bool, edge: int",
+      "ui": "src/crates/concat/ui/editor.slint:380",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1008"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "save-frame",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:383",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1020"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-split",
+      "signature": "id: string, seconds: float",
+      "ui": "src/crates/concat/ui/editor.slint:385",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1014"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-volume",
+      "signature": "id: string, gain: float",
+      "ui": "src/crates/concat/ui/editor.slint:388",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1017"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-dragged",
+      "signature": "seconds: float, pixels: length",
+      "ui": "src/crates/concat/ui/editor.slint:389",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1023"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-released",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:390",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1026"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "clip-context",
+      "signature": "id: string",
+      "ui": "src/crates/concat/ui/editor.slint:394",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1324"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "menu-selected",
+      "signature": "id: string",
+      "ui": "src/crates/concat/ui/editor.slint:395",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1346"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "band-selected",
+      "signature": "from-seconds: float, to-seconds: float,\n        from-y: length, to-y: length, additive: bool",
+      "ui": "src/crates/concat/ui/editor.slint:397",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1048"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "scrolled",
+      "signature": "seconds: float",
+      "ui": "src/crates/concat/ui/editor.slint:399",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:981"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "drag-hovered",
+      "signature": "payload: string, seconds: float, y: length",
+      "ui": "src/crates/concat/ui/editor.slint:404",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1031"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "dropped",
+      "signature": "payload: string, seconds: float, y: length",
+      "ui": "src/crates/concat/ui/editor.slint:405",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1038"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "track-flag-changed",
+      "signature": "index: int, visible: bool, muted: bool, locked: bool",
+      "ui": "src/crates/concat/ui/editor.slint:406",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:995"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "track-sized",
+      "signature": "index: int, size: TrackSize",
+      "ui": "src/crates/concat/ui/editor.slint:407",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1000"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "track-removed",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/editor.slint:408",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1003"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "tab-moved",
+      "signature": "from: int, to: int",
+      "ui": "src/crates/concat/ui/editor.slint:411",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:900"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "modify-project",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:430",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1394"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "blur",
+      "signature": "",
+      "ui": "src/crates/concat/ui/editor.slint:436",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1375"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Editor",
+      "callback": "shortcut",
+      "signature": "action: string",
+      "ui": "src/crates/concat/ui/editor.slint:441",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1381"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "I18n",
+      "callback": "lookup",
+      "signature": "lang: string, key: string",
+      "ui": "src/crates/concat/ui/i18n.slint:24",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:463"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "I18n",
+      "callback": "lookup1",
+      "signature": "lang: string, key: string, a: string",
+      "ui": "src/crates/concat/ui/i18n.slint:27",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:464"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "I18n",
+      "callback": "lookup2",
+      "signature": "lang: string, key: string, a: string, b: string",
+      "ui": "src/crates/concat/ui/i18n.slint:30",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:465"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "I18n",
+      "callback": "lookup-upper",
+      "signature": "lang: string, key: string",
+      "ui": "src/crates/concat/ui/i18n.slint:37",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:469"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "LauncherUi",
+      "callback": "sidebar-mode-changed",
+      "signature": "mode: int",
+      "ui": "src/crates/concat/ui/launcher-ui.slint:8",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1448"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "LauncherUi",
+      "callback": "theme-changed",
+      "signature": "dark: bool",
+      "ui": "src/crates/concat/ui/launcher-ui.slint:9",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1457"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "LauncherUi",
+      "callback": "reduced-motion-changed",
+      "signature": "reduced: bool",
+      "ui": "src/crates/concat/ui/launcher-ui.slint:10",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1465"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Fmt",
+      "callback": "hex-of",
+      "signature": "value: color, with-alpha: bool",
+      "ui": "src/crates/concat/ui/util.slint:17",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1841"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Fmt",
+      "callback": "hex-digits",
+      "signature": "value: color",
+      "ui": "src/crates/concat/ui/util.slint:20",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1849"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Fmt",
+      "callback": "color-of",
+      "signature": "text: string, fallback: color",
+      "ui": "src/crates/concat/ui/util.slint:23",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1851"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Fmt",
+      "callback": "parse-timecode",
+      "signature": "text: string",
+      "ui": "src/crates/concat/ui/util.slint:74",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1839"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Fmt",
+      "callback": "tick-interval",
+      "signature": "seconds-per-pixel: float",
+      "ui": "src/crates/concat/ui/util.slint:82",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1840"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Fmt",
+      "callback": "parse-frames",
+      "signature": "text: string, rate: float",
+      "ui": "src/crates/concat/ui/util.slint:87",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1853"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Curves",
+      "callback": "ease",
+      "signature": "x1: float, y1: float, x2: float, y2: float, at: float",
+      "ui": "src/crates/concat/ui/util.slint:93",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1835"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Curves",
+      "callback": "parse",
+      "signature": "text: string, fallback: Bezier",
+      "ui": "src/crates/concat/ui/util.slint:96",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1837"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Payload",
+      "callback": "of",
+      "signature": "text: string",
+      "ui": "src/crates/concat/ui/util.slint:108",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1857"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Payload",
+      "callback": "text",
+      "signature": "payload: data-transfer",
+      "ui": "src/crates/concat/ui/util.slint:111",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1859"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Payload",
+      "callback": "preview",
+      "signature": "text: string",
+      "ui": "src/crates/concat/ui/util.slint:127",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1146",
+        "src/crates/concat/src/auto_shorts.rs:1019",
+        "src/crates/concat/src/lib.rs:1875"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Payload",
+      "callback": "pane-seat",
+      "signature": "text: string",
+      "ui": "src/crates/concat/ui/util.slint:132",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1860"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Payload",
+      "callback": "tab-index",
+      "signature": "text: string",
+      "ui": "src/crates/concat/ui/util.slint:135",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1866"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Focus",
+      "callback": "release",
+      "signature": "",
+      "ui": "src/crates/concat/ui/util.slint:161",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1380"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "choice-page-changed",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:41",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:421"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "fetch-browser",
+      "signature": "",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:42",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:366"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "toggle-choice",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:43",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:373"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "choose-first",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:44",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:388"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "filter-changed",
+      "signature": "",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:45",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:407"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "limit-changed",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:46",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:309"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "open-dialog",
+      "signature": "",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:48",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:255"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "close-dialog",
+      "signature": "",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:49",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:261"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "url-edited",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:50",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:270"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "toggle-playlist",
+      "signature": "bool",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:293"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "fetch-info",
+      "signature": "",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:358"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "stream-changed",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:53",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:338"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "start-download",
+      "signature": "",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:54",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:662",
+        "src/crates/concat/src/studio_lux.rs:435"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "cancel-download",
+      "signature": "",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:55",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:731",
+        "src/crates/concat/src/studio_lux.rs:347"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLux",
+      "callback": "reset",
+      "signature": "",
+      "ui": "src/crates/concat/ui/dialogs/lux-import.slint:56",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lux.rs:328"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Library",
+      "callback": "query-changed",
+      "signature": "shelf: int, text: string",
+      "ui": "src/crates/concat/ui/inspector/clip-inspector.slint:98",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1150",
+        "src/crates/concat/src/lib.rs:1257"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Library",
+      "callback": "group-changed",
+      "signature": "shelf: int, index: int",
+      "ui": "src/crates/concat/ui/inspector/clip-inspector.slint:100",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1153"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Library",
+      "callback": "favourites-changed",
+      "signature": "shelf: int, on: bool",
+      "ui": "src/crates/concat/ui/inspector/clip-inspector.slint:102",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1156"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Library",
+      "callback": "category-changed",
+      "signature": "shelf: int, category: string",
+      "ui": "src/crates/concat/ui/inspector/clip-inspector.slint:104",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1159"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Library",
+      "callback": "favourite",
+      "signature": "id: string, on: bool",
+      "ui": "src/crates/concat/ui/inspector/clip-inspector.slint:107",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1162"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "FontSearch",
+      "callback": "query-changed",
+      "signature": "text: string",
+      "ui": "src/crates/concat/ui/inspector/font-picker.slint:21",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1150",
+        "src/crates/concat/src/lib.rs:1257"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Keyframes",
+      "callback": "toggle",
+      "signature": "field: ClipField",
+      "ui": "src/crates/concat/ui/timeline/model.slint:216",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1089"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Keyframes",
+      "callback": "step",
+      "signature": "field: ClipField, delta: int",
+      "ui": "src/crates/concat/ui/timeline/model.slint:218",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1092"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Keyframes",
+      "callback": "clear",
+      "signature": "field: ClipField",
+      "ui": "src/crates/concat/ui/timeline/model.slint:223",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1095"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Keyframes",
+      "callback": "toggle-param",
+      "signature": "key: string",
+      "ui": "src/crates/concat/ui/timeline/model.slint:228",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1100"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Keyframes",
+      "callback": "step-param",
+      "signature": "key: string, delta: int",
+      "ui": "src/crates/concat/ui/timeline/model.slint:229",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1103"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Keyframes",
+      "callback": "clear-param",
+      "signature": "key: string",
+      "ui": "src/crates/concat/ui/timeline/model.slint:230",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1106"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "generate",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:35",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1144"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "cancel",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:35",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1149",
+        "src/crates/concat/src/auto_shorts.rs:1072",
+        "src/crates/concat/src/studio_ai_control.rs:1587",
+        "src/crates/concat/src/studio_language.rs:531"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "approve",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:35",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1154",
+        "src/crates/concat/src/studio_ai_control.rs:1589",
+        "src/crates/concat/src/studio_publish.rs:52"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "reject",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:35",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1151",
+        "src/crates/concat/src/studio_publish.rs:73"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "preview",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:36",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1146",
+        "src/crates/concat/src/auto_shorts.rs:1019",
+        "src/crates/concat/src/lib.rs:1875"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "synchronize",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:36",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1148"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "toggle-bridge",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:36",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1130"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "save-mcp-config",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:37",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1135"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "export-context",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:37",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1132"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "related operation: concat_get_context; callback itself remains native",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "import-plan",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:37",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1134"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "related operation: concat_propose_edit; callback itself remains native",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "prepare-web-context",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:38",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1064"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "submit-web-result",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:38",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1075"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "related operation: concat_propose_edit; callback itself remains native",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "open-web-chat",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:38",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1113"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "dispatch-ai",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:39",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1105"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "connect-web-chat",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:40",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1048"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AiEditing",
+      "callback": "disconnect-web-chat",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/ai-editing-pane.slint:40",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1051"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "native callback; existing MCP exposes scoped context/status/proposal, not this action",
+      "coverage": "existing strict edit bridge; per-callback runtime coverage not established"
+    },
+    {
+      "global": "AutoLanguage",
+      "callback": "choose-video",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-language.slint:45",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_language.rs:440",
+        "src/crates/concat/src/studio_promax_avatars.rs:320"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoLanguage",
+      "callback": "choose-videos",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-language.slint:46",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_language.rs:462"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoLanguage",
+      "callback": "choose-runtime",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-language.slint:47",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_language.rs:487"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoLanguage",
+      "callback": "refresh-voices",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-language.slint:48",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_language.rs:432"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoLanguage",
+      "callback": "select-queue-item",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/workspace/auto-language.slint:49",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_language.rs:435"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoLanguage",
+      "callback": "translate",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-language.slint:50",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_language.rs:499"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoLanguage",
+      "callback": "cancel",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-language.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1149",
+        "src/crates/concat/src/auto_shorts.rs:1072",
+        "src/crates/concat/src/studio_ai_control.rs:1587",
+        "src/crates/concat/src/studio_language.rs:531"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoLanguage",
+      "callback": "open-source",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-language.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_language.rs:535"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoLanguage",
+      "callback": "open-output",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-language.slint:53",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1046",
+        "src/crates/concat/src/studio_kedi_factory.rs:750",
+        "src/crates/concat/src/studio_language.rs:542"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoLanguage",
+      "callback": "reveal-output",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-language.slint:54",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_language.rs:549"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "find-repetitions",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:75",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts_transcript.rs:291"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "transcript-search",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:76",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts_transcript.rs:323"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "transcript-paginate",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:77",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts_transcript.rs:332"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "transcript-select",
+      "signature": "string, int",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:78",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts_transcript.rs:350"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "transcript-save",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:79",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts_transcript.rs:389"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "transcript-history",
+      "signature": "bool",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:80",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts_transcript.rs:406"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "transcript-create",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:81",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts_transcript.rs:435"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "transcript-export",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:82",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts_transcript.rs:437"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "choose-source",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:83",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1007"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "choose-transcript",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:84",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1009"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "analyze",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:85",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1015"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "cancel",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:86",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1149",
+        "src/crates/concat/src/auto_shorts.rs:1072",
+        "src/crates/concat/src/studio_ai_control.rs:1587",
+        "src/crates/concat/src/studio_language.rs:531"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "toggle-selected",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:87",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1024"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "preview",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:88",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1146",
+        "src/crates/concat/src/auto_shorts.rs:1019",
+        "src/crates/concat/src/lib.rs:1875"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "stage",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:89",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1021"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "export-selected",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:90",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1023"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "choose-output",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:91",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1011"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "open-output",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:92",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1046",
+        "src/crates/concat/src/studio_kedi_factory.rs:750",
+        "src/crates/concat/src/studio_language.rs:542"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "retry",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:93",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1017",
+        "src/crates/concat/src/studio_ai_control.rs:1590",
+        "src/crates/concat/src/studio_hotclip.rs:138",
+        "src/crates/concat/src/studio_publish.rs:66"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "choose-watch",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:94",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1013"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "toggle-watch",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:95",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1090"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "refresh-results",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:96",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:975"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "import-url",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:98",
+      "candidateBindings": [],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "activate-preview",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:99",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:976"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AutoShorts",
+      "callback": "toggle-preview",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/auto-shorts.slint:100",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:999"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KeyEditor",
+      "callback": "jump",
+      "signature": "at: float",
+      "ui": "src/crates/concat/ui/workspace/keyframes-pane.slint:74",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1113"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KeyEditor",
+      "callback": "move-key",
+      "signature": "field: ClipField, param: string, from: float, to: float",
+      "ui": "src/crates/concat/ui/workspace/keyframes-pane.slint:76",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1116"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KeyEditor",
+      "callback": "drag-key",
+      "signature": "field: ClipField, param: string, from: float, to: float, value: float",
+      "ui": "src/crates/concat/ui/workspace/keyframes-pane.slint:79",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1133"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KeyEditor",
+      "callback": "set-ease",
+      "signature": "field: ClipField, param: string, at: float, x1: float, y1: float, x2: float, y2: float",
+      "ui": "src/crates/concat/ui/workspace/keyframes-pane.slint:81",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1123"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KeyEditor",
+      "callback": "step-all",
+      "signature": "delta: int",
+      "ui": "src/crates/concat/ui/workspace/keyframes-pane.slint:84",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1138"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KeyEditor",
+      "callback": "clear-all",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/keyframes-pane.slint:86",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1141"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "SourcePreview",
+      "callback": "closed",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/media-pane.slint:49",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1270"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "SourcePreview",
+      "callback": "seek",
+      "signature": "seconds: float",
+      "ui": "src/crates/concat/ui/workspace/media-pane.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1237",
+        "src/crates/concat/src/lib.rs:1274"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "Meters",
+      "callback": "clip-cleared",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/meters-pane.slint:35",
+      "candidateBindings": [
+        "src/crates/concat/src/lib.rs:1260"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "AiControl",
+      "callback": "takeover-project",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:16",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1216"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "open-project",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:27",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1224"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "preview-result",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:27",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1280"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "reveal-result",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:27",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1278"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "probe-codex",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:31",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1284"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "submit",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:50",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1330",
+        "src/crates/concat/src/studio_control_window.rs:141"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "concat_control_submit",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "pick-assets",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:50",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1407"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "pick-audio",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:50",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1405",
+        "src/crates/concat/src/studio_kedi_factory.rs:770"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "pause",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1586"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "resume",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1588"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "cancel",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1149",
+        "src/crates/concat/src/auto_shorts.rs:1072",
+        "src/crates/concat/src/studio_ai_control.rs:1587",
+        "src/crates/concat/src/studio_language.rs:531"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "retry",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1017",
+        "src/crates/concat/src/studio_ai_control.rs:1590",
+        "src/crates/concat/src/studio_hotclip.rs:138",
+        "src/crates/concat/src/studio_publish.rs:66"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "approve",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1154",
+        "src/crates/concat/src/studio_ai_control.rs:1589",
+        "src/crates/concat/src/studio_publish.rs:52"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "refresh",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1591",
+        "src/crates/concat/src/studio_browser.rs:142",
+        "src/crates/concat/src/studio_opentalking.rs:1064",
+        "src/crates/concat/src/studio_promax_avatars.rs:261",
+        "src/crates/concat/src/studio_publish.rs:11",
+        "src/crates/concat/src/studio_scripts.rs:29"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "concat_control_status (workflow status only)",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "load-workflow",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1598",
+        "src/crates/concat/src/studio_control_window.rs:150"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "save-favorite",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1594"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "mode-changed",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1592"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "AiControl",
+      "callback": "update-step",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai-control.slint:53",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1593"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "operator-only; intentionally not granted over MCP",
+      "coverage": "native Control adapter; source + compile checked, full native E2E pending"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "load-providers",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:42",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:240"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "load-models",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:43",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:248"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "test-connection",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:44",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:256"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "ask",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:45",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:268"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "add-provider",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:46",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:195"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "change-provider",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:47",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:213"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "delete-provider",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:48",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:227"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "open-dashboard",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:49",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:289"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "copy-master-key",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:50",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:296"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "copy-master-endpoint",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:304"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioAi",
+      "callback": "quick-add",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-ai.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai.rs:314"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBrowser",
+      "callback": "refresh",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-browser.slint:20",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1591",
+        "src/crates/concat/src/studio_browser.rs:142",
+        "src/crates/concat/src/studio_opentalking.rs:1064",
+        "src/crates/concat/src/studio_promax_avatars.rs:261",
+        "src/crates/concat/src/studio_publish.rs:11",
+        "src/crates/concat/src/studio_scripts.rs:29"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBrowser",
+      "callback": "start",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-browser.slint:21",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_browser.rs:181"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBrowser",
+      "callback": "choose-executable",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-browser.slint:22",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_browser.rs:193"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBrowser",
+      "callback": "save-connection",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-browser.slint:23",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_browser.rs:187"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBrowser",
+      "callback": "forget-token",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-browser.slint:24",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_browser.rs:199"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBrowser",
+      "callback": "open-grok",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-browser.slint:25",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_browser.rs:149"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBrowser",
+      "callback": "stop-profile",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-browser.slint:26",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_browser.rs:165"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "change-filter-mode",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:34",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_video_library.rs:227"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "change-library-page",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:36",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_video_library.rs:241"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "refresh-videos",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:37",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_video_library.rs:298"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "video-action",
+      "signature": "string, string",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:38",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_video_library.rs:412"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "request-delete",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:40",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_video_library.rs:267"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "confirm-delete",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:41",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_video_library.rs:279"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "cancel-delete",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:42",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_video_library.rs:273"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "select-video",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:44",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_video_library.rs:253"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "load-sample",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_bulk.rs:15"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "validate",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:53",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_bulk.rs:24"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBulk",
+      "callback": "commit",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-bulk.slint:54",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_bulk.rs:87"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "FilmStudio",
+      "callback": "auto-run",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-film.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_film.rs:473"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "FilmStudio",
+      "callback": "save-step-by-step",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-film.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_film.rs:617"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "FilmStudio",
+      "callback": "add-queue",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-film.slint:53",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_film.rs:680"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "FilmStudio",
+      "callback": "select-project",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-film.slint:54",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_film.rs:689"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "FilmStudio",
+      "callback": "new-project",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-film.slint:55",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_film.rs:665"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "FilmStudio",
+      "callback": "open-output-folder",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-film.slint:56",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_film.rs:738"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "FilmStudio",
+      "callback": "open-video-file",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-film.slint:57",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_film.rs:753"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "FilmStudio",
+      "callback": "import-to-timeline",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-film.slint:58",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_film.rs:772"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioHotclip",
+      "callback": "retry",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-hotclip.slint:15",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1017",
+        "src/crates/concat/src/studio_ai_control.rs:1590",
+        "src/crates/concat/src/studio_hotclip.rs:138",
+        "src/crates/concat/src/studio_publish.rs:66"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioHotclip",
+      "callback": "hide-native",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-hotclip.slint:16",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_hotclip.rs:136",
+        "src/crates/concat/src/studio_web.rs:245"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "check-providers",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:56",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:455"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "resolve-url",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:62",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:469"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "toggle-video",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:69",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:551"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "select-all",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:70",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:572"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "deselect-all",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:71",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:574"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "clear-resolved",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:72",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:536"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "set-stream",
+      "signature": "int, int",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:73",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:581"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "import-product",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:78",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:398"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "pick-local-files",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:81",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:616"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "pick-download-dir",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:85",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:596"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "start-download",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:86",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:662",
+        "src/crates/concat/src/studio_lux.rs:435"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "cancel-download",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:87",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:731",
+        "src/crates/concat/src/studio_lux.rs:347"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "refresh-jobs",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:91",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:741",
+        "src/crates/concat/src/studio_opentalking.rs:1058"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "cancel-job",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:92",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:716"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "retry-job",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:93",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:698"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "open-output",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:94",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1046",
+        "src/crates/concat/src/studio_kedi_factory.rs:750",
+        "src/crates/concat/src/studio_language.rs:542"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "prepare-script",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:109",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:795"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "pick-audio",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:115",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1405",
+        "src/crates/concat/src/studio_kedi_factory.rs:770"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "clear-audio",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:116",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:787"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "render",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:117",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:809"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "cancel-render",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:118",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:846"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "reveal-render",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:119",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:853"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "KediFactory",
+      "callback": "clear-assets",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-kedi-factory.slint:120",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:649"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "kedi-control",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:28",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_live.rs:332"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "kedi-simulate",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:29",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_live.rs:370"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "kedi-speak",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:30",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_live.rs:376"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "choose-motion",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:36",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_video.rs:324"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "use-builtin-motion",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:37",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_video.rs:298"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "stop-motion",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:38",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_video.rs:304"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "select-avatar-motion",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:39",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_video.rs:291"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "connect-lipsync",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:67",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lipsync.rs:213"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "ensure-lipsync",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:68",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lipsync.rs:201"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "disconnect-lipsync",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:69",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_lipsync.rs:246"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "choose-director-clip",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:74",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_director.rs:341"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "clear-director-clip",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:75",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_director.rs:343"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "toggle-director",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:76",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_director.rs:345"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "test-director-file",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:77",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_director.rs:413"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "use-sample-voice",
+      "signature": "bool",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:87",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_director.rs:296"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "connect-voice-server",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:88",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_director.rs:346"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "disconnect-voice-server",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:89",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_director.rs:393"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "select-server-voice",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:90",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_director.rs:371"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "enroll-server-voice",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:91",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_director.rs:411"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "enroll-video-voice",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:92",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_director.rs:412"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "connect",
+      "signature": "username: string",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:100",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:801"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "disconnect",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:101",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:968"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "inspect",
+      "signature": "username: string",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:102",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:703"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "send",
+      "signature": "message: string",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:103",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:1014"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "toggle-auto-reply",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:104",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:886"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "toggle-auto-product-reply",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:105",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:946"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "toggle-auto-product-rotation",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:106",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:956"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "reply-to-comment",
+      "signature": "username: string, content: string",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:107",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:1066"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "speak-text",
+      "signature": "text: string",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:108",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:1208"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "interrupt-speech",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:109",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:1258"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "next-product",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:110",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:1268",
+        "src/crates/concat/src/studio_products.rs:320"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "speak-pinned-product",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:111",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:1276"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "set-tab",
+      "signature": "tab: int",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:112",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:1296",
+        "src/crates/concat/src/studio_opentalking.rs:1196"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioLive",
+      "callback": "toggle-output-window",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-live.slint:114",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:1304"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "choose-gesture-image",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:48",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_motion_generation.rs:327"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "choose-gesture-audio",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:49",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_motion_generation.rs:334"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "clear-gesture-audio",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:50",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_motion_generation.rs:341"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "generate-gestures",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:51",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_motion_generation.rs:356"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "refresh",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:58",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1591",
+        "src/crates/concat/src/studio_browser.rs:142",
+        "src/crates/concat/src/studio_opentalking.rs:1064",
+        "src/crates/concat/src/studio_promax_avatars.rs:261",
+        "src/crates/concat/src/studio_publish.rs:11",
+        "src/crates/concat/src/studio_scripts.rs:29"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "refresh-jobs",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:59",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_kedi_factory.rs:741",
+        "src/crates/concat/src/studio_opentalking.rs:1058"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "create",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:60",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1070"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "stop",
+      "signature": "id: string",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:61",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1109"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "delete",
+      "signature": "id: string",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:62",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1117"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "import-video",
+      "signature": "id: string",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:63",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1126",
+        "src/crates/concat/src/studio_promax_avatars.rs:273"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "play-video",
+      "signature": "id: string",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:64",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1158"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "use-live-video",
+      "signature": "id: string",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:65",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live_video.rs:365"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "open-export-folder",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:66",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1180"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "select-avatar",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:67",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1203",
+        "src/crates/concat/src/studio_promax_avatars.rs:286"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "select-voice",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:68",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1216"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "test-voice",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:69",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1225"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioOpenTalking",
+      "callback": "set-tab",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-opentalking.slint:70",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:1296",
+        "src/crates/concat/src/studio_opentalking.rs:1196"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioChannels",
+      "callback": "load-pages",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-pages.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_pages.rs:74",
+        "src/crates/concat/src/studio_production_local.rs:185",
+        "src/crates/concat/src/studio_production_pages.rs:38"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioChannels",
+      "callback": "new-page",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-pages.slint:53",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_pages.rs:82"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioChannels",
+      "callback": "save-page",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-pages.slint:54",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_pages.rs:136"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioChannels",
+      "callback": "select-page",
+      "signature": "id: string",
+      "ui": "src/crates/concat/ui/workspace/studio-pages.slint:55",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_pages.rs:97"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioChannels",
+      "callback": "archive-page",
+      "signature": "id: string, revision: int, archived: bool",
+      "ui": "src/crates/concat/ui/workspace/studio-pages.slint:56",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_pages.rs:176"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBridge",
+      "callback": "check-services",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-pane.slint:52",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_bridge.rs:22"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBridge",
+      "callback": "start-nexora",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-pane.slint:53",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_bridge.rs:72"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBridge",
+      "callback": "refresh-workflows",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-pane.slint:61",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_bridge.rs:105"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioBridge",
+      "callback": "cancel-workflows",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-pane.slint:62",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_bridge.rs:92"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "load-pages",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:32",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_pages.rs:74",
+        "src/crates/concat/src/studio_production_local.rs:185",
+        "src/crates/concat/src/studio_production_pages.rs:38"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "load-workflows",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:33",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production.rs:402"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "apply-page",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:34",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production_local.rs:210",
+        "src/crates/concat/src/studio_production_pages.rs:97"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "cancel-local",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:35",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production_local.rs:410"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "import-output",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:36",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_native_production.rs:589",
+        "src/crates/concat/src/studio_production_local.rs:417"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "load-runs",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:77",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production.rs:279"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "check-plan",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:78",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production.rs:287",
+        "src/crates/concat/src/studio_production_local.rs:260"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "check-source",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:79",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production.rs:260"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "start-run",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:80",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production.rs:319",
+        "src/crates/concat/src/studio_production_local.rs:287"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "cancel-run",
+      "signature": "id: string",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:81",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production.rs:373"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "resume-run",
+      "signature": "id: string",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:82",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production.rs:387"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "choose-anchor",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:83",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production.rs:164"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "clear-anchor",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:84",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production.rs:210"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionStudio",
+      "callback": "export-settings",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-production.slint:85",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_production.rs:224"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioProducts",
+      "callback": "load",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-products.slint:27",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_products.rs:159"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioProducts",
+      "callback": "discard",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-products.slint:28",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_products.rs:169"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioProducts",
+      "callback": "new-product",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-products.slint:29",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_products.rs:175"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioProducts",
+      "callback": "edit",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/workspace/studio-products.slint:30",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_products.rs:191"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioProducts",
+      "callback": "apply",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-products.slint:31",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_products.rs:217"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioProducts",
+      "callback": "remove",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/workspace/studio-products.slint:32",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_products.rs:260"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioProducts",
+      "callback": "save",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-products.slint:33",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_products.rs:286"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioProducts",
+      "callback": "select-product",
+      "signature": "index: int",
+      "ui": "src/crates/concat/ui/workspace/studio-products.slint:34",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_products.rs:303"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioProducts",
+      "callback": "next-product",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-products.slint:35",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_live.rs:1268",
+        "src/crates/concat/src/studio_products.rs:320"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPromaxAvatars",
+      "callback": "refresh",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-promax-avatars.slint:25",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1591",
+        "src/crates/concat/src/studio_browser.rs:142",
+        "src/crates/concat/src/studio_opentalking.rs:1064",
+        "src/crates/concat/src/studio_promax_avatars.rs:261",
+        "src/crates/concat/src/studio_publish.rs:11",
+        "src/crates/concat/src/studio_scripts.rs:29"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPromaxAvatars",
+      "callback": "poll",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-promax-avatars.slint:26",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_promax_avatars.rs:267"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPromaxAvatars",
+      "callback": "choose-video",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-promax-avatars.slint:27",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_language.rs:440",
+        "src/crates/concat/src/studio_promax_avatars.rs:320"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPromaxAvatars",
+      "callback": "import-video",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-promax-avatars.slint:28",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1126",
+        "src/crates/concat/src/studio_promax_avatars.rs:273"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPromaxAvatars",
+      "callback": "select-avatar",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-promax-avatars.slint:29",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_opentalking.rs:1203",
+        "src/crates/concat/src/studio_promax_avatars.rs:286"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPromaxAvatars",
+      "callback": "use-live",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-promax-avatars.slint:30",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_promax_avatars.rs:299"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPromaxAvatars",
+      "callback": "delete-avatar",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-promax-avatars.slint:31",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_promax_avatars.rs:249"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPublish",
+      "callback": "refresh",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-publish.slint:25",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1591",
+        "src/crates/concat/src/studio_browser.rs:142",
+        "src/crates/concat/src/studio_opentalking.rs:1064",
+        "src/crates/concat/src/studio_promax_avatars.rs:261",
+        "src/crates/concat/src/studio_publish.rs:11",
+        "src/crates/concat/src/studio_scripts.rs:29"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPublish",
+      "callback": "approve",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-publish.slint:26",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1154",
+        "src/crates/concat/src/studio_ai_control.rs:1589",
+        "src/crates/concat/src/studio_publish.rs:52"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPublish",
+      "callback": "post-now",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-publish.slint:27",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_publish.rs:59"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPublish",
+      "callback": "reject",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-publish.slint:28",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1151",
+        "src/crates/concat/src/studio_publish.rs:73"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioPublish",
+      "callback": "retry",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-publish.slint:29",
+      "candidateBindings": [
+        "src/crates/concat/src/auto_shorts.rs:1017",
+        "src/crates/concat/src/studio_ai_control.rs:1590",
+        "src/crates/concat/src/studio_hotclip.rs:138",
+        "src/crates/concat/src/studio_publish.rs:66"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionScenes",
+      "callback": "action",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-scenes.slint:53",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_scenes.rs:1028"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionScenes",
+      "callback": "select-shot",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-scenes.slint:54",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_scenes.rs:1039"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionScenes",
+      "callback": "choose-layer",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-scenes.slint:55",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_scenes.rs:1059"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionScenes",
+      "callback": "clear-layer",
+      "signature": "int",
+      "ui": "src/crates/concat/ui/workspace/studio-scenes.slint:56",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_scenes.rs:1076"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ProductionScenes",
+      "callback": "preset",
+      "signature": "string",
+      "ui": "src/crates/concat/ui/workspace/studio-scenes.slint:57",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_scenes.rs:1110"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ScriptLibrary",
+      "callback": "refresh",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-scripts.slint:40",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_ai_control.rs:1591",
+        "src/crates/concat/src/studio_browser.rs:142",
+        "src/crates/concat/src/studio_opentalking.rs:1064",
+        "src/crates/concat/src/studio_promax_avatars.rs:261",
+        "src/crates/concat/src/studio_publish.rs:11",
+        "src/crates/concat/src/studio_scripts.rs:29"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ScriptLibrary",
+      "callback": "save-script",
+      "signature": "row: StudioPromptRow",
+      "ui": "src/crates/concat/ui/workspace/studio-scripts.slint:41",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_scripts.rs:35"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "ScriptLibrary",
+      "callback": "delete-script",
+      "signature": "row: StudioPromptRow",
+      "ui": "src/crates/concat/ui/workspace/studio-scripts.slint:42",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_scripts.rs:63"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioSession",
+      "callback": "restore",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-session.slint:10",
+      "candidateBindings": [],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioSession",
+      "callback": "login",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-session.slint:11",
+      "candidateBindings": [],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioSession",
+      "callback": "cancel",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-session.slint:12",
+      "candidateBindings": [
+        "src/crates/concat/src/ai_editing.rs:1149",
+        "src/crates/concat/src/auto_shorts.rs:1072",
+        "src/crates/concat/src/studio_ai_control.rs:1587",
+        "src/crates/concat/src/studio_language.rs:531"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioSession",
+      "callback": "logout",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-session.slint:13",
+      "candidateBindings": [],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioWeb",
+      "callback": "reload",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-web.slint:16",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_web.rs:246"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioWeb",
+      "callback": "home",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-web.slint:17",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_web.rs:247"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    },
+    {
+      "global": "StudioWeb",
+      "callback": "hide-native",
+      "signature": "",
+      "ui": "src/crates/concat/ui/workspace/studio-web.slint:18",
+      "candidateBindings": [
+        "src/crates/concat/src/studio_hotclip.rs:136",
+        "src/crates/concat/src/studio_web.rs:245"
+      ],
+      "verification": "static candidate only; not individually runtime-verified",
+      "mcp": "not exposed by current editing/Control MCP",
+      "coverage": "requires shared typed adapter"
+    }
+  ]
+}

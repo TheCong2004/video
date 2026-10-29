@@ -1,20 +1,50 @@
 import { StudioPage, StudioRoute, StudioBridge } from "../../src/crates/concat/ui/workspace/studio-pane.slint";
 import { I18n } from "../../src/crates/concat/ui/i18n.slint";
-import { ProductionStudio } from "../../src/crates/concat/ui/workspace/studio-production.slint";
+import { ProductionStudio, StudioRunRow } from "../../src/crates/concat/ui/workspace/studio-production.slint";
+import { ProductionScenes, SceneCardRow } from "../../src/crates/concat/ui/workspace/studio-scenes.slint";
 import { Floword } from "../../src/crates/concat/ui/theme/floword.slint";
 import { StudioAi, StudioProviderRow } from "../../src/crates/concat/ui/workspace/studio-ai.slint";
 import { AiEditing, AiEditingPane } from "../../src/crates/concat/ui/workspace/ai-editing-pane.slint";
 import { PaneScroll } from "../../src/crates/concat/ui/workspace/pane.slint";
-export { StudioRoute, I18n, StudioBridge, ProductionStudio, StudioAi, StudioProviderRow, AiEditing }
+import { StartScreen } from "../../src/crates/concat/ui/start.slint";
+import { LauncherUi } from "../../src/crates/concat/ui/launcher-ui.slint";
+import { Theme } from "../../src/crates/concat/ui/theme/theme.slint";
+import "../../src/crates/concat-text/fonts/HankenGrotesk-Regular.ttf";
+import "../../src/crates/concat-text/fonts/HankenGrotesk-SemiBold.ttf";
+import "../../src/crates/concat-text/fonts/HankenGrotesk-Bold.ttf";
+import { StudioLive, StudioLiveCommentRow } from "../../src/crates/concat/ui/workspace/studio-live.slint";
+import { StudioOpenTalking } from "../../src/crates/concat/ui/workspace/studio-opentalking.slint";
+import { StudioProducts } from "../../src/crates/concat/ui/workspace/studio-products.slint";
+import { KediFactory } from "../../src/crates/concat/ui/workspace/studio-kedi-factory.slint";
+export { KediFactory }
+import { StudioBulk, StudioVideoItem } from "../../src/crates/concat/ui/workspace/studio-bulk.slint";
+import { StudioLux, LuxImportDialog } from "../../src/crates/concat/ui/dialogs/lux-import.slint";
+import { AutoShorts, ShortsRow, TranscriptRow } from "../../src/crates/concat/ui/workspace/auto-shorts.slint";
+import { HotclipPane } from "../../src/crates/concat/ui/workspace/hotclip-pane.slint";
+import { PromaxAvatarPanel, PromaxAvatarPicker, StudioPromaxAvatars, PromaxAvatarRow } from "../../src/crates/concat/ui/workspace/studio-promax-avatars.slint";
+export { Theme, LauncherUi, StudioRoute, I18n, StudioBridge, ProductionStudio, ProductionScenes, SceneCardRow, StudioRunRow, StudioAi, StudioProviderRow, AiEditing, StudioPromaxAvatars, PromaxAvatarRow, StudioLive, StudioLiveCommentRow, StudioOpenTalking, StudioProducts, AutoShorts, ShortsRow, TranscriptRow, StudioBulk, StudioVideoItem, StudioLux }
 export component Preview inherits Window {
-    in property <StudioRoute> route;
+    in-out property <StudioRoute> route;
     in property <int> viewport-width: 1440;
     in property <int> viewport-height: 1000;
     in property <bool> editing;
+    in property <bool> avatar-panel;
+    in property <bool> avatar-picker;
+    in property <bool> launcher;
+    in property <bool> hotclip;
+    in property <bool> lux-dialog;
+    out property <bool> sidebar-expanded: launcher-view.sidebar-expanded;
+    out property <length> sidebar-reserved-width: launcher-view.sidebar-reserved-width;
+    out property <bool> sidebar-drawer-open: launcher-view.sidebar-drawer-open;
     width: root.viewport-width * 1px;
     height: root.viewport-height * 1px;
-    default-font-family: "Segoe UI";
+    default-font-family: Theme.font;
     background: Floword.ground;
-    if !root.editing: PaneScroll { StudioPage { route: root.route; } }
+    launcher-view := StartScreen { visible: root.launcher; }
+    if !root.launcher && !root.editing && !root.avatar-panel && !root.avatar-picker && !root.hotclip: PaneScroll { reset-key: ProductionStudio.current-phase; StudioPage { route: root.route; navigate(route) => { root.route = route; } viewport-width: Math.max(0px, root.viewport-width * 1px - 12px); viewport-height: root.viewport-height * 1px; } }
+    if root.hotclip: HotclipPane { }
+    if root.avatar-picker: VerticalLayout { padding: 16px; alignment: start; PromaxAvatarPicker { } }
+    if root.avatar-panel: PaneScroll { PromaxAvatarPanel { } }
     if root.editing: AiEditingPane { pane-seat: 0; }
+    if root.lux-dialog: LuxImportDialog { }
 }

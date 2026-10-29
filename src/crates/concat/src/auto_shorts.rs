@@ -16,12 +16,16 @@ use concat_core::frame::Frame;
 use concat_media::{DecodeOptions, Decoder, FrameSource};
 use concat_shorts::{Analysis, Config, Engine, Source};
 use concat_studio::shorts_jobs::{SourceFingerprint, StableFolderSampler, Stage};
+use concat_project::Command;
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 use crate::{
     host::{self, Shell},
     ui::{App, AutoShorts, ShortsRow, StudioAi},
 };
+
+#[path = "auto_shorts_transcript.rs"]
+mod transcript;
 
 struct State {
     generation: u64,
@@ -31,6 +35,7 @@ struct State {
     source: Option<Source>,
     transcript: Option<PathBuf>,
     analysis: Option<Analysis>,
+    transcript_review: transcript::Workbench,
     thumbnails: BTreeMap<String, Frame>,
     analysis_scope: Option<(u64, u64)>,
     selected: BTreeSet<String>,
@@ -51,6 +56,7 @@ impl Default for State {
             source: None,
             transcript: None,
             analysis: None,
+            transcript_review: transcript::Workbench::default(),
             thumbnails: BTreeMap::new(),
             analysis_scope: None,
             selected: BTreeSet::new(),
@@ -208,6 +214,7 @@ fn config(app: &App) -> Config {
 fn publish_source(app: &App, source: &Source) {
     let ui = app.global::<AutoShorts>();
     ui.set_has_source(true);
+    ui.set_source_duration(source.duration as f32);
     ui.set_source_label(source.label.clone().into());
     ui.set_source_info(
         format!(
@@ -305,12 +312,11 @@ fn publish_rows(app: &App) {
                         h.duration()
                     )
                     .into(),
-                    score: format!(
-                        "Điểm {:.0} · độ tin cậy {:.0}%",
-                        h.score,
-                        h.confidence * 100.0
-                    )
-                    .into(),
+                    score: if h.provenance == "manual-transcript" {
+                        "Chọn theo lời thoại · không chấm điểm AI".into()
+                    } else {
+                        format!("Điểm {:.0} · độ tin cậy {:.0}%", h.score, h.confidence * 100.0).into()
+                    },
                     review: h.gate_notes.join(" · ").into(),
                     status: if h.needs_review {
                         "Cần xem lại trước khi xuất"
@@ -343,6 +349,7 @@ fn publish_rows(app: &App) {
         .set_rows(ModelRc::new(VecModel::from(rows)));
     app.global::<AutoShorts>().set_selected_count(selected);
     app.global::<AutoShorts>().set_result_count(total);
+    transcript::publish(app);
 }
 
 fn choose_source(app: &App) {
@@ -362,29 +369,54 @@ fn choose_source(app: &App) {
             }
             path.map(|path| Engine::inspect(&path)).transpose()
         },
-        move |_, app, _, result| {
+        move |studio, app, _, result| {
             if !finish(app, id) {
                 return;
             }
             match result {
                 Ok(Some(source)) => {
+                    let path_str = source.path.to_string_lossy().to_string();
                     publish_source(app, &source);
+                    let ui = app.global::<AutoShorts>();
+                    ui.set_analyzed(false);
+                    ui.set_diagnostics("".into());
+                    ui.set_analysis_note("".into());
                     STATE.with(|slot| {
                         let mut state = slot.borrow_mut();
                         state.source = Some(source);
                         state.transcript = None;
                         state.analysis = None;
+                        state.transcript_review = transcript::Workbench::default();
                         state.analysis_scope = None;
                         state.selected.clear();
                     });
                     app.global::<AutoShorts>().set_transcript_label("".into());
                     app.global::<AutoShorts>()
-                        .set_status("Đã chọn video. Kiểm tra tùy chọn rồi bấm Phân tích.".into());
+                        .set_status("Đã nạp video vào màn hình Xem trước Concat. Bấm 'Bắt đầu tìm đoạn hay' để AI phân tích.".into());
                     publish_rows(app);
+
+                    // Connect to Concat's Preview Monitor
+                    if studio.session.is_some() {
+                        if let Ok(summary) = concat_host::media::probe(&path_str) {
+                            let item = summary.to_new_media();
+                            let item_path = item.path.clone();
+                            let minted = studio.apply(Command::AddMedia { item }).or_else(|| {
+                                studio
+                                    .project()
+                                    .media
+                                    .iter()
+                                    .find(|item| item.path == item_path)
+                                    .map(|item| item.id.clone())
+                            });
+                            if let Some(media_id) = minted {
+                                studio.preview_media(&media_id, -1);
+                                studio.publish_source(app);
+                                studio.request_preview();
+                            }
+                        }
+                    }
                 }
-                Ok(None) => app
-                    .global::<AutoShorts>()
-                    .set_status("Đã đóng hộp chọn tệp; giữ nguyên nguồn trước đó.".into()),
+                Ok(None) => {}
                 Err(error) => app.global::<AutoShorts>().set_status(error.into()),
             }
         },
@@ -468,9 +500,11 @@ fn choose_transcript(app: &App) {
                     let mut state = slot.borrow_mut();
                     state.transcript = Some(path);
                     state.analysis = None;
+                    state.transcript_review = transcript::Workbench::default();
                     state.selected.clear();
                 });
                 publish_rows(app);
+                app.global::<AutoShorts>().set_analyzed(false);
                 app.global::<AutoShorts>().set_status(
                     "Đã chọn phụ đề. Chạy lại Phân tích để kiểm tra và dùng dữ liệu mới.".into(),
                 );
@@ -540,7 +574,8 @@ fn candidate_thumbnails(
 }
 
 fn analyze(app: &App, watched: Option<PathBuf>) {
-    if watched.is_some() {
+    let is_watched = watched.is_some();
+    if is_watched {
         STATE.with(|slot| slot.borrow_mut().transcript = None);
         app.global::<AutoShorts>().set_transcript_label("".into());
     }
@@ -556,6 +591,15 @@ fn analyze(app: &App, watched: Option<PathBuf>) {
         app.global::<AutoShorts>()
             .set_status("Kiểm tra giới hạn thời lượng 4–180 giây.".into());
         return;
+    }
+    if !is_watched {
+        let problem = STATE.with(|slot| slot.borrow().source.as_ref().and_then(|source| {
+            crate::auto_shorts_feedback::source_problem(source.duration, cfg.min_duration)
+        }));
+        if let Some(problem) = problem {
+            app.global::<AutoShorts>().set_status(problem.into());
+            return;
+        }
     }
     let ai_model = if app.global::<AutoShorts>().get_ai_mode_index() == 1 {
         let ai = app.global::<StudioAi>();
@@ -592,6 +636,11 @@ fn analyze(app: &App, watched: Option<PathBuf>) {
         let report = progress(id);
         host::spawn(
             move || {
+                // Re-probe even watched/changed files before starting an AI client.
+                let inspected = Engine::inspect(&path)?;
+                if let Some(problem) = crate::auto_shorts_feedback::source_problem(inspected.duration, cfg.min_duration) {
+                    return Err(problem);
+                }
                 let engine = Engine::new(dirs, transcriber)?;
                 let cancel_engine = engine.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -616,29 +665,34 @@ fn analyze(app: &App, watched: Option<PathBuf>) {
                 if thumbnails.len() < analysis.highlights.len() {
                     analysis.warnings.push("Một số ảnh xem trước không đọc được; vẫn cần xem đoạn video thật trước khi xuất.".into());
                 }
-                Ok((analysis, thumbnails))
+                let review = concat_agent::transcript::Review::new(
+                    analysis.segments.clone(), analysis.source.duration,
+                ).map_err(str::to_string)?;
+                Ok((analysis, thumbnails, review))
             },
-            move |_, app, _, result: Result<(Analysis, BTreeMap<String, Frame>), String>| {
+            move |_, app, _, result: Result<(Analysis, BTreeMap<String, Frame>, concat_agent::transcript::Review), String>| {
                 if !finish(app, id) {
                     return;
                 }
                 match result {
-                    Ok((analysis, thumbnails)) => {
+                    Ok((analysis, thumbnails, review)) => {
                         publish_source(app, &analysis.source);
-                        let message = format!(
-                            "Đã phân tích: {} đoạn. Chưa chọn, dựng hoặc xuất tự động. {}",
-                            analysis.highlights.len(),
-                            analysis.warnings.join(" · ")
-                        );
+                        let message = crate::auto_shorts_feedback::result_summary(analysis.highlights.len());
+                        let ui = app.global::<AutoShorts>();
+                        ui.set_analyzed(true);
+                        ui.set_analysis_note(crate::auto_shorts_feedback::analysis_limits(&analysis.warnings).into());
+                        ui.set_diagnostics(analysis.warnings.join("\n").into());
                         STATE.with(|slot| {
                             let mut state = slot.borrow_mut();
                             state.source = Some(analysis.source.clone());
                             state.analysis = Some(analysis);
+                            state.transcript_review = transcript::Workbench::new(review);
                             state.thumbnails = thumbnails;
                             state.analysis_scope = scope;
                             state.selected.clear();
                             state.watch_paused = true;
                         });
+                        transcript::reset_fields(app);
                         publish_rows(app);
                         app.global::<AutoShorts>().set_status(message.into());
                         app.global::<AutoShorts>().set_progress(1.0);
@@ -671,38 +725,39 @@ fn preview(app: &App, highlight_id: String) {
     let Some(analysis) = reviewed_analysis(app) else {
         return;
     };
+    let Some(highlight) = analysis.highlights.iter().find(|h| h.id == highlight_id).cloned() else {
+        return;
+    };
     Shell::with(move |shell, app| {
-        let Some((id, cancel)) = begin(&app, "Đang tạo bản xem đoạn thật từ video nguồn…")
-        else {
-            return;
-        };
-        let studio = shell.studio.borrow();
-        let dirs = studio.host.dirs.clone();
-        let transcriber = studio.host.transcriber.clone();
-        host::spawn(
-            move || -> Result<(), String> {
-                let engine = Engine::new(dirs, transcriber)?;
-                let path = engine.preview(&analysis, &highlight_id, &cancel)?;
-                if cancel.load(Ordering::Acquire) {
-                    return Err("Đã hủy xem trước.".into());
+        let mut studio = shell.studio.borrow_mut();
+        let start_sec = highlight.parts.first().map_or(0.0, |p| p.start);
+        let duration_sec = highlight.duration();
+        let source_path = STATE.with(|slot| slot.borrow().source.as_ref().map(|s| s.path.clone()));
+        if let Some(source_path) = source_path {
+            let path_str = source_path.to_string_lossy().to_string();
+            let media_id = studio.project().media.iter().find(|m| m.path == path_str).map(|m| m.id.clone()).or_else(|| {
+                if let Ok(summary) = concat_host::media::probe(&path_str) {
+                    studio.apply(Command::AddMedia { item: summary.to_new_media() })
+                } else {
+                    None
                 }
-                opener::open(path).map_err(|_| {
-                    "Đã tạo đoạn xem trước nhưng không mở được trình phát mặc định.".into()
-                })
-            },
-            move |_, app, _, result| {
-                if !finish(app, id) {
-                    return;
+            });
+            if let Some(media_id) = media_id {
+                let need_preview = studio.source.as_ref().map_or(true, |s| s.media_id != media_id);
+                if need_preview {
+                    studio.preview_media(&media_id, -1);
                 }
-                app.global::<AutoShorts>().set_status(match result {
-                    Ok(()) => {
-                        "Đã mở đoạn video thật trong trình phát mặc định. Timeline chưa thay đổi."
-                            .into()
-                    }
-                    Err(e) => e.into(),
-                });
-            },
-        );
+            }
+        }
+        studio.source_seek(start_sec);
+        if let Some(source) = studio.source.as_mut() {
+            if !source.playing {
+                studio.source_toggle();
+            }
+        }
+        studio.publish_source(&app);
+        studio.request_preview();
+        app.global::<AutoShorts>().set_status(format!("Đang phát đoạn '{}' ({:.1}s) trên màn hình Xem trước Concat.", highlight.title, duration_sec).into());
     });
 }
 
@@ -915,8 +970,39 @@ fn poll_watch(app: &App) {
 }
 
 pub(crate) fn bind(app: &App) {
+    transcript::bind(app);
     app.global::<AutoShorts>()
         .on_refresh_results(|| Shell::with(|_, app| publish_rows(&app)));
+    app.global::<AutoShorts>().on_activate_preview(|| {
+        Shell::with(|shell, app| {
+            let mut studio = shell.studio.borrow_mut();
+            if studio.source.is_none() {
+                let source_path = STATE.with(|slot| slot.borrow().source.as_ref().map(|s| s.path.clone()));
+                if let Some(source_path) = source_path {
+                    let path_str = source_path.to_string_lossy().to_string();
+                    let media_id = studio.project().media.iter().find(|m| m.path == path_str).map(|m| m.id.clone()).or_else(|| {
+                        if let Ok(summary) = concat_host::media::probe(&path_str) {
+                            studio.apply(Command::AddMedia { item: summary.to_new_media() })
+                        } else {
+                            None
+                        }
+                    });
+                    if let Some(media_id) = media_id {
+                        studio.preview_media(&media_id, -1);
+                        studio.publish_source(&app);
+                        studio.request_preview();
+                    }
+                }
+            }
+        });
+    });
+    app.global::<AutoShorts>().on_toggle_preview(|| {
+        Shell::with(|shell, app| {
+            let mut studio = shell.studio.borrow_mut();
+            studio.source_toggle();
+            studio.publish_source(&app);
+        });
+    });
     app.global::<AutoShorts>()
         .on_choose_source(|| Shell::with(|_, app| choose_source(&app)));
     app.global::<AutoShorts>()

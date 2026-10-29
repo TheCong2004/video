@@ -1,24 +1,47 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Obsidian Motion Studio: a calm, layered production workspace.
-// Palette changes affect the Studio only; the Concat editor remains unchanged.
+// Kedi.Media Unified Liquid Design System V1 Tokens
 import { Theme } from "theme.slint";
-export global Floword {
-    out property <color> ground: #080D1B;
-    out property <color> surface: #121A2C;
-    out property <color> field: #162036;
-    out property <color> raised: #1A2540;
-    out property <color> line: #26365F;
-    out property <color> line-bright: #33466B;
-    out property <color> text: #F4F7FF;
-    out property <color> muted: #A7B6D3;
-    out property <color> accent: #3568FF;
-    out property <color> button: #3568FF;
-    out property <color> button-hover: #4D7CFF;
-    out property <color> violet: #7654FF;
-    out property <color> cyan: #39C8FF;
-    out property <color> success: #38D9A5;
-    out property <color> warning: #FFBE62;
-    out property <color> danger: #FF647C;
-    out property <color> on-accent: #FFFFFF;
-}
 
+export global Floword {
+    // Dynamic Ground & Surface based on Theme.dark
+    out property <color> ground: Theme.launch-page;
+    out property <color> ground-secondary: Theme.launch-well;
+    out property <color> surface: Theme.launch-panel;
+    out property <color> surface-secondary: Theme.launch-field;
+    out property <color> field: Theme.launch-field;
+    out property <color> raised: Theme.launch-raised;
+    out property <color> surface-tint: Theme.brand-soft;
+
+    // Borders & Dividers
+    out property <color> line: Theme.dark ? Theme.launch-field-active : Theme.line;
+    out property <color> line-bright: Theme.line-strong;
+    out property <color> line-soft: Theme.line-soft;
+
+    // Typography
+    out property <color> text: Theme.fg;
+    out property <color> muted: Theme.fg-muted;
+    out property <color> text-dim: Theme.fg-dim;
+
+    // Brand & Accents
+    out property <color> accent: Theme.brand;
+    out property <color> accent-hover: Theme.brand-hover;
+    out property <color> brand-soft: Theme.brand-soft;
+    out property <color> button: Theme.brand;
+    out property <color> button-hover: Theme.brand-hover;
+    out property <color> on-accent: Theme.on-brand;
+
+    // Special Kedi Accents
+    out property <color> accent-yellow: Theme.brand-yellow;
+    out property <color> accent-yellow-soft: Theme.nav-selected;
+    out property <color> selected-text: Theme.nav-selected-ink;
+
+    // Semantic States
+    out property <color> violet: Theme.violet;
+    out property <color> cyan: Theme.info;
+    out property <color> success: Theme.success;
+    out property <color> warning: Theme.warning;
+    out property <color> danger: Theme.danger;
+
+    // Motion & Accessibility Settings
+    in-out property <bool> reduced-motion <=> Theme.reduced-motion;
+}

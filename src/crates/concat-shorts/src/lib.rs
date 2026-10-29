@@ -79,7 +79,8 @@ impl Config {
         }
         Ok(())
     }
-    fn options(&self) -> highlight::Options {
+    /// Shared selection limits used by analysis and manual transcript picks.
+    pub fn options(&self) -> highlight::Options {
         highlight::Options {
             min_duration: self.min_duration,
             max_duration: self.max_duration,

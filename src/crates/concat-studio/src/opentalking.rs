@@ -315,18 +315,13 @@ impl OpenTalkingClient {
             .get("health")
             .and_then(|health| health.get("video_models"))
             .and_then(Value::as_array);
-        let mut result: Vec<_> = models
+        let result: Vec<_> = models
             .into_iter()
             .flat_map(|m| m.iter())
             .filter_map(Value::as_str)
             .filter(|id| supported_model(id))
             .map(|id| VideoModel { id: id.to_owned() })
             .collect();
-        if result.is_empty() {
-            for id in ["wav2lip", "flashtalk", "musetalk", "sadtalker", "flashhead"] {
-                result.push(VideoModel { id: id.to_owned() });
-            }
-        }
         let status = match service.get("status").and_then(Value::as_str) {
             Some("ready") => "READY",
             Some("degraded") => "ONLINE",
@@ -626,6 +621,26 @@ mod tests {
         io::{Read, Write},
         net::TcpListener,
     };
+
+    #[test]
+    fn missing_runtime_models_are_not_reported_as_available() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            let mut bytes = [0u8; 2048];
+            let _ = socket.read(&mut bytes);
+            let body = r#"{"services":[{"id":"opentalking","status":"standby","health":{"video_models":[]}}]}"#;
+            write!(socket,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len()).unwrap();
+        });
+        let (status, models) = OpenTalkingClient::new(&origin)
+            .unwrap()
+            .models_with_status()
+            .unwrap();
+        assert_eq!(status, "STANDBY");
+        assert!(models.is_empty());
+        server.join().unwrap();
+    }
 
     #[test]
     fn list_endpoints_unwrap_the_backend_envelope_exactly_once() {

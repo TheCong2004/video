@@ -1,0 +1,212 @@
+import { Theme, Select } from "../../concat/ui/primitives/primitives.slint";
+import { Floword } from "../../concat/ui/theme/floword.slint";
+import { StudioField, StudioStatus } from "../../concat/ui/workspace/studio-chrome.slint";
+import { ControlTheme, ControlAction, ControlFoldout, ControlCard } from "../../concat/ui/workspace/control-chrome.slint";
+export struct CampaignRow { id:string, title:string, summary:string }
+export struct CampaignVideoRow { id:string, title:string, summary:string, error:string, post-url:string }
+export struct CampaignStageRow { title:string, state:string, label:string, detail:string, error:string }
+export global CampaignUi {
+    in-out property <bool> busy;
+    in-out property <[CampaignStageRow]> stages;
+    in-out property <string> execution-summary;
+    in-out property <string> action-error;
+    in-out property <bool> dirty;
+    in-out property <string> status:"Tạo bản nháp, kiểm tra rồi duyệt trước khi chạy.";
+    in-out property <string> request;
+    in-out property <string> topic;
+    in-out property <string> facts;
+    in-out property <string> count:"9";
+    in-out property <string> seconds:"10";
+    in-out property <string> language:"vi-VN";
+    in-out property <string> style:"Tự nhiên, rõ ràng";
+    in-out property <string> text-model;
+    in-out property <string> start-date;
+    in-out property <string> end-date;
+    in-out property <string> deadline;
+    in-out property <string> timezone:"Asia/Bangkok";
+    in-out property <string> slots:"08:00,13:00,19:00";
+    in-out property <string> daily:"3";
+    in-out property <string> workers:"1";
+    in-out property <string> api-budget:"0";
+    in-out property <string> render-budget:"3600";
+    in-out property <string> text-unit-cost:"0";
+    in-out property <string> media-unit-cost:"0";
+    in-out property <string> render-unit-seconds:"300";
+    in-out property <string> page-ids;
+    in-out property <string> connected-pages;
+    in-out property <string> assets;
+    in-out property <bool> grok:true;
+    in-out property <[string]> profile-names;
+    in-out property <[string]> profile-ids;
+    in-out property <int> profile-index:-1;
+    in-out property <bool> publish;
+    in-out property <bool> unique-content:true;
+    in-out property <int> mode:1;
+    in-out property <string> graph-version;
+    in-out property <string> user-token;
+    in-out property <string> selected-id;
+    in-out property <string> review;
+    in-out property <string> plan-hash;
+    in-out property <string> expected-revision;
+    in-out property <string> campaign-state;
+    in-out property <string> counts;
+    in-out property <string> calendar;
+    in-out property <string> log;
+    in-out property <[CampaignRow]> campaigns;
+    in-out property <[CampaignVideoRow]> videos;
+    in-out property <string> filter:"all";
+    in-out property <int> page;
+    in-out property <string> paging;
+    in-out property <string> selected-video;
+    in-out property <string> video-revision;
+    in-out property <string> narration;
+    in-out property <string> video-title;
+    in-out property <string> caption;
+    in-out property <bool> editing-video;
+    callback action(string);callback select-campaign(string);callback select-video(string);
+}
+// One small timer per actually executing stage; static glow for reduced motion.
+component CampaignStageBlock inherits Rectangle {
+    in property <CampaignStageRow> data;
+    in property <int> ordinal;
+    property <bool> active:root.data.state=="running";
+    property <color> ink:root.active ? Floword.accent : root.data.state=="done" ? Floword.success : root.data.state=="blocked" ? Floword.warning : Floword.muted;
+    property <float> phase:0;
+    property <length> across:Math.max(0px,root.width - 4px);
+    property <length> down:Math.max(0px,root.height - 4px);
+    property <length> travel:root.phase * 2 * (root.across + root.down);
+    min-width:0px;vertical-stretch:0;
+    min-height:body.preferred-height;
+    border-radius:12px;
+    border-width:root.active || root.data.state=="blocked" ? 2px : 1px;
+    border-color:root.ink.with-alpha(root.active ? 0.8 : 0.4);
+    background:root.ink.with-alpha(root.active ? 0.07 : 0.025);
+    drop-shadow-blur:root.active ? 10px : 0px;
+    drop-shadow-color:root.ink.with-alpha(0.24);
+    accessible-role:groupbox;
+    accessible-label:root.data.title + ": " + root.data.label + ". " + root.data.detail;
+    Timer {interval:40ms;running:root.active && !Theme.motion-reduced;triggered=>{root.phase=Math.mod(root.phase+0.016,1);}}
+    body := VerticalLayout {
+        padding:14px;spacing:6px;
+        HorizontalLayout {spacing:8px;
+            Text {text:(root.ordinal+1) + ". " + root.data.title;color:Floword.text;font-weight:600;wrap:word-wrap;min-width:0px;}
+            Text {text:root.data.label;color:root.ink;font-size:11px;font-weight:600;wrap:word-wrap;min-width:0px;}
+        }
+        Text {text:root.data.detail;color:Floword.muted;font-size:12px;wrap:word-wrap;min-width:0px;}
+        if root.data.error!="": Text {text:root.data.error;color:Floword.warning;font-size:12px;wrap:word-wrap;min-width:0px;}
+    }
+    if root.active && !Theme.motion-reduced: Rectangle {
+        x:(root.travel < root.across ? 2px + root.travel : root.travel < root.across + root.down ? root.width - 2px : root.travel < 2*root.across + root.down ? 2px + 2*root.across + root.down - root.travel : 2px) - 3px;
+        y:(root.travel < root.across ? 2px : root.travel < root.across + root.down ? 2px + root.travel - root.across : root.travel < 2*root.across + root.down ? root.height - 2px : 2px + 2*(root.across + root.down) - root.travel) - 3px;
+        width:6px;height:6px;border-radius:3px;background:root.ink;
+        drop-shadow-blur:10px;drop-shadow-color:root.ink;
+    }
+}
+export component CampaignPanel inherits VerticalLayout {
+    spacing:14px;min-width:0px;alignment:start;
+    if CampaignUi.selected-id!="": VerticalLayout {
+        spacing:4px;min-width:0px;
+        Text {text:"Tiến độ thực hiện";font-weight:700;color:Floword.text;wrap:word-wrap;min-width:0px;}
+        Text {text:CampaignUi.execution-summary;color:Floword.muted;wrap:word-wrap;min-width:0px;}
+        if Theme.reduced-motion && !Theme.system-reduced-motion: ControlAction {label:"Bật hiệu ứng viền chạy";clicked=>{CampaignUi.action("enable-motion");}}
+        for step[index] in CampaignUi.stages: VerticalLayout {spacing:0px;min-width:0px;
+            if index>0: Rectangle {height:14px;Rectangle {x:22px;width:2px;height:parent.height;background:step.state=="done" || step.state=="running" ? Floword.accent.with-alpha(0.6) : ControlTheme.line;}}
+            CampaignStageBlock {data:step;ordinal:index;}
+        }
+    }
+    if CampaignUi.dirty && CampaignUi.selected-id!="": Text {text:"Có thay đổi chưa lưu. Lưu phiên bản mới trước khi duyệt hoặc chạy.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+    ControlFoldout {title:"Chiến dịch của bạn";summary:CampaignUi.campaigns.length + " chiến dịch đã lưu";expanded:CampaignUi.selected-id=="";
+        FlexboxLayout {spacing:6px;
+            ControlAction {label:"+ Chiến dịch mới";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("new");}}
+            ControlAction {label:"Làm mới";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("refresh");}}
+        }
+        for campaign in CampaignUi.campaigns: ControlAction {label:campaign.title + " · " + campaign.summary;max-width:4096px;clicked=>{CampaignUi.select-campaign(campaign.id);}}
+    }
+    ControlFoldout {title:"Kế hoạch chiến dịch";summary:CampaignUi.selected-id=="" ? "Nhập mục tiêu hoặc cấu hình bên dưới" : CampaignUi.review;expanded:CampaignUi.selected-id=="" || CampaignUi.campaign-state=="draft";
+        StudioField {label:"Bạn muốn thực hiện chiến dịch nào?";value:CampaignUi.request;multiline:true;placeholder:"Ví dụ: tạo 1.000 video khác nhau, mỗi video 10 giây…";edited(text)=>{CampaignUi.request=text;CampaignUi.dirty=true;}}
+        StudioField {label:"Chủ đề / sản phẩm";value:CampaignUi.topic;edited(text)=>{CampaignUi.topic=text;CampaignUi.dirty=true;}}
+        StudioField {label:"Thông tin đã xác nhận (mỗi dòng một ý)";value:CampaignUi.facts;multiline:true;edited(text)=>{CampaignUi.facts=text;CampaignUi.dirty=true;}}
+        StudioField {label:"Số video (1–1.000)";value:CampaignUi.count;edited(text)=>{CampaignUi.count=text;CampaignUi.dirty=true;}}
+        StudioField {label:"Thời lượng MỖI video · giây";value:CampaignUi.seconds;edited(text)=>{CampaignUi.seconds=text;CampaignUi.dirty=true;}}
+        StudioField {label:"Ngôn ngữ";value:CampaignUi.language;edited(text)=>{CampaignUi.language=text;CampaignUi.dirty=true;}}
+        StudioField {label:"Phong cách";value:CampaignUi.style;edited(text)=>{CampaignUi.style=text;CampaignUi.dirty=true;}}
+        Select {options:["Nội dung độc lập · kiểm tra ngữ nghĩa", "Cho phép nội dung liên quan / cùng series"];current:CampaignUi.unique-content ? 0 : 1;changed(i)=>{CampaignUi.unique-content=i==0;CampaignUi.dirty=true;}}
+        Select {options:["Grok qua Nexora · tự tạo ảnh và video", "Edit từ tư liệu đã có"];current:CampaignUi.grok ? 0 : 1;changed(i)=>{CampaignUi.grok=i==0;CampaignUi.dirty=true;}}
+        if CampaignUi.grok: Select {options:CampaignUi.profile-names;current:CampaignUi.profile-index;changed(i)=>{CampaignUi.profile-index=i;CampaignUi.dirty=true;}}
+        if CampaignUi.grok: Text {text:"Không có ảnh: AI tự tạo từ kịch bản. Chỉ thêm ảnh tham chiếu nếu muốn giữ sản phẩm hoặc nhân vật cụ thể.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+        ControlAction {label:CampaignUi.grok ? "Thêm ảnh tham chiếu (tùy chọn)" : "Chọn tư liệu";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("assets");}}
+        Text {text:CampaignUi.assets;color:Floword.muted;wrap:word-wrap;min-width:0px;font-size:11px;}
+        ControlFoldout {title:"Lịch và Page";summary:CampaignUi.publish ? "Đăng qua Facebook API chính thức" : "Chỉ sản xuất, chưa đăng";
+            Select {options:["Chỉ sản xuất video", "Sản xuất và đăng lên Page đã cấp quyền"];current:CampaignUi.publish ? 1 : 0;changed(i)=>{CampaignUi.publish=i==1;CampaignUi.dirty=true;}}
+            StudioField {label:"Page được phép · mỗi dòng: ID | chủ đề 1, chủ đề 2 (chủ đề có thể trống)";value:CampaignUi.page-ids;multiline:true;edited(text)=>{CampaignUi.page-ids=text;CampaignUi.dirty=true;}}
+            Text {text:CampaignUi.connected-pages;color:Floword.muted;wrap:word-wrap;min-width:0px;}
+            StudioField {label:"Ngày bắt đầu · YYYY-MM-DD";value:CampaignUi.start-date;edited(text)=>{CampaignUi.start-date=text;CampaignUi.dirty=true;}}
+            StudioField {label:"Ngày kết thúc · YYYY-MM-DD (không phải độ dài video)";value:CampaignUi.end-date;edited(text)=>{CampaignUi.end-date=text;CampaignUi.dirty=true;}}
+            StudioField {label:"Múi giờ IANA";value:CampaignUi.timezone;edited(text)=>{CampaignUi.timezone=text;CampaignUi.dirty=true;}}
+            StudioField {label:"Hạn hoàn tất · YYYY-MM-DD HH:MM theo múi giờ trên (tùy chọn)";value:CampaignUi.deadline;edited(text)=>{CampaignUi.deadline=text;CampaignUi.dirty=true;}}
+            StudioField {label:"Khung giờ HH:MM, cách nhau bằng dấu phẩy";value:CampaignUi.slots;edited(text)=>{CampaignUi.slots=text;CampaignUi.dirty=true;}}
+            StudioField {label:"Tối đa bài / Page / ngày";value:CampaignUi.daily;edited(text)=>{CampaignUi.daily=text;CampaignUi.dirty=true;}}
+        }
+        ControlFoldout {title:"Ngân sách, worker và phê duyệt";summary:"Giới hạn được lưu trong phiên bản kế hoạch";
+            StudioField {label:"Nguồn / model AI đã kết nối";value:CampaignUi.text-model;edited(text)=>{CampaignUi.text-model=text;CampaignUi.dirty=true;}}
+            Text {text:"Chi phí API dưới đây là trần dự trù bạn khai báo, không phải hóa đơn từ nhà cung cấp. Các lượt kiểm tra ngữ nghĩa cũng được giữ chỗ ngân sách.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+            StudioField {label:"Ngân sách API · USD";value:CampaignUi.api-budget;edited(text)=>{CampaignUi.api-budget=text;CampaignUi.dirty=true;}}
+            StudioField {label:"Trần dự trù / lượt AI · USD";value:CampaignUi.text-unit-cost;edited(text)=>{CampaignUi.text-unit-cost=text;CampaignUi.dirty=true;}}
+            StudioField {label:"Trần dự trù / video Grok · USD";value:CampaignUi.media-unit-cost;edited(text)=>{CampaignUi.media-unit-cost=text;CampaignUi.dirty=true;}}
+            StudioField {label:"Ngân sách render · tổng giây xử lý";value:CampaignUi.render-budget;edited(text)=>{CampaignUi.render-budget=text;CampaignUi.dirty=true;}}
+            StudioField {label:"Dự trù giây xử lý / lần render";value:CampaignUi.render-unit-seconds;edited(text)=>{CampaignUi.render-unit-seconds=text;CampaignUi.dirty=true;}}
+            StudioField {label:"Số worker tối đa · 1–8";value:CampaignUi.workers;edited(text)=>{CampaignUi.workers=text;CampaignUi.dirty=true;}}
+            Select {options:["MANUAL · duyệt trước khi đăng", "SEMI-AUTO · duyệt nội dung và đăng", "FULL-AUTO · trong kế hoạch đã duyệt"];current:CampaignUi.mode;changed(i)=>{CampaignUi.mode=i;CampaignUi.dirty=true;}}
+        }
+    }
+    if CampaignUi.selected-id!="": ControlCard {
+        Text {text:CampaignUi.review;color:Floword.text;wrap:word-wrap;min-width:0px;font-weight:600;}
+        Text {text:CampaignUi.counts;color:Floword.text;wrap:word-wrap;min-width:0px;}
+        FlexboxLayout {spacing:6px;
+            if CampaignUi.campaign-state!="cancelled" && CampaignUi.campaign-state!="completed": ControlAction {label:"Hủy chiến dịch";clicked=>{CampaignUi.action("cancel");}}
+            ControlAction {label:"Phân lại lịch hợp lệ";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("schedule");}}
+        }
+        Text {text:"Worker đã kích hoạt chạy độc lập với cửa sổ này. Pause/Cancel dừng công việc mới; thao tác đang gửi phải chờ biên nhận.";color:Floword.muted;wrap:word-wrap;min-width:0px;font-size:11px;}
+    }
+    if CampaignUi.selected-id!="": ControlFoldout {title:"Danh sách video";summary:CampaignUi.paging;expanded:true;
+        Select {options:["Tất cả", "Cần xử lý", "Đã render", "Đã đăng", "Đang chạy"];current:CampaignUi.filter=="needs_action" ? 1 : CampaignUi.filter=="rendered" ? 2 : CampaignUi.filter=="published" ? 3 : CampaignUi.filter=="running" ? 4 : 0;changed(i)=>{CampaignUi.filter=i==1 ? "needs_action" : i==2 ? "rendered" : i==3 ? "published" : i==4 ? "running" : "all";CampaignUi.page=0;CampaignUi.action("refresh");}}
+        for video in CampaignUi.videos: ControlFoldout {title:video.title;summary:video.summary;
+            if video.error!="": Text {text:video.error;color:Floword.muted;wrap:word-wrap;min-width:0px;}
+            ControlAction {label:"Xem / sửa video";clicked=>{CampaignUi.select-video(video.id);}}
+        }
+        FlexboxLayout {spacing:6px;
+            ControlAction {label:"← Trước";enabled:CampaignUi.page>0;clicked=>{CampaignUi.page -= 1;CampaignUi.action("refresh");}}
+            ControlAction {label:"Sau →";enabled:CampaignUi.videos.length==25;clicked=>{CampaignUi.page+=1;CampaignUi.action("refresh");}}
+        }
+    }
+    if CampaignUi.editing-video: ControlFoldout {title:CampaignUi.selected-video;summary:"Sửa thủ công · không ghi đè tác vụ đang chạy";expanded:true;
+        StudioField {label:"Tiêu đề";value:CampaignUi.video-title;edited(text)=>{CampaignUi.video-title=text;}}
+        StudioField {label:"Lời đọc";value:CampaignUi.narration;multiline:true;edited(text)=>{CampaignUi.narration=text;}}
+        StudioField {label:"Caption";value:CampaignUi.caption;multiline:true;edited(text)=>{CampaignUi.caption=text;}}
+        FlexboxLayout {spacing:6px;
+            ControlAction {label:"Giữ video để sửa";clicked=>{CampaignUi.action("hold-video");}}
+            ControlAction {label:"Lưu nội dung đã sửa";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("edit-video");}}
+            ControlAction {label:"Duyệt bước này";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("approve-video");}}
+            ControlAction {label:"Tiếp tục video";clicked=>{CampaignUi.action("continue-video");}}
+            ControlAction {label:"Thử lại lỗi đã xác định";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("retry-video");}}
+            ControlAction {label:"Đối chiếu bài đăng";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("reconcile");}}
+            ControlAction {label:"Mở vào editor Concat";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("open-editor");}}
+            ControlAction {label:"Xem file";clicked=>{CampaignUi.action("play-video");}}
+            ControlAction {label:"Thay tư liệu";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("replace-media");}}
+        }
+    }
+    if CampaignUi.selected-id!="": ControlFoldout {title:"Lịch theo Page";summary:"Slot được giữ chỗ, không vượt hạn mức";
+        Text {text:CampaignUi.calendar;color:Floword.text;wrap:word-wrap;min-width:0px;}
+    }
+    if CampaignUi.selected-id!="": ControlFoldout {title:"Nhật ký và chi phí";summary:"Dữ liệu từ worker / API, không dùng số hoàn thành giả";
+        Text {text:CampaignUi.log;color:Floword.muted;wrap:word-wrap;min-width:0px;font-size:11px;}
+    }
+    ControlFoldout {title:"Kết nối Facebook API";summary:"Token được mã hóa; không gửi token vào chat AI";
+        Text {text:"Dùng User access token từ Meta App đã cấp pages_show_list, pages_read_engagement và pages_manage_posts. Chỉ các Page ID bạn chọn được lưu quyền. Bước kết nối chỉ đọc quyền; chưa đăng bài.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+        StudioField {label:"Phiên bản Graph API của Meta App · vNN.0";value:CampaignUi.graph-version;edited(text)=>{CampaignUi.graph-version=text;}}
+        StudioField {label:"User access token · nhập tại đây, không nhập trong yêu cầu AI";value:CampaignUi.user-token;secret:true;edited(text)=>{CampaignUi.user-token=text;}}
+        StudioField {label:"Page ID cho phép · mỗi dòng một ID";value:CampaignUi.page-ids;multiline:true;edited(text)=>{CampaignUi.page-ids=text;CampaignUi.dirty=true;}}
+        ControlAction {label:"Kiểm tra quyền và kết nối các Page đã chọn";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("connect-pages");}}
+        Text {text:CampaignUi.connected-pages;color:Floword.muted;wrap:word-wrap;min-width:0px;}
+    }
+}

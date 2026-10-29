@@ -1,5 +1,45 @@
 # Third-party notices
 
+## CozyCat UI presentation reference
+
+The native AI workspace's warm surface colors, spacing and accordion interaction
+are adapted from https://github.com/Kool-Cool/cozycat-ui at commit
+`abf3a55cdf915fcb6f0238f3c142b45e5bcc3a54`, especially `accordion.css`,
+`CatAccordion.tsx` and `motion.css`. The Slint implementation remains native;
+React, Next.js, Framer Motion and upstream cat/yarn images are not bundled.
+No AI/web automation engine was present in the inspected source tree.
+
+MIT License
+
+Copyright (c) 2025 Kool-Cool
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## NexPulse embedded web panel (Windows)
+
+The explicitly requested NexPulse section uses Wry 0.57.0
+(MIT OR Apache-2.0), https://github.com/tauri-apps/wry, with the installed
+Microsoft Edge WebView2 Runtime. It does not bundle or replace that runtime.
+NexPulse is remote content at https://deloy-internet-frontend.vercel.app/launches;
+it is not part of Concat's native editor or an automatically connected account.
+
+
 ## OmniRoute local AI runtime
 
 The Windows development package includes OmniRoute 3.8.49 (MIT, copyright
@@ -276,8 +316,76 @@ https://github.com/xixihhhh/hotclip commit
 `4f4347d12c8a989d16be46aaeed7455d1f35f992`:
 `src/core/highlight/{match,moments,gate,detect,prompt}.ts`, `signals.ts`,
 `watch.ts`, `session-checkpoint.ts`, `atomic-output.ts`, `qa.ts` and
-`publish-pack.ts`. HotClip is licensed under AGPL-3.0. Its source is available at
+`publish-pack.ts`. Native transcript phrase-search/correction also adapts
+`src/shared/{transcript-search,edit-transcript,speech-text}.ts`, retaining source
+cue times rather than synthesizing word alignment. Nearby repeated-take hints
+adapt `src/core/retakes.ts` but never automatically delete the earlier take.
+HotClip is licensed under AGPL-3.0. Its source is available at
 the linked repository; these native adaptations are distributed with Concat's
 AGPL source. No HotClip Electron runtime or complete dependency tree is bundled.
 Existing upstream author/copyright notices remain applicable. No new model
 weights are included by this integration.
+
+## Optional local SLive avatar preparation
+
+The user-supplied SLive 1.0.18 source is retained byte-for-byte under
+`integrations/slive/upstream`; provenance/hashes are in `source-manifest.json`.
+Concat runs only the face-preparation entrypoint, not its desktop/auth/billing
+application. The detector includes the original Wav2Lip/face-alignment/S3FD
+author notices. The separately installed S3FD checkpoint is verified against
+SHA-256 `619a31681264d3f7f7fc7a16a42cbbe8b23f31a256f75a366e5a1bcd59b33543`.
+Python, PyTorch, OpenCV and dependency notices remain in the installed runtime.
+This integration does not grant rights to redistribute upstream engines/weights;
+review their respective terms before distributing a package outside local use.
+
+The optional native voice adapter also calls the existing SLive VieNeu service
+contract in `tts_server/app.py` and `tts/f5api.py`. It does not bundle or download
+VieNeu model weights, replace their license, or grant voice-cloning permission.
+The operator must review the upstream engine/model/dependency terms and obtain
+the speaker's consent. Native gesture routing selects user-supplied clips; it
+does not copy a gesture-generation model into the desktop binary.
+
+## Optional MuseTalk GPU lip-sync service
+
+`integrations/lipsync` connects to separately installed MuseTalk 1.5, official
+source https://github.com/TMElyralab/MuseTalk at commit
+`0a89dec45a0192b824e3cf4daf96c239440c5ed8`. Its code is MIT-licensed; the
+operator-built Docker image retains the upstream LICENSE. Model files are not
+bundled into the desktop EXE. The explicit downloader resolves official model
+repository revisions and writes a SHA-256 receipt on the operator's server.
+MuseTalk's README describes permitted model use; VAE, Whisper, DWPose,
+face-parsing, PyTorch and other dependency terms remain independently applicable.
+This integration does not grant likeness/voice rights or override those terms.
+## Native Floword/Nexora production contract port
+
+`concat-studio/src/production.rs` follows the existing local Floword production
+protocol and Page snapshot behavior from the adjacent ArtCraft checkout:
+`services/pipeline/grok_{image_edit,expand_9_16,video_generate}_stage.rs` and
+`floword_job_page_config.rs`. The native adapter uses Concat's own Page store,
+configured Nexora client and media importer; it does not bundle the ArtCraft
+desktop application, its databases, provider accounts or model weights.
+The source checkout's `LICENSE.md` is a custom fair-source license with
+personal-use and redistribution/commercial restrictions, not an MIT license.
+This implementation does not replace those upstream terms or assert permission
+to redistribute upstream code, runtime binaries or dependencies.
+
+# Online video download helper
+
+The URL importer uses Lux and yt-dlp. yt-dlp 2026.10.21 is distributed from
+https://github.com/yt-dlp/yt-dlp/releases/tag/2026.10.21.
+Windows executable SHA-256:
+`33121d192d706e62f684a06f80918e3f3a8ba52ac3a65213b6951c39c7d9f555`.
+yt-dlp source uses the Unlicense; its PyInstaller standalone executable includes
+GPLv3+ components and the combined executable is GPLv3+. See the upstream
+`yt-dlp-LICENSE.txt` and `yt-dlp-THIRD_PARTY_LICENSES.txt` shipped alongside the
+binaries. The helper does not bypass access
+controls or guarantee support for every social platform.
+
+# Hotclip desktop runtime integration
+
+The dedicated user-requested Hotclip section runs the adjacent Hotclip checkout
+(AGPL-3.0-only, https://github.com/xixihhhh/hotclip) with its original Electron,
+React, FFmpeg and inference dependencies. The Concat native editor is unchanged.
+Runtime preparation preserves Hotclip's own lockfile/licenses; source changes for
+the Concat host adapter live in that checkout. No model weights are bundled by
+this integration. See docs/HOTCLIP_EMBEDDED.md for deployment and boundaries.

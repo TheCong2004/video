@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
 import { I18n } from "../i18n.slint";
 import { Floword } from "../theme/floword.slint";
 import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+import { VideoTile } from "../primitives/video-tile.slint";
 
 export struct StudioBulkRowItem {
     row-index: int,
@@ -13,7 +14,34 @@ export struct StudioBulkRowItem {
     error: string,
 }
 
+export struct StudioVideoItem {
+    title: string,
+    path: string,
+    detail: string,
+    thumbnail: image,
+    duration: string,
+    is-generated: bool,
+}
+
 export global StudioBulk {
+    in-out property <[StudioVideoItem]> videos;
+    in-out property <bool> library-busy;
+    in-out property <string> library-status;
+    in-out property <int> library-page: 0;
+    in-out property <int> library-pages: 1;
+    in-out property <int> library-total: 0;
+    in-out property <int> filter-mode: 0;
+    callback change-filter-mode(int);
+    in-out property <string> library-use-status;
+    callback change-library-page(int);
+    callback refresh-videos();
+    callback video-action(string, string);
+    in-out property <string> delete-confirm-path;
+    callback request-delete(string);
+    callback confirm-delete();
+    callback cancel-delete();
+    in-out property <StudioVideoItem> selected-video;
+    callback select-video(string);
     in-out property <string> csv-content: "page_id,source_image,image_prompt,expand_916_prompt,video_prompt,title,caption,hashtags,platforms,post_mode\npage_demo,,Cinematic portrait in neon rain,,Hyper realistic camera zoom into neon reflection,Cyberpunk 2099,Amazing futuristic world #cyberpunk #neon,cyberpunk neon ai,facebook|tiktok,auto\n";
     in-out property <bool> busy;
     in-out property <string> status;
@@ -27,134 +55,254 @@ export global StudioBulk {
 }
 
 export component StudioBulkPanel inherits VerticalLayout {
-    spacing: 16px;
+    min-width: 0px;
+    spacing: 12px;
+    property <bool> show-path: false;
+
+    init => { StudioBulk.refresh-videos(); }
 
     StudioCard {
-        StudioHeading { title: I18n.t("studioBulk.title"); }
-        Text { text: "Dành cho người muốn tạo nhiều video cùng lúc. Bắt đầu bằng file mẫu, kiểm tra dữ liệu rồi xác nhận xử lý."; color: Floword.muted; font-size: 14px; wrap: word-wrap; }
-        Text { text: "1. Tải mẫu   →   2. Kiểm tra   →   3. Bắt đầu"; color: Floword.violet; font-size: 14px; font-weight: 600; }
-        Text {
-            text: I18n.t("studioBulk.intro");
-            color: Floword.muted;
-            font-size: 13px;
-            wrap: word-wrap;
-        }
+        padding-v: 12px;
+        padding-h: 14px;
+        spacing: 10px;
 
-        // Action Toolbar
         HorizontalLayout {
-            spacing: 10px;
-
-            StudioButton {
-                label: I18n.t("studioBulk.sampleBtn");
-                enabled: !StudioBulk.busy;
-                clicked => { StudioBulk.load-sample(); }
-            }
-
-            StudioButton {
-                label: I18n.t("studioBulk.validateBtn");
-                enabled: !StudioBulk.busy && StudioBulk.csv-content != "";
-                clicked => { StudioBulk.validate(); }
-            }
-
-            StudioButton {
-                label: I18n.t1("studioBulk.commitBtn", "" + StudioBulk.valid-count);
-                primary: true;
-                enabled: !StudioBulk.busy && StudioBulk.valid-count > 0;
-                clicked => { StudioBulk.commit(); }
-            }
-
-            Rectangle { horizontal-stretch: 1; }
-        }
-
-        if StudioBulk.status != "": Rectangle {
-            border-radius: 8px;
-            background: Floword.field;
-            border-width: 1px;
-            border-color: Floword.line;
-
-            HorizontalLayout {
-                padding: 10px;
-                Text { text: StudioBulk.status; color: Floword.text; font-size: 12px; }
-            }
-        }
-    }
-
-    // CSV Input Card
-    StudioCard {
-        Text {
-            text: I18n.t("studioBulk.csvLabel");
-            color: Floword.text;
-            font-size: 14px;
-            font-weight: 700;
-        }
-
-        StudioField {
-            label: "CSV Content";
-            multiline: true;
-            placeholder: I18n.t("studioBulk.csvPlaceholder");
-            value: StudioBulk.csv-content;
-            enabled: !StudioBulk.busy;
-            edited(text) => { StudioBulk.csv-content = text; }
-        }
-    }
-
-    // Validation Results
-    if StudioBulk.total-rows > 0: StudioCard {
-        HorizontalLayout {
-            alignment: space-between;
             Text {
-                text: I18n.t("studioBulk.resultsTitle");
-                color: Floword.text;
-                font-size: 15px;
-                font-weight: 700;
+                text: StudioBulk.library-status;
+                color: Floword.muted;
+                wrap: word-wrap;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+                font-size: 13px;
             }
+            StudioButton {
+                label: StudioBulk.library-busy ? "Đang đọc..." : "Làm mới";
+                enabled: !StudioBulk.library-busy;
+                clicked => { StudioBulk.refresh-videos(); }
+            }
+        }
 
-            // Summary pill
+        // Filter tabs: Tất cả | Video Gent được (AI) | Video Tải về
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
             Rectangle {
                 border-radius: 6px;
-                background: StudioBulk.error-count == 0 ? #10b98122 : #f59e0b22;
+                background: StudioBulk.filter-mode == 0 ? Floword.accent.with-alpha(0.2) : Floword.surface;
                 border-width: 1px;
-                border-color: StudioBulk.error-count == 0 ? #10b98155 : #f59e0b55;
-
+                border-color: StudioBulk.filter-mode == 0 ? Floword.accent : Floword.line;
+                height: 32px;
+                TouchArea { clicked => { StudioBulk.change-filter-mode(0); } }
                 HorizontalLayout {
-                    padding-left: 8px;
-                    padding-right: 8px;
-                    padding-top: 3px;
-                    padding-bottom: 3px;
+                    padding-left: 14px; padding-right: 14px; alignment: center;
                     Text {
-                        text: "" + StudioBulk.valid-count + " hợp lệ · " + StudioBulk.error-count + " lỗi";
-                        color: StudioBulk.error-count == 0 ? #34d399 : #fbbf24;
-                        font-size: 11px;
-                        font-weight: 700;
+                        text: "❖ Tất cả (" + StudioBulk.videos.length + ")";
+                        color: StudioBulk.filter-mode == 0 ? Floword.accent : Floword.text;
+                        font-size: 12px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            Rectangle {
+                border-radius: 6px;
+                background: StudioBulk.filter-mode == 1 ? Floword.accent.with-alpha(0.2) : Floword.surface;
+                border-width: 1px;
+                border-color: StudioBulk.filter-mode == 1 ? Floword.accent : Floword.line;
+                height: 32px;
+                TouchArea { clicked => { StudioBulk.change-filter-mode(1); } }
+                HorizontalLayout {
+                    padding-left: 14px; padding-right: 14px; alignment: center;
+                    Text {
+                        text: "🎬 Video Gent được (AI)";
+                        color: StudioBulk.filter-mode == 1 ? Floword.accent : Floword.text;
+                        font-size: 12px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            Rectangle {
+                border-radius: 6px;
+                background: StudioBulk.filter-mode == 2 ? Floword.accent.with-alpha(0.2) : Floword.surface;
+                border-width: 1px;
+                border-color: StudioBulk.filter-mode == 2 ? Floword.accent : Floword.line;
+                height: 32px;
+                TouchArea { clicked => { StudioBulk.change-filter-mode(2); } }
+                HorizontalLayout {
+                    padding-left: 14px; padding-right: 14px; alignment: center;
+                    Text {
+                        text: "📥 Video Tải về";
+                        color: StudioBulk.filter-mode == 2 ? Floword.accent : Floword.text;
+                        font-size: 12px;
+                        font-weight: 600;
+                        vertical-alignment: center;
                     }
                 }
             }
         }
 
-        for row in StudioBulk.rows: Rectangle {
-            border-radius: 8px;
-            background: row.valid ? Floword.field : #ef444415;
-            border-width: 1px;
-            border-color: row.valid ? Floword.line : #ef444455;
+        if StudioBulk.library-pages > 1: HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            StudioButton {
+                label: "◀ Trước";
+                enabled: StudioBulk.library-page > 0;
+                clicked => { StudioBulk.change-library-page(StudioBulk.library-page - 1); }
+            }
+            Text {
+                text: "Trang " + (StudioBulk.library-page + 1) + "/" + StudioBulk.library-pages;
+                color: Floword.muted;
+                vertical-alignment: center;
+            }
+            StudioButton {
+                label: "Sau ▶";
+                enabled: StudioBulk.library-page + 1 < StudioBulk.library-pages;
+                clicked => { StudioBulk.change-library-page(StudioBulk.library-page + 1); }
+            }
+        }
 
-            HorizontalLayout {
-                padding: 10px;
-                spacing: 12px;
-                alignment: space-between;
+        if !StudioBulk.library-busy && StudioBulk.videos.length == 0: Text {
+            text: "Chưa có video hoàn tất. Video tạo hoặc tải thành công sẽ xuất hiện tại đây.";
+            color: Floword.muted;
+            wrap: word-wrap;
+        }
+    }
 
-                HorizontalLayout {
-                    spacing: 10px;
-                    Text { text: "#" + row.row-index; color: Floword.muted; font-size: 12px; font-weight: 700; }
-                    Text { text: row.title != "" ? row.title : "(Không có tiêu đề)"; color: Floword.text; font-size: 13px; font-weight: 600; }
-                    Text { text: "Kênh: " + row.page-id; color: Floword.muted; font-size: 12px; }
-                    Text { text: "Nền tảng: " + row.platforms; color: Floword.violet; font-size: 12px; }
-                }
+    HorizontalLayout {
+        spacing: 14px;
+        alignment: start;
 
-                HorizontalLayout {
-                    if row.valid: Text { text: "✓ Hợp lệ"; color: #34d399; font-size: 12px; font-weight: 700; }
-                    if !row.valid: Text { text: "✕ " + row.error; color: #f87171; font-size: 12px; font-weight: 600; }
+        FlexboxLayout {
+            min-width: 0px;
+            horizontal-stretch: 1;
+            vertical-stretch: 0;
+            spacing: 10px;
+
+            for video in StudioBulk.videos: VideoTile {
+                title: video.title;
+                detail: video.detail;
+                duration: video.duration;
+                thumbnail: video.thumbnail;
+                selectable: false;
+                selected: StudioBulk.selected-video.path == video.path;
+                badge: video.is-generated ? "Video Gent AI" : "Đã lưu trên máy";
+                activated => { StudioBulk.select-video(video.path); }
+            }
+        }
+
+        if StudioBulk.selected-video.path != "": StudioCard {
+            preferred-width: 280px;
+            min-width: 240px;
+            max-width: 300px;
+            padding-v: 14px;
+            padding-h: 14px;
+            spacing: 10px;
+
+            Image {
+                source: StudioBulk.selected-video.thumbnail;
+                image-fit: contain;
+                height: 170px;
+            }
+            Text {
+                text: StudioBulk.selected-video.title;
+                color: Floword.text;
+                font-weight: 600;
+                wrap: word-wrap;
+            }
+            Text {
+                text: StudioBulk.selected-video.duration + " • " + StudioBulk.selected-video.detail;
+                color: Floword.muted;
+                wrap: word-wrap;
+                font-size: 12px;
+            }
+
+            StudioButton {
+                label: "Xem video";
+                clicked => { StudioBulk.video-action("play", StudioBulk.selected-video.path); }
+            }
+            StudioButton {
+                label: "Nhập vào dự án";
+                primary: true;
+                clicked => { StudioBulk.video-action("import", StudioBulk.selected-video.path); }
+            }
+            StudioButton {
+                label: "Mở thư mục";
+                clicked => { StudioBulk.video-action("reveal", StudioBulk.selected-video.path); }
+            }
+            StudioButton {
+                label: root.show-path ? "Ẩn đường dẫn" : "Chi tiết file";
+                clicked => { root.show-path = !root.show-path; }
+            }
+            StudioButton {
+                label: "Xóa video";
+                clicked => { StudioBulk.request-delete(StudioBulk.selected-video.path); }
+            }
+            if root.show-path: Text {
+                text: StudioBulk.selected-video.path;
+                color: Floword.muted;
+                font-size: 11px;
+                wrap: word-wrap;
+            }
+        }
+    }
+
+}
+
+export component StudioCsvPanel inherits VerticalLayout {
+    min-width: 0px;
+    spacing: 16px;
+
+    StudioCard {
+        StudioHeading { title: "Kiểm tra danh sách video"; }
+        Text {
+            text: "Tạo hàng loạt chưa khả dụng. Bạn vẫn có thể kiểm tra dữ liệu CSV trên máy.";
+            color: Floword.warning;
+            wrap: word-wrap;
+        }
+        StudioField {
+            label: "Dữ liệu CSV";
+            multiline: true;
+            value: StudioBulk.csv-content;
+            placeholder: I18n.t("studioBulk.csvPlaceholder");
+            enabled: !StudioBulk.busy;
+            edited(text) => {
+                StudioBulk.csv-content = text;
+                StudioBulk.total-rows = 0;
+                StudioBulk.valid-count = 0;
+                StudioBulk.error-count = 0;
+                StudioBulk.rows = [];
+                StudioBulk.status = "";
+            }
+        }
+        FlexboxLayout {
+            min-width: 0px;
+            spacing: 8px;
+            StudioButton {
+                label: "Kiểm tra dữ liệu";
+                primary: true;
+                enabled: !StudioBulk.busy && StudioBulk.csv-content != "";
+                clicked => { StudioBulk.validate(); }
+            }
+            StudioButton {
+                label: "Dùng dữ liệu mẫu";
+                enabled: !StudioBulk.busy;
+                clicked => {
+                    StudioBulk.total-rows = 0;
+                    StudioBulk.valid-count = 0;
+                    StudioBulk.error-count = 0;
+                    StudioBulk.rows = [];
+                    StudioBulk.load-sample();
                 }
             }
+        }
+        if StudioBulk.status != "": Text {
+            text: StudioBulk.status;
+            color: Floword.muted;
+            wrap: word-wrap;
         }
     }
 }

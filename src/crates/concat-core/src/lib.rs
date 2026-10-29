@@ -22,6 +22,7 @@ pub mod frame;
 pub mod retime;
 pub mod shader;
 pub mod time;
+pub mod speech_clock;
 pub mod timeline;
 
 pub use frame::Frame;

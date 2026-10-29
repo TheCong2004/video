@@ -1,0 +1,157 @@
+{
+  "version": "1.0",
+  "created_on": "2026-10-26",
+  "schema_validation": "jsonschema Draft 2020-12 validation OK",
+  "files": [
+    {
+      "path": "AGENTS.kedi-template.md",
+      "bytes": 1568,
+      "sha256": "38915002487374b9b9d5ecd8fe0d5528999d13f04048bceaa072cf2c3baa7ff6"
+    },
+    {
+      "path": "CODEX_START_HERE.md",
+      "bytes": 5770,
+      "sha256": "b535358cb32ece85447b6a06cc21700b1839594ed900f7d817bf2dc6a746b60d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4828,
+      "sha256": "48ed9a6860c8ebdc922830f77c87030de8a3d897217fbdbf5dcce2cb4d326c0a"
+    },
+    {
+      "path": "contracts/live_event.schema.json",
+      "bytes": 2010,
+      "sha256": "d0bf140c2e32bb516b4397f8b2cd89ff843be636bce7638e9e8de640515cd2e5"
+    },
+    {
+      "path": "contracts/live_task.schema.json",
+      "bytes": 3465,
+      "sha256": "70044cedd5ec84301dd502f7de9dc99795e1ff4d13241f040a079d01dc5c9cce"
+    },
+    {
+      "path": "contracts/platform_capabilities.schema.json",
+      "bytes": 1121,
+      "sha256": "9fc40f7f6c7304f0bd3cd7f09149adb9c42ad9c8c370a08c076028dfdce42dea"
+    },
+    {
+      "path": "contracts/product_snapshot.schema.json",
+      "bytes": 2766,
+      "sha256": "d4d8f205d44efa065bf3863ce61d1349490b16770a7f45176840f4c7d301f511"
+    },
+    {
+      "path": "docs/00_REPO_AUDIT.md",
+      "bytes": 3901,
+      "sha256": "8e301e150320933493bf89504cbc79d609f85be85702ead6fbd8f7872ba490f9"
+    },
+    {
+      "path": "docs/01_ARCHITECTURE.md",
+      "bytes": 4932,
+      "sha256": "4c7405bb62524ac8505c00bd972663e890871b26c57873d15fc4bc77ae57d76c"
+    },
+    {
+      "path": "docs/02_CONTRACTS_AND_STATE.md",
+      "bytes": 7865,
+      "sha256": "75f2b164107dd8e4d7b80be46d72ba033a3cffb044f6b55dadc3b264fc5d543a"
+    },
+    {
+      "path": "docs/03_LIVEBRAIN_SCHEDULER.md",
+      "bytes": 7572,
+      "sha256": "48848dbe3612caa13e0481ad5011a0c8c17eec6559df90174484d05cb26e97c9"
+    },
+    {
+      "path": "docs/04_OPENTALKING_MEDIA.md",
+      "bytes": 5802,
+      "sha256": "4cdfe6b96d96550ffd7ac569597d56c70aecc03932e42b8f9ae22aec4034aab1"
+    },
+    {
+      "path": "docs/05_CONCAT_AVATAR_MOTION.md",
+      "bytes": 5654,
+      "sha256": "47164023498a2cc513491b229e63927be25c7d56d8a0afd082060e382efb4ea1"
+    },
+    {
+      "path": "docs/06_COMMERCE_PLATFORMS.md",
+      "bytes": 5432,
+      "sha256": "54803f4187e3ef9375b9477f9a15d9e4dc7eb5a37439c9953134671556b6d593"
+    },
+    {
+      "path": "docs/07_SECURITY_AND_LICENSING.md",
+      "bytes": 4029,
+      "sha256": "8a444274215f7d9db2c478e42c62349b09e39519f35f528115da543e1f2256f7"
+    },
+    {
+      "path": "docs/08_TESTS_AND_BENCHMARKS.md",
+      "bytes": 4951,
+      "sha256": "bb68032eb938f9b600e0086800e48510f72686118b192f064709de46413635a1"
+    },
+    {
+      "path": "docs/09_PHASES_AND_ACCEPTANCE.md",
+      "bytes": 4342,
+      "sha256": "a98e9118d0dc1977da07b50c4d231b8ff73525c68fd3046cb3308b575ed05b52"
+    },
+    {
+      "path": "docs/10_OPERATIONS.md",
+      "bytes": 3715,
+      "sha256": "9f03b1e1be7e1d2d9c6a72d8943045d5d739c514e28478fdd7c3bb8adaca1dfe"
+    },
+    {
+      "path": "examples/events.ndjson",
+      "bytes": 1462,
+      "sha256": "85e03411b74c89263cf36d689d46afc661132e549130dc7b2de2892b86a0f322"
+    },
+    {
+      "path": "examples/live_task.json",
+      "bytes": 720,
+      "sha256": "410867d2f7be2b39a9f03db89d83fb710a8264cda5b47364cafa13214d577454"
+    },
+    {
+      "path": "examples/product_snapshot.json",
+      "bytes": 500,
+      "sha256": "b5531244e7a56fa5b11123eeb19836405ddba906947757bf797de75bf716f430"
+    },
+    {
+      "path": "prompts/ONE_MESSAGE_CODEX_START.md",
+      "bytes": 1300,
+      "sha256": "1688208943f7fd9348123bc313615ce91fbeffa9159096b2f923671ab0bb5edc"
+    },
+    {
+      "path": "prompts/PHASE_0_AUDIT.md",
+      "bytes": 1130,
+      "sha256": "784ffae6f87602d4aae546956aefef1b462485d71947d09e5597f55a2131b1e8"
+    },
+    {
+      "path": "prompts/PHASE_1_LIVEBRAIN.md",
+      "bytes": 1092,
+      "sha256": "c1d3f85c68b4ba0e9dd656e672b890e3d5c2c7e4de414585fe8f9944c97cae08"
+    },
+    {
+      "path": "prompts/PHASE_2_OPENTALKING.md",
+      "bytes": 1120,
+      "sha256": "a5ce14f75cdf11d22a1e312e81d062101503039e729569e3007c1ca12df7a72a"
+    },
+    {
+      "path": "prompts/PHASE_3_COMMERCE.md",
+      "bytes": 1076,
+      "sha256": "7cd8cf5a8a6e028474a130ba1bd412e1802d92335f2f9be7bcfb6a77cbf13e0d"
+    },
+    {
+      "path": "prompts/PHASE_4_AVATAR_MOTION.md",
+      "bytes": 1118,
+      "sha256": "5289d7fe80ca847e64dd11048c5c397338c753a2cb50d44e5ec9b0d8291138dd"
+    },
+    {
+      "path": "prompts/PHASE_5_PLATFORMS_UI.md",
+      "bytes": 1110,
+      "sha256": "dc372b8f503a8ba012ebbb7449f87e61cc005963aeda3ffcf87a81f99f633c6d"
+    },
+    {
+      "path": "prompts/PHASE_6_HARDENING.md",
+      "bytes": 1069,
+      "sha256": "810e9df976323043ab796bb91c1cb4f0558ea1e54e9c242e7f9bea5f2ab86e20"
+    },
+    {
+      "path": "templates/.env.kedi-live.example",
+      "bytes": 750,
+      "sha256": "21c9e5d9a7b9dfcb854f206cfafacc69a27421cb669af5f86ea6a88e312df579"
+    }
+  ]
+}

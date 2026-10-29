@@ -54,917 +54,146 @@ export global StudioAi {
 
 export component StudioAiPage inherits VerticalLayout {
     callback account();
+    private property <bool> advanced-open;
+    private property <bool> try-open;
+    private property <bool> quick-options-open;
+    private property <bool> new-advanced-open;
     spacing: 16px;
     min-width: 0px;
-
-    if StudioAi.busy || StudioAi.status != "": StudioCard {
-        Text {
-            text: StudioAi.busy ? "Đang xử lý yêu cầu OmniRoute Gateway…" : StudioAi.status;
-            color: Floword.cyan;
-            wrap: word-wrap;
-        }
+    init => {
+        if !StudioAi.providers-loaded && !StudioAi.busy { StudioAi.load-providers(); }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // 2. MAIN SƠ ĐỒ WORKFLOW & CANVAS CONTAINER (High-End Dark)
-    // ─────────────────────────────────────────────────────────────
-    if !StudioAi.new-open: Rectangle {
-        background: #080C16;
-        border-radius: 18px;
-        border-width: 1px;
-        border-color: #1E293B;
-        clip: true;
-
-        VerticalLayout {
-            spacing: 0px;
-
-            // ── TOP TOOLBAR ──
-            Rectangle {
-                min-height: toolbar-body.preferred-height;
-                background: #0D1527;
-                border-width: 1px;
-                border-color: #1E293B;
-
-                toolbar-body := VerticalLayout {
-                    padding-left: 20px;
-                    padding-right: 20px;
-                    padding-top: 12px;
-                    padding-bottom: 12px;
-                    spacing: 16px;
-                    alignment: start;
-
-                    HorizontalLayout {
-                        spacing: 14px;
-                        alignment: center;
-                        min-width: 0px;
-                        preferred-width: 540px;
-                        max-width: Math.max(0px, root.width - 40px);
-                        horizontal-stretch: 1;
-
-                        // Gradient Key Icon
-                        Rectangle {
-                            width: 40px;
-                            height: 40px;
-                            border-radius: 12px;
-                            background: @linear-gradient(135deg, #6366F1 0%, #A855F7 50%, #10B981 100%);
-                            border-width: 1px;
-                            border-color: #FFFFFF33;
-
-                            Text {
-                                text: "🔑";
-                                font-size: 19px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                        }
-
-                        VerticalLayout {
-                            spacing: 3px;
-                            VerticalLayout {
-                                spacing: 10px;
-                                alignment: center;
-                                Text {
-                                    text: "Sơ Đồ Gom & Phân Nhánh Key AI (OmniRoute Gateway)";
-                                    color: #F8FAFC;
-                                    font-size: 15px;
-                                    font-weight: 700;
-                                    wrap: word-wrap;
-                                    min-width: 0px;
-                                }
-                                Rectangle {
-                                    background: StudioAi.providers.length > 0 ? #10B9811A : #F59E0B1A;
-                                    border-radius: 9999px;
-                                    border-width: 1px;
-                                    border-color: StudioAi.providers.length > 0 ? #10B98155 : #F59E0B55;
-                                    HorizontalLayout {
-                                        padding-left: 8px;
-                                        padding-right: 8px;
-                                        padding-top: 2px;
-                                        padding-bottom: 2px;
-                                        Text {
-                                            text: !StudioAi.providers-loaded ? "CHƯA ĐỒNG BỘ ĐƯỢC"
-                                                : StudioAi.providers.length > 0 ? StudioAi.providers.length + " KẾT NỐI ĐÃ TẢI"
-                                                : "CHỜ THÊM KEY";
-                                            color: StudioAi.providers.length > 0 ? #34D399 : #FBBF24;
-                                            font-size: 10px;
-                                            font-weight: 700;
-                                        }
-                                    }
-                                }
-                            }
-                            Text {
-                                text: "Chỉ các Key bạn đã thêm thực tế mới xuất hiện trên sơ đồ. TỔNG KEY tự động điều phối tải giữa các Key này.";
-                                color: #94A3B8;
-                                font-size: 11.5px;
-                                wrap: word-wrap;
-                            }
-                        }
-                    }
-
-                    FlexboxLayout {
-                        spacing: 10px;
-                        flex-wrap: no-wrap;
-                        flex-direction: root.width < 600px ? column : row;
-                        min-height: root.width < 600px ? 122px : 34px;
-                        StudioButton {
-                            label: "Tải lại Keys";
-                            compact: true;
-                            enabled: !StudioAi.busy;
-                            clicked => { StudioAi.load-providers(); }
-                        }
-
-                        StudioButton {
-                            label: "📑 Xem Danh Sách Catalog (290+)";
-                            compact: true;
-                            clicked => { StudioAi.open-dashboard(); }
-                        }
-
-                        StudioButton {
-                            label: "+ + Thêm Key Mới";
-                            primary: true;
-                            compact: true;
-                            enabled: !StudioAi.busy;
-                            clicked => { StudioAi.quick-add("gemini"); }
-                        }
-                    }
-                }
-            }
-
-            // ── FLOATING CONTROLS & HINT BAR ──
-            Rectangle {
-                min-height: controls-body.preferred-height;
-                background: #0A0F1D;
-                border-width: 1px;
-                border-color: #162032;
-
-                controls-body := FlexboxLayout {
-                    padding-left: 18px;
-                    padding-right: 18px;
-                    padding-top: 8px;
-                    padding-bottom: 8px;
-                    spacing: 12px;
-                    alignment: start;
-
-                    HorizontalLayout {
-                        spacing: 6px;
-                        alignment: center;
-
-                        Rectangle {
-                            background: #111827;
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: #374151;
-                            width: 26px;
-                            height: 26px;
-                            Text { text: "−"; color: #D1D5DB; font-size: 14px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
-                            TouchArea { clicked => { if (StudioAi.zoom-percent > 50) { StudioAi.zoom-percent -= 10; } } }
-                        }
-
-                        Rectangle {
-                            background: #111827;
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: #374151;
-                            height: 26px;
-                            HorizontalLayout {
-                                padding-left: 10px; padding-right: 10px;
-                                Text {
-                                    text: StudioAi.zoom-percent + "%";
-                                    color: #93C5FD;
-                                    font-size: 11px;
-                                    font-weight: 700;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            background: #111827;
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: #374151;
-                            width: 26px;
-                            height: 26px;
-                            Text { text: "+"; color: #D1D5DB; font-size: 14px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
-                            TouchArea { clicked => { if (StudioAi.zoom-percent < 150) { StudioAi.zoom-percent += 10; } } }
-                        }
-
-                        Rectangle {
-                            background: #111827;
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: #374151;
-                            height: 26px;
-                            HorizontalLayout {
-                                padding-left: 10px; padding-right: 10px;
-                                Text { text: "Fit View"; color: #9CA3AF; font-size: 11px; vertical-alignment: center; }
-                            }
-                            TouchArea { clicked => { StudioAi.zoom-percent = 90; } }
-                        }
-
-                        if root.width >= 600px: Text {
-                            text: "  Thu phóng sơ đồ";
-                            color: #64748B;
-                            font-size: 11px;
-                            vertical-alignment: center;
-                        }
-                    }
-
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: center;
-                        min-width: 0px;
-                        max-width: Math.max(0px, root.width - 40px);
-                        Rectangle {
-                            width: 7px; height: 7px; border-radius: 3.5px;
-                            background: StudioAi.providers.length > 0 ? #10B981 : #38BDF8;
-                        }
-                        Text {
-                            text: "Backend: " + StudioAi.backend-origin;
-                            color: #38BDF8;
-                            font-size: 11px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                            wrap: word-wrap;
-                        }
-                    }
-                }
-            }
-
-            // ── SƠ ĐỒ CANVAS SURFACE ──
-            Rectangle {
-                background: #060913;
-                min-height: 480px;
-
-                VerticalLayout {
-                    padding-top: 36px;
-                    padding-bottom: 40px;
-                    padding-left: 24px;
-                    padding-right: 24px;
-                    spacing: 0px;
-                    alignment: center;
-
-                    // ═══════════════════════════════════════════════════
-                    // ROOT MASTER NODE: TỔNG KEY (OMNIROUTE GATEWAY)
-                    // ═══════════════════════════════════════════════════
-                    HorizontalLayout {
-                        alignment: center;
-                        Rectangle {
-                            min-width: 0px;
-                            preferred-width: 720px;
-                            max-width: 720px;
-                            horizontal-stretch: 1;
-                            min-height: master-body.preferred-height;
-                            background: @linear-gradient(180deg, #182240 0%, #11182E 60%, #0A0F1F 100%);
-                            border-radius: 22px;
-                            border-width: 1.5px;
-                            border-color: #4F46E566;
-
-                            master-body := VerticalLayout {
-                                padding: 22px;
-                                spacing: 14px;
-
-                                // Header Row
-                                VerticalLayout {
-                                    spacing: 14px;
-                                    alignment: start;
-
-                                    HorizontalLayout {
-                                        spacing: 14px;
-                                        alignment: center;
-                                        min-width: 0px;
-                                        preferred-width: 480px;
-                                        max-width: Math.max(0px, root.width - 100px);
-                                        horizontal-stretch: 1;
-                                        Rectangle {
-                                            width: 44px;
-                                            height: 44px;
-                                            border-radius: 12px;
-                                            background: @linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%);
-                                            Text {
-                                                text: "🔑";
-                                                font-size: 21px;
-                                                horizontal-alignment: center;
-                                                vertical-alignment: center;
-                                            }
-                                        }
-
-                                        VerticalLayout {
-                                            spacing: 3px;
-                                            VerticalLayout {
-                                                spacing: 8px;
-                                                alignment: center;
-                                                Text {
-                                                    text: "TỔNG KEY (OMNIROUTE GATEWAY)";
-                                                    color: #FFFFFF;
-                                                    font-size: 14px;
-                                                    font-weight: 800;
-                                                    letter-spacing: 0.4px;
-                                                    wrap: word-wrap;
-                                                }
-                                                Rectangle {
-                                                    background: #064E3B44;
-                                                    border-radius: 6px;
-                                                    border-width: 1px;
-                                                    border-color: #10B98166;
-                                                    HorizontalLayout {
-                                                        padding-left: 6px; padding-right: 6px; padding-top: 2px; padding-bottom: 2px;
-                                                        Text { text: "MASTER ROUTER"; color: #34D399; font-size: 9px; font-weight: 700; }
-                                                    }
-                                                }
-                                            }
-                                            Text {
-                                                text: "Gom tất cả các Key con bên dưới thành 1 Key duy nhất cho dự án";
-                                                color: #94A3B8;
-                                                font-size: 11.5px;
-                                                wrap: word-wrap;
-                                            }
-                                        }
-                                    }
-
-
-                                    // Status LED Dot
-                                    HorizontalLayout {
-                                        spacing: 7px;
-                                        alignment: center;
-                                        Rectangle {
-                                            width: 8px; height: 8px; border-radius: 4px;
-                                            background: StudioAi.providers.length > 0 ? #34D399 : #FBBF24;
-                                        }
-                                        Text {
-                                            text: StudioAi.providers.length > 0 ? "ĐÃ CẤU HÌNH" : "CHỜ THÊM KEY";
-                                            color: StudioAi.providers.length > 0 ? #34D399 : #FBBF24;
-                                            font-size: 11px;
-                                            font-weight: 700;
-                                        }
-                                    }
-                                }
-
-                                // Key Box
-                                Rectangle {
-                                    background: #030712;
-                                    border-radius: 10px;
-                                    border-width: 1px;
-                                    border-color: #1E293B;
-                                    min-height: key-layout.preferred-height;
-
-                                    key-layout := FlexboxLayout {
-                                        padding-top: 8px;
-                                        padding-bottom: 8px;
-                                        padding-left: 14px;
-                                        padding-right: 8px;
-                                        spacing: 10px;
-                                        alignment: start;
-
-                                        VerticalLayout {
-                                            min-width: 0px;
-                                            preferred-width: 450px;
-                                            max-width: Math.max(0px, root.width - 100px);
-                                            horizontal-stretch: 1;
-                                            spacing: 8px;
-                                            alignment: center;
-                                            Text { text: "MASTER KEY:"; color: #64748B; font-size: 11px; font-weight: 700; vertical-alignment: center; }
-                                            Text { text: "Thông tin xác thực riêng do ứng dụng quản lý"; color: #FCD34D; font-size: 11.5px; font-weight: 600; vertical-alignment: center; wrap: word-wrap; }
-                                        }
-
-
-                                        Rectangle {
-                                            background: #4F46E5;
-                                            border-radius: 7px;
-                                            width: 100px;
-                                            height: 28px;
-                                            Text {
-                                                text: StudioAi.copied-key ? "✓ Đã Copy" : "Copy Key";
-                                                color: #FFFFFF;
-                                                font-size: 11px;
-                                                font-weight: 700;
-                                                horizontal-alignment: center;
-                                                vertical-alignment: center;
-                                            }
-                                            TouchArea { clicked => { StudioAi.copy-master-key(); } }
-                                        }
-                                    }
-                                }
-
-                                // Endpoint Box
-                                Rectangle {
-                                    background: #030712;
-                                    border-radius: 10px;
-                                    border-width: 1px;
-                                    border-color: #1E293B;
-                                    min-height: endpoint-layout.preferred-height;
-
-                                    endpoint-layout := FlexboxLayout {
-                                        padding-top: 8px;
-                                        padding-bottom: 8px;
-                                        padding-left: 14px;
-                                        padding-right: 8px;
-                                        spacing: 10px;
-                                        alignment: start;
-
-                                        VerticalLayout {
-                                            min-width: 0px;
-                                            preferred-width: 450px;
-                                            max-width: Math.max(0px, root.width - 100px);
-                                            horizontal-stretch: 1;
-                                            spacing: 8px;
-                                            alignment: center;
-                                            Text { text: "ENDPOINT:"; color: #64748B; font-size: 11px; font-weight: 700; vertical-alignment: center; }
-                                            Text { text: StudioAi.backend-origin; color: #34D399; font-size: 11.5px; font-weight: 600; vertical-alignment: center; wrap: word-wrap; }
-                                        }
-
-
-                                        Rectangle {
-                                            background: #1E293B;
-                                            border-radius: 7px;
-                                            border-width: 1px;
-                                            border-color: #334155;
-                                            width: 100px;
-                                            height: 28px;
-                                            Text {
-                                                text: StudioAi.copied-endpoint ? "✓ Đã Copy" : "📋 Copy URL";
-                                                color: #E2E8F0;
-                                                font-size: 11px;
-                                                font-weight: 600;
-                                                horizontal-alignment: center;
-                                                vertical-alignment: center;
-                                            }
-                                            TouchArea { clicked => { StudioAi.copy-master-endpoint(); } }
-                                        }
-                                    }
-                                }
-
-                                // Divider Line
-                                Rectangle {
-                                    height: 1px;
-                                    background: #312E8166;
-                                }
-
-                                // Card Footer
-                                VerticalLayout {
-                                    spacing: 8px;
-                                    alignment: start;
-                                    HorizontalLayout {
-                                        spacing: 6px;
-                                        alignment: center;
-                                        Text { text: "⚡ Đang gộp:"; color: #94A3B8; font-size: 11px; }
-                                        Text {
-                                            text: StudioAi.providers.length > 0 ? StudioAi.providers.length + " Key Thực Tế" : "Chưa xác nhận";
-                                            color: #A5B4FC;
-                                            font-size: 11px;
-                                            font-weight: 700;
-                                        }
-                                    }
-                                    Text {
-                                        text: "Tự Động Cân Bằng Tải & Chuyển Mạch";
-                                        color: #34D399;
-                                        font-size: 11px;
-                                        font-weight: 600;
-                                        wrap: word-wrap;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // ═══════════════════════════════════════════════════
-                    // QUICK ADD BUTTONS (Khi chưa có key nào)
-                    // ═══════════════════════════════════════════════════
-                    if StudioAi.providers.length == 0: VerticalLayout {
-                        padding-top: 24px;
-                        spacing: 12px;
-                        alignment: center;
-
-                        Text {
-                            text: "Thêm nhanh khóa API để kết nối trực tiếp vào Master Router:";
-                            color: #64748B;
-                            font-size: 11.5px;
-                            horizontal-alignment: center;
-                            wrap: word-wrap;
-                        }
-
-                        FlexboxLayout {
-                            spacing: 10px;
-                            alignment: center;
-
-                            StudioButton {
-                                label: "✨ + Thêm Gemini Key";
-                                compact: true;
-                                clicked => { StudioAi.quick-add("gemini"); }
-                            }
-                            StudioButton {
-                                label: "🟢 + Thêm ChatGPT Key";
-                                compact: true;
-                                clicked => { StudioAi.quick-add("openai"); }
-                            }
-                            StudioButton {
-                                label: "⚡ + Thêm Grok Key";
-                                compact: true;
-                                clicked => { StudioAi.quick-add("grok"); }
-                            }
-                            StudioButton {
-                                label: "🧠 + Thêm Claude Key";
-                                compact: true;
-                                clicked => { StudioAi.quick-add("anthropic"); }
-                            }
-                            StudioButton {
-                                label: "🚀 + Thêm DeepSeek Key";
-                                compact: true;
-                                clicked => { StudioAi.quick-add("deepseek"); }
-                            }
-                        }
-                    }
-
-                    // ═══════════════════════════════════════════════════
-                    // CONNECTED PROVIDER BRANCH CARDS
-                    // ═══════════════════════════════════════════════════
-                    if StudioAi.providers.length > 0: VerticalLayout {
-                        spacing: 0px;
-                        alignment: center;
-
-                        // Stem line
-                        HorizontalLayout {
-                            alignment: center;
-                            Rectangle { width: 2px; height: 32px; background: @linear-gradient(180deg, #4F46E5 0%, #38BDF8 100%); }
-                        }
-
-                        // Branch cards row
-                        FlexboxLayout {
-                            spacing: 14px;
-                            alignment: center;
-
-                            for provider in StudioAi.providers: Rectangle {
-                                clip: true;
-                                min-width: 0px;
-                                preferred-width: 240px;
-                                max-width: 360px;
-                                horizontal-stretch: 1;
-                                background: #0D162B;
-                                border-radius: 14px;
-                                border-width: 1px;
-                                border-color: provider.active ? #38BDF866 : #334155;
-
-                                VerticalLayout {
-                                    padding: 14px;
-                                    spacing: 10px;
-
-                                    HorizontalLayout {
-                                        spacing: 8px;
-                                        alignment: space-between;
-
-                                        HorizontalLayout {
-                                            spacing: 8px;
-                                            alignment: center;
-                                            Text {
-                                                text: provider.provider == "gemini" ? "✨"
-                                                    : provider.provider == "openai" ? "🟢"
-                                                    : provider.provider == "grok" ? "⚡"
-                                                    : provider.provider == "anthropic" ? "🧠"
-                                                    : provider.provider == "deepseek" ? "🚀"
-                                                    : provider.provider == "ollama" ? "🦙" : "🔑";
-                                                font-size: 16px;
-                                            }
-                                            VerticalLayout {
-                                                spacing: 1px;
-                                                Text {
-                                                    text: provider.name == "" ? provider.provider : provider.name;
-                                                    color: #FFFFFF;
-                                                    font-size: 12.5px;
-                                                    font-weight: 700;
-                                                    wrap: word-wrap;
-                                                }
-                                                Text {
-                                                    text: provider.provider;
-                                                    color: #94A3B8;
-                                                    font-size: 10px;
-                                                }
-                                            }
-                                        }
-
-                                        Rectangle { horizontal-stretch: 1; }
-
-                                        Rectangle {
-                                            background: provider.active ? #10B98126 : #37415155;
-                                            border-radius: 6px;
-                                            HorizontalLayout {
-                                                padding-left: 6px; padding-right: 6px; padding-top: 2px; padding-bottom: 2px;
-                                                Text {
-                                                    text: provider.active ? "Hoạt động" : "Tắt";
-                                                    color: provider.active ? #34D399 : #9CA3AF;
-                                                    font-size: 9.5px;
-                                                    font-weight: 700;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Key Box
-                                    Rectangle {
-                                        background: #030712;
-                                        border-radius: 6px;
-                                        border-width: 1px;
-                                        border-color: #1E293B;
-                                        height: 26px;
-                                        HorizontalLayout {
-                                            padding-left: 8px; padding-right: 8px;
-                                            spacing: 6px;
-                                            alignment: start;
-                                            Text { text: "KEY:"; color: #64748B; font-size: 10px; font-weight: 700; vertical-alignment: center; }
-                                            Text { text: "sk-••••••••••••"; color: #CBD5E1; font-size: 10px; vertical-alignment: center; }
-                                        }
-                                    }
-
-                                    // Model Box
-                                    Rectangle {
-                                        background: #030712;
-                                        border-radius: 6px;
-                                        border-width: 1px;
-                                        border-color: #1E293B;
-                                        height: 26px;
-                                        HorizontalLayout {
-                                            padding-left: 8px; padding-right: 8px;
-                                            spacing: 6px;
-                                            alignment: start;
-                                            Text { text: "MODEL:"; color: #64748B; font-size: 10px; font-weight: 700; vertical-alignment: center; }
-                                            Text { text: provider.model != "" ? provider.model : "auto"; color: #38BDF8; font-size: 10px; font-weight: 600; vertical-alignment: center; min-width: 0px; horizontal-stretch: 1; overflow: elide; }
-                                        }
-                                    }
-
-                                    // Action Buttons
-                                    HorizontalLayout {
-                                        spacing: 6px;
-                                        alignment: space-between;
-
-                                        StudioButton {
-                                            label: "Kiểm tra";
-                                            compact: true;
-                                            enabled: !StudioAi.busy;
-                                            clicked => {
-                                                StudioAi.test-id = provider.id;
-                                                StudioAi.test-model = provider.model;
-                                            }
-                                        }
-
-                                        StudioButton {
-                                            label: provider.active ? "Tắt" : "Bật";
-                                            compact: true;
-                                            enabled: !StudioAi.busy;
-                                            clicked => {
-                                                StudioAi.change-id = provider.id;
-                                                StudioAi.change-active = !provider.active;
-                                                StudioAi.change-provider();
-                                            }
-                                        }
-
-                                        StudioButton {
-                                            label: "Xóa";
-                                            compact: true;
-                                            enabled: !StudioAi.busy;
-                                            clicked => {
-                                                StudioAi.delete-id = provider.id;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    StudioHeading { title: "Kết nối AI"; }
+    if StudioAi.busy || StudioAi.status != "": Text {
+        text: StudioAi.busy ? "Đang xử lý…" : StudioAi.status;
+        color: Floword.muted; wrap: word-wrap;
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // 3. ADD NEW PROVIDER KEY DRAWER / CARD (Chỉ mở khi bấm thêm)
-    // ─────────────────────────────────────────────────────────────
-    if StudioAi.new-open: StudioCard {
+    if !StudioAi.new-open: StudioCard {
         HorizontalLayout {
-            alignment: space-between;
-            StudioHeading { title: "Thêm Khóa API Mới Vào OmniRoute Gateway"; }
-            Rectangle { horizontal-stretch: 1; }
-            StudioButton {
-                label: "✕ Đóng";
-                compact: true;
-                clicked => { StudioAi.new-key = ""; StudioAi.new-open = false; }
-            }
+            spacing: 8px;
+            Text { text: "Dịch vụ của bạn"; color: Floword.text; font-weight: 700; horizontal-stretch: 1; }
+            StudioButton { label: "Làm mới"; compact: true; enabled: !StudioAi.busy; clicked => { StudioAi.load-providers(); } }
         }
-
-        Text {
-            text: "Khóa API được mã hóa an toàn trên máy và kết nối trực tiếp vào Master Router của OmniRoute.";
-            color: Floword.muted;
-            wrap: word-wrap;
+        if StudioAi.providers-loaded && StudioAi.providers.length == 0: Text {
+            text: "Chưa có kết nối AI. Chọn dịch vụ để thêm khóa của bạn.";
+            color: Floword.muted; wrap: word-wrap;
         }
-
-        VerticalLayout {
-            spacing: 16px;
-            StudioField {
-                min-width: 0px;
-                label: "Mã Provider (gemini / openai / grok / anthropic / deepseek)";
-                placeholder: "gemini / openai / grok";
-                value: StudioAi.new-provider;
-                enabled: !StudioAi.busy;
-                edited(text) => { StudioAi.new-provider = text; }
-            }
-            StudioField {
-                min-width: 0px;
-                label: "Tên Kết Nối Hiển Thị";
-                placeholder: "Google Gemini Primary";
-                value: StudioAi.new-name;
-                enabled: !StudioAi.busy;
-                edited(text) => { StudioAi.new-name = text; }
-            }
+        if !StudioAi.providers-loaded && !StudioAi.busy: Text {
+            text: "Chưa tải được kết nối. Bấm Làm mới để thử lại.";
+            color: Floword.warning; wrap: word-wrap;
         }
-
-        StudioField {
-            label: "API Key (sk-...)";
-            secret: true;
-            placeholder: "Dán khóa API thật vào đây...";
-            value: StudioAi.new-key;
-            enabled: !StudioAi.busy;
-            edited(text) => { StudioAi.new-key = text; }
-        }
-
-        StudioField {
-            label: "Default Model (Tùy chọn, để trống sẽ tự nhận)";
-            placeholder: "gemini-1.5-pro / gpt-4o / grok-2";
-            value: StudioAi.new-model;
-            enabled: !StudioAi.busy;
-            edited(text) => { StudioAi.new-model = text; }
-        }
-
-        FlexboxLayout {
-            spacing: 12px;
-            StudioButton {
-                label: "💾 Lưu Vào OmniRoute Gateway";
-                primary: true;
-                enabled: !StudioAi.busy && StudioAi.new-key != "" && StudioAi.new-provider != "" && StudioAi.new-name != "";
-                clicked => { StudioAi.add-provider(); }
-            }
-            StudioButton {
-                label: "Hủy";
-                enabled: !StudioAi.busy;
-                clicked => { StudioAi.new-key = ""; StudioAi.new-open = false; }
-            }
-            Rectangle { horizontal-stretch: 1; }
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // 4. TEST CONNECTION CONFIRMATION
-    // ─────────────────────────────────────────────────────────────
-    if StudioAi.test-id != "": StudioCard {
-        StudioHeading { title: "Kiểm Tra Kết Nối Provider"; }
-        Text { text: "Đang kiểm tra kết nối ID: " + StudioAi.test-id; color: Floword.text; wrap: word-wrap; }
-        StudioField {
-            label: "Model để Ping Test";
-            value: StudioAi.test-model;
-            enabled: !StudioAi.busy;
-            edited(text) => { StudioAi.test-model = text; }
-        }
-        FlexboxLayout {
-            spacing: 12px;
-            StudioButton {
-                label: "Gửi Lệnh Test Ngay";
-                primary: true;
-                enabled: !StudioAi.busy;
-                clicked => { StudioAi.test-connection(); }
-            }
-            StudioButton {
-                label: "Đóng";
-                enabled: !StudioAi.busy;
-                clicked => { StudioAi.test-id = ""; }
-            }
-            Rectangle { horizontal-stretch: 1; }
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // 5. DELETE PROVIDER CONFIRMATION
-    // ─────────────────────────────────────────────────────────────
-    if StudioAi.delete-id != "": StudioCard {
-        StudioHeading { title: "Xác Nhận Xóa Provider Khỏi OmniRoute"; }
-        Text { text: "Bạn có chắc chắn muốn ngắt kết nối ID: " + StudioAi.delete-id + "?"; color: Floword.danger; wrap: word-wrap; }
-        FlexboxLayout {
-            spacing: 12px;
-            StudioButton {
-                label: "Xác Nhận Xóa";
-                primary: true;
-                enabled: !StudioAi.busy;
-                clicked => { StudioAi.delete-provider(); }
-            }
-            StudioButton {
-                label: "Hủy Bỏ";
-                enabled: !StudioAi.busy;
-                clicked => { StudioAi.delete-id = ""; }
-            }
-            Rectangle { horizontal-stretch: 1; }
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // 6. INTERACTIVE GATEWAY ASKING & CHAT BENCH
-    // ─────────────────────────────────────────────────────────────
-    StudioCard {
-        StudioHeading { title: "Thử Nghiệm Kịch Bản Trực Tiếp Qua OmniRoute Gateway"; }
-        Text {
-            text: "Gửi prompt trực tiếp qua trạm điều phối OmniRoute để kiểm tra độ trễ, format JSON kịch bản và chất lượng trả về.";
-            color: Floword.muted;
-            wrap: word-wrap;
-        }
-
-        VerticalLayout {
-            spacing: 16px;
-            alignment: start;
-
-            VerticalLayout {
-                min-width: 0px; spacing: 8px;
-                Text { text: "Chọn Model thực thi:"; color: Floword.cyan; font-size: 11px; font-weight: 700; }
-                Select {
-                    options: StudioAi.models;
-                    current <=> StudioAi.model-index;
-                    enabled: !StudioAi.busy;
-                    height: 40px;
-                    background: Floword.field;
-                    border-color: Floword.line;
-                    changed(index) => { StudioAi.confirm-ask = false; }
-                }
-                StudioButton {
-                    label: "Cập nhật danh sách Models";
-                    compact: true;
-                    enabled: !StudioAi.busy;
-                    clicked => { StudioAi.load-models(); }
-                }
-            }
-
-            VerticalLayout {
-                min-width: 0px; spacing: 8px;
-                StudioField {
-                    label: "Nội dung Prompt kiểm tra:";
-                    value: StudioAi.prompt;
-                    multiline: true;
-                    enabled: !StudioAi.busy;
-                    edited(text) => { StudioAi.prompt = text; StudioAi.confirm-ask = false; }
-                }
-
-                HorizontalLayout {
-                    spacing: 10px;
-                    StudioButton {
-                        label: "🚀 Gửi Yêu Cầu Đến OmniRoute";
-                        primary: true;
-                        enabled: !StudioAi.busy && StudioAi.models.length > 0 && StudioAi.prompt != "";
-                        clicked => { StudioAi.confirm-ask = true; }
-                    }
-                    Rectangle { horizontal-stretch: 1; }
-                }
-            }
-        }
-
-        if StudioAi.confirm-ask: StudioCard {
-            Text {
-                text: "Gửi một yêu cầu AI thật bằng model đang chọn; có thể tính vào hạn mức của nhà cung cấp. Danh sách model không chứng minh key còn quota.";
-                color: Floword.warning;
-                wrap: word-wrap;
-            }
-            HorizontalLayout {
-                spacing: 10px;
-                StudioButton {
-                    label: "Xác nhận gửi";
-                    primary: true;
-                    enabled: !StudioAi.busy;
-                    clicked => { StudioAi.ask(); }
-                }
-                StudioButton {
-                    label: "Hủy";
-                    enabled: !StudioAi.busy;
-                    clicked => { StudioAi.confirm-ask = false; }
-                }
-                Rectangle { horizontal-stretch: 1; }
-            }
-        }
-
-        // Live Answer Display
-        if StudioAi.answer != "": Rectangle {
-            background: #030712;
-            border-radius: 12px;
-            border-width: 1px;
-            border-color: Floword.line;
-
-            VerticalLayout {
-                padding: 16px;
+        for provider in StudioAi.providers: VerticalLayout {
+            spacing: 8px;
+            Rectangle { height: 1px; background: Floword.line; }
+            Text { text: provider.name == "" ? provider.provider : provider.name; color: Floword.text; font-size: 15px; font-weight: 700; wrap: word-wrap; }
+            Text { text: provider.provider + " · " + (provider.active ? "Đang bật" : "Đã tắt") + (provider.model != "" ? " · " + provider.model : ""); color: Floword.muted; wrap: word-wrap; font-size: 12px; }
+            FlexboxLayout {
                 spacing: 8px;
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text { text: "🤖 Phản Hồi Từ Model:"; color: Floword.cyan; font-size: 11px; font-weight: 700; }
-                    Text { text: StudioAi.answered-model; color: Floword.violet; font-size: 11px; font-weight: 700; }
-                }
-                Text {
-                    text: StudioAi.answer;
-                    color: Floword.text;
-                    font-size: 13px;
-                    wrap: word-wrap;
-                }
+                StudioButton { label: "Kiểm tra"; compact: true; enabled: !StudioAi.busy; clicked => { StudioAi.test-id = provider.id; StudioAi.test-model = provider.model; } }
+                StudioButton { label: provider.active ? "Tắt" : "Bật"; compact: true; enabled: !StudioAi.busy; clicked => { StudioAi.change-id = provider.id; StudioAi.change-active = !provider.active; StudioAi.change-provider(); } }
+                StudioButton { label: "Xóa"; compact: true; enabled: !StudioAi.busy; clicked => { StudioAi.delete-id = provider.id; } }
             }
+        }
+        StudioButton { label: "Thêm kết nối"; primary: true; enabled: !StudioAi.busy; clicked => { root.new-advanced-open = false; StudioAi.quick-add("gemini"); } }
+        StudioButton { label: root.quick-options-open ? "Ẩn thêm nhanh" : "Thêm nhanh theo dịch vụ"; compact: true; enabled: !StudioAi.busy; clicked => { root.quick-options-open = !root.quick-options-open; } }
+        if root.quick-options-open: FlexboxLayout {
+            spacing: 8px;
+            StudioButton { label: "+ Gemini"; compact: true; enabled: !StudioAi.busy; clicked => { StudioAi.quick-add("gemini"); } }
+            StudioButton { label: "+ OpenAI"; compact: true; enabled: !StudioAi.busy; clicked => { StudioAi.quick-add("openai"); } }
+            StudioButton { label: "+ Claude"; compact: true; enabled: !StudioAi.busy; clicked => { StudioAi.quick-add("anthropic"); } }
+            StudioButton { label: "+ Grok"; compact: true; enabled: !StudioAi.busy; clicked => { StudioAi.quick-add("grok"); } }
+            StudioButton { label: "+ DeepSeek"; compact: true; enabled: !StudioAi.busy; clicked => { StudioAi.quick-add("deepseek"); } }
+        }
+    }
+
+    if StudioAi.new-open: StudioCard {
+        StudioHeading { title: "Thêm kết nối"; }
+        Text { text: "Dịch vụ"; color: Floword.text; font-size: 13px; font-weight: 600; }
+        Select {
+            options: ["Google Gemini", "OpenAI", "Claude", "Grok", "DeepSeek", "Ollama · trên máy", "Khác"];
+            current: StudioAi.new-provider == "gemini" ? 0 : StudioAi.new-provider == "openai" ? 1 : StudioAi.new-provider == "anthropic" ? 2 : StudioAi.new-provider == "grok" ? 3 : StudioAi.new-provider == "deepseek" ? 4 : StudioAi.new-provider == "ollama" ? 5 : 6;
+            enabled: !StudioAi.busy;
+            changed(index) => {
+                StudioAi.new-provider = index == 0 ? "gemini" : index == 1 ? "openai" : index == 2 ? "anthropic" : index == 3 ? "grok" : index == 4 ? "deepseek" : index == 5 ? "ollama" : "";
+                if index == 6 { root.new-advanced-open = true; }
+            }
+        }
+        StudioField { label: "Tên kết nối"; placeholder: "Ví dụ: Gemini của tôi"; value: StudioAi.new-name; enabled: !StudioAi.busy; edited(text) => { StudioAi.new-name = text; } }
+        StudioField { label: "Khóa API"; secret: true; placeholder: "Dán khóa của bạn"; value: StudioAi.new-key; enabled: !StudioAi.busy; edited(text) => { StudioAi.new-key = text; } }
+        Text { text: "Khóa được mã hóa trên máy."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+        StudioButton { label: root.new-advanced-open ? "Thu gọn tùy chọn" : "Tùy chọn nâng cao"; compact: true; clicked => { root.new-advanced-open = !root.new-advanced-open; } }
+        if root.new-advanced-open: VerticalLayout {
+            spacing: 10px;
+            StudioField { label: "Mã dịch vụ · dành cho kết nối tùy chỉnh"; value: StudioAi.new-provider; enabled: !StudioAi.busy; edited(text) => { StudioAi.new-provider = text; } }
+            StudioField { label: "Model mặc định · không bắt buộc"; value: StudioAi.new-model; enabled: !StudioAi.busy; edited(text) => { StudioAi.new-model = text; } }
+        }
+        FlexboxLayout {
+            spacing: 8px;
+            StudioButton { label: "Lưu kết nối"; primary: true; enabled: !StudioAi.busy && StudioAi.new-key != "" && StudioAi.new-provider != "" && StudioAi.new-name != ""; clicked => { StudioAi.add-provider(); } }
+            StudioButton { label: "Hủy"; enabled: !StudioAi.busy; clicked => { StudioAi.new-key = ""; StudioAi.new-open = false; } }
+        }
+    }
+
+    if StudioAi.test-id != "": StudioCard {
+        StudioHeading { title: "Kiểm tra kết nối"; }
+        StudioField { label: "Model"; value: StudioAi.test-model; enabled: !StudioAi.busy; edited(text) => { StudioAi.test-model = text; } }
+        Text { text: "Gửi một yêu cầu AI thật, có thể dùng hạn mức hoặc tính phí."; color: Floword.warning; wrap: word-wrap; }
+        FlexboxLayout {
+            spacing: 8px;
+            StudioButton { label: "Xác nhận kiểm tra"; primary: true; enabled: !StudioAi.busy; clicked => { StudioAi.test-connection(); } }
+            StudioButton { label: "Hủy"; enabled: !StudioAi.busy; clicked => { StudioAi.test-id = ""; } }
+        }
+    }
+    if StudioAi.delete-id != "": StudioCard {
+        StudioHeading { title: "Xóa kết nối này?"; }
+        Text { text: "Khóa của kết nối sẽ không còn được dùng trong ứng dụng."; color: Floword.warning; wrap: word-wrap; }
+        FlexboxLayout {
+            spacing: 8px;
+            StudioButton { label: "Xác nhận xóa"; enabled: !StudioAi.busy; clicked => { StudioAi.delete-provider(); } }
+            StudioButton { label: "Giữ lại"; enabled: !StudioAi.busy; clicked => { StudioAi.delete-id = ""; } }
+        }
+    }
+
+    StudioCard {
+        StudioHeading { title: "Model AI"; }
+        Text { text: StudioAi.models.length > 0 ? StudioAi.models.length + " model đã tải" : "Tải model để dùng AI trong dự án và LIVE."; color: Floword.muted; wrap: word-wrap; }
+        if StudioAi.models.length > 0: Select {
+            options: StudioAi.models; current <=> StudioAi.model-index;
+            enabled: !StudioAi.busy;
+            changed(index) => { StudioAi.confirm-ask = false; }
+        }
+        StudioButton { label: StudioAi.models-loaded ? "Làm mới model" : "Tải model"; enabled: !StudioAi.busy; clicked => { StudioAi.load-models(); } }
+        StudioButton { label: root.try-open ? "Thu gọn thử AI" : "Thử AI"; compact: true; clicked => { root.try-open = !root.try-open; } }
+        if root.try-open || StudioAi.confirm-ask: VerticalLayout {
+            spacing: 10px;
+            StudioField { label: "Yêu cầu thử"; value: StudioAi.prompt; multiline: true; enabled: !StudioAi.busy; edited(text) => { StudioAi.prompt = text; StudioAi.confirm-ask = false; } }
+            if !StudioAi.confirm-ask: StudioButton { label: "Gửi yêu cầu"; primary: true; enabled: !StudioAi.busy && StudioAi.models.length > 0 && StudioAi.prompt != ""; clicked => { StudioAi.confirm-ask = true; } }
+        }
+        if StudioAi.confirm-ask: VerticalLayout {
+            spacing: 8px;
+            Text { text: "Yêu cầu thật có thể dùng hạn mức hoặc tính phí. Model có trong danh sách không đảm bảo khóa còn hạn mức."; color: Floword.warning; wrap: word-wrap; }
+            FlexboxLayout {
+                spacing: 8px;
+                StudioButton { label: "Xác nhận gửi"; primary: true; enabled: !StudioAi.busy; clicked => { StudioAi.ask(); } }
+                StudioButton { label: "Hủy"; enabled: !StudioAi.busy; clicked => { StudioAi.confirm-ask = false; } }
+            }
+        }
+        if StudioAi.answer != "": VerticalLayout {
+            spacing: 8px;
+            Text { text: StudioAi.answered-model; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+            Text { text: StudioAi.answer; color: Floword.text; wrap: word-wrap; }
+        }
+    }
+    StudioButton { label: root.advanced-open ? "Thu gọn kết nối nâng cao" : "Kết nối nâng cao"; compact: true; clicked => { root.advanced-open = !root.advanced-open; } }
+    if root.advanced-open: StudioCard {
+        Text { text: StudioAi.backend-origin; color: Floword.muted; wrap: word-wrap; }
+        FlexboxLayout {
+            spacing: 8px;
+            StudioButton { label: "Thông tin khóa kết nối"; compact: true; clicked => { StudioAi.copy-master-key(); } }
+            StudioButton { label: "Thông tin địa chỉ"; compact: true; clicked => { StudioAi.copy-master-endpoint(); } }
+            StudioButton { label: "Tải danh sách model"; compact: true; clicked => { StudioAi.open-dashboard(); } }
         }
     }
 }

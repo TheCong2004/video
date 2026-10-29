@@ -134,6 +134,36 @@ impl NexoraSettings {
         }
         candidates.into_iter().find_map(valid_executable)
     }
+    /// Explicitly show the installed manager. Its existing single-instance
+    /// handler restores/focuses the current window rather than starting another.
+    pub fn show(&self) -> Result<Vec<BrowserProfile>, BrowserError> {
+        let client = self.client()?;
+        match client.health() {
+            Ok(()) => {
+                self.spawn_manager()?;
+                client.profiles()
+            }
+            Err(BrowserError::Unavailable) => self.start(),
+            Err(error) => Err(error),
+        }
+    }
+    fn spawn_manager(&self) -> Result<std::process::Child, BrowserError> {
+        let executable = self
+            .discover_executable()
+            .ok_or(BrowserError::Configuration)?;
+        let mut command = Command::new(&executable);
+        command
+            .current_dir(executable.parent().ok_or(BrowserError::Configuration)?)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x08000000);
+        }
+        command.spawn().map_err(|_| BrowserError::Unavailable)
+    }
     /// Explicit user action only. Reuse a ready manager; never kill port owners.
     pub fn start(&self) -> Result<Vec<BrowserProfile>, BrowserError> {
         let client = self.client()?;
@@ -158,21 +188,7 @@ impl NexoraSettings {
         {
             return Err(BrowserError::Unavailable);
         }
-        let executable = self
-            .discover_executable()
-            .ok_or(BrowserError::Configuration)?;
-        let mut command = Command::new(&executable);
-        command
-            .current_dir(executable.parent().ok_or(BrowserError::Configuration)?)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            command.creation_flags(0x08000000);
-        }
-        let mut child = command.spawn().map_err(|_| BrowserError::Unavailable)?;
+        let mut child = self.spawn_manager()?;
         let deadline = Instant::now() + Duration::from_secs(35);
         while Instant::now() < deadline {
             if child

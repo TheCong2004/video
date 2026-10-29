@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Avatar Live</title>
+  <style>
+    *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:#fff;font-family:Arial,sans-serif}
+    #stage{position:fixed;inset:0;display:grid;place-items:center;background:#000;isolation:isolate}
+    video{display:block;image-rendering:auto;transform:translateZ(0);will-change:transform;backface-visibility:hidden}
+    #video-bg{position:absolute;inset:-4%;z-index:-1;width:108%;height:108%;object-fit:cover;object-position:center 58%;filter:blur(28px) brightness(.58) saturate(.9);transform:translateZ(0) scale(1.06);will-change:transform}
+    #video{position:absolute;left:50%;top:50%;width:100vw;height:100vh;object-fit:contain;object-position:center;background:transparent;transform:translate(-50%,-50%) rotate(var(--avatar-rotation,0deg));transition:transform .28s ease;will-change:transform}
+    body.sideways #video{width:100vh;height:100vw}
+    audio{display:none}
+    #idle{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(circle,#092431,#000 65%);z-index:2;text-align:center;color:#8ba8bd}
+    #idle.hidden{display:none}#idle b{display:block;color:#00e5f2;font-size:28px;margin-bottom:12px}
+    .toolbar{position:fixed;right:18px;top:15px;z-index:3;display:flex;align-items:center;justify-content:flex-end;opacity:.18;transition:.2s}.toolbar:hover{opacity:1}
+    button{border:1px solid #1c6275;background:#071924dd;color:#dffaff;border-radius:8px;padding:9px 13px;cursor:pointer;font-weight:700}
+    #unmute{display:none;position:fixed;left:50%;bottom:28px;z-index:5;transform:translateX(-50%);border-color:#00dfea;background:#062936f2;color:#fff;box-shadow:0 0 28px #00dfea55;padding:13px 20px}
+    #unmute.show{display:block}
+  </style>
+</head>
+<body>
+  <div id="stage"><video id="video-bg" autoplay playsinline muted aria-hidden="true"></video><video id="video" autoplay playsinline muted></video><audio id="audio" autoplay></audio></div>
+  <div id="idle"><div><b>AVATAR LIVE</b><span>Nhấn Bắt đầu trong bảng điều khiển Live VIP.</span></div></div>
+  <div class="toolbar"><span class="status" id="status" hidden></span><button id="rotate" type="button">XOAY 90° · 0°</button></div>
+  <button id="unmute" type="button">🔊 BẬT ÂM THANH</button>
+  <input type="hidden" id="sessionid" value=""><input type="hidden" id="select-avatar" value=""><input type="checkbox" id="use-stun" hidden>
+  <script src="client.js"></script>
+  <script>
+    const channel=new BroadcastChannel('slive-avatar-live');let running=false;
+    const status=document.getElementById('status'),idle=document.getElementById('idle'),video=document.getElementById('video'),videoBg=document.getElementById('video-bg'),audio=document.getElementById('audio'),unmute=document.getElementById('unmute');
+    const rotateButton=document.getElementById('rotate');let rotation=Number(localStorage.getItem('avatar-live-rotation')||0)%360;
+    function applyRotation(){document.documentElement.style.setProperty('--avatar-rotation',`${rotation}deg`);document.body.classList.toggle('sideways',rotation===90||rotation===270);rotateButton.textContent=`XOAY 90° · ${rotation}°`;localStorage.setItem('avatar-live-rotation',String(rotation))}
+    rotateButton.addEventListener('click',()=>{rotation=(rotation+90)%360;applyRotation()});applyRotation();
+    function syncLandscapeBackground(){if(video.srcObject&&videoBg.srcObject!==video.srcObject){videoBg.srcObject=video.srcObject;videoBg.play().catch(()=>{})}}
+    video.addEventListener('loadedmetadata',syncLandscapeBackground);
+    function notify(type,extra={}){channel.postMessage({type,...extra})}
+    window.onWebRTCConnected=()=>{syncLandscapeBackground();running=true;idle.classList.add('hidden');status.textContent='ĐANG LIVE';notify('connected',{sessionid:document.getElementById('sessionid').value})};
+    window.onWebRTCAudioBlocked=()=>{status.textContent='CẦN BẬT ÂM THANH';unmute.classList.add('show');notify('audio-blocked')};
+    unmute.addEventListener('click',()=>{audio.play().then(()=>{unmute.classList.remove('show');if(running)status.textContent='ĐANG LIVE'}).catch(()=>{})});
+    window.onWebRTCDisconnected=()=>{running=false;idle.classList.remove('hidden');status.textContent='SẴN SÀNG';notify('disconnected')};
+    channel.onmessage=async(event)=>{const msg=event.data||{};if(msg.type==='settings'){const value=Number(msg.volume);audio.volume=Number.isFinite(value)?Math.max(0,Math.min(1,value)):.8}else if(msg.type==='start'){document.getElementById('select-avatar').value=msg.avatar||'';if(running)stop();status.textContent='ĐANG KẾT NỐI';try{await start()}catch(error){status.textContent='LỖI KẾT NỐI';notify('error',{message:error.message})}}else if(msg.type==='stop'){stop()}};
+    window.addEventListener('beforeunload',()=>{if(running)stop()});notify('ready');
+  </script>
+</body></html>

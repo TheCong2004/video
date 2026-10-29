@@ -28,7 +28,7 @@ test("local edition does not authorize anonymous access to public Promax", () =>
 test("new key opens a visible form and dispatches the existing authenticated mutation", () => {
   const ui = read("concat/ui/workspace/studio-ai.slint");
   const rust = read("concat/src/studio_ai.rs");
-  assert.match(ui, /if !StudioAi\.new-open: Rectangle/);
+  assert.match(ui, /if !StudioAi\.new-open: StudioCard/);
   assert.match(ui, /if StudioAi\.new-open:/);
   assert.match(ui, /StudioAi\.quick-add\("gemini"\)/);
   assert.match(ui, /StudioAi\.add-provider\(\)/);
@@ -66,7 +66,7 @@ test("local runtime belongs to the local workspace and shutdown, not the cloud w
 test("ask button opens the confirmation that its native guard actually requires", () => {
   const ui = read("concat/ui/workspace/studio-ai.slint");
   assert.match(ui, /clicked => \{ StudioAi\.confirm-ask = true; \}/);
-  assert.match(ui, /if StudioAi\.confirm-ask: StudioCard/);
+  assert.match(ui, /if StudioAi\.confirm-ask: VerticalLayout/);
   assert.match(ui, /clicked => \{ StudioAi\.ask\(\); \}/);
   assert.match(read("concat/src/studio_ai.rs"), /!state\.get_confirm_ask\(\)/);
 });

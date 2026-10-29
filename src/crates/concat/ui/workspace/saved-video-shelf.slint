@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Theme, Button } from "../primitives/primitives.slint";
+import { StudioBulk } from "studio-bulk.slint";
+
+/// The shared local catalogue, available without leaving the editor.
+export component SavedVideoShelf inherits VerticalLayout {
+    spacing: 8px;
+    padding: 8px;
+    min-width: 0px;
+    init => { StudioBulk.library-use-status = ""; StudioBulk.refresh-videos(); }
+    HorizontalLayout {
+        spacing: 8px;
+        Text { text: "Video đã lưu · " + StudioBulk.library-total; color: Theme.fg; font-size: Theme.fs-sm; font-weight: 600; horizontal-stretch: 1; min-width: 0px; vertical-alignment: center; }
+        Button { label: StudioBulk.library-busy ? "Đang đọc…" : "Làm mới"; enabled: !StudioBulk.library-busy; clicked => { StudioBulk.refresh-videos(); } }
+    }
+    Text { text: "Bấm video để thêm vào dự án và xem trước."; color: Theme.fg-muted; font-size: Theme.fs-sm; wrap: word-wrap; min-width: 0px; }
+    if StudioBulk.videos.length == 0: Text {
+        text: StudioBulk.library-busy ? "Đang đọc video đã lưu…" : "Video tải về, tạo hoặc dịch xong sẽ xuất hiện tại đây.";
+        color: Theme.fg-muted; wrap: word-wrap; min-width: 0px;
+    }
+    FlexboxLayout {
+        spacing: 8px;
+        min-width: 0px;
+        vertical-stretch: 0;
+        for video in StudioBulk.videos: Rectangle {
+            preferred-width: 145px; min-width: 115px; max-width: 190px;
+            height: 144px; vertical-stretch: 0;
+            border-radius: Theme.r;
+            border-width: 1px;
+            border-color: pick.has-hover ? Theme.accent : Theme.line;
+            background: pick.has-hover ? Theme.field-hover : Theme.field;
+            clip: true;
+            VerticalLayout {
+                padding: 5px; spacing: 4px;
+                Rectangle {
+                    height: 82px; background: #101721; border-radius: Theme.r-sm; clip: true;
+                    Image { x: 0; y: 0; width: parent.width; height: parent.height; source: video.thumbnail; image-fit: contain; }
+                    Rectangle {
+                        x: 3px; y: parent.height - 20px; height: 17px; width: duration.preferred-width + 8px;
+                        background: #000b; border-radius: 3px;
+                        duration := Text { text: video.duration; color: white; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                }
+                Text { text: video.title; color: Theme.fg; font-size: 11px; height: 28px; wrap: word-wrap; overflow: elide; min-width: 0px; }
+                Text { text: video.detail; color: Theme.fg-muted; font-size: 10px; overflow: elide; min-width: 0px; }
+            }
+            pick := TouchArea { mouse-cursor: pointer; clicked => { StudioBulk.video-action("use", video.path); } }
+            FocusScope {
+                key-pressed(event) => {
+                    if event.text == " " || event.text == "\n" {
+                        StudioBulk.video-action("use", video.path);
+                        return EventResult.accept;
+                    }
+                    return EventResult.reject;
+                }
+            }
+        }
+    }
+    if StudioBulk.library-pages > 1: HorizontalLayout {
+        spacing: 8px;
+        Button { label: "←"; enabled: StudioBulk.library-page > 0; clicked => { StudioBulk.change-library-page(StudioBulk.library-page - 1); } }
+        Text { text: (StudioBulk.library-page + 1) + " / " + StudioBulk.library-pages; color: Theme.fg-muted; vertical-alignment: center; }
+        Button { label: "→"; enabled: StudioBulk.library-page + 1 < StudioBulk.library-pages; clicked => { StudioBulk.change-library-page(StudioBulk.library-page + 1); } }
+    }
+    if StudioBulk.library-use-status != "": Text { text: StudioBulk.library-use-status; color: Theme.fg-muted; font-size: Theme.fs-sm; wrap: word-wrap; min-width: 0px; }
+}

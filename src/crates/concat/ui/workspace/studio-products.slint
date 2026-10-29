@@ -36,8 +36,8 @@ export global StudioProducts {
 }
 
 export component StudioProductsPanel inherits StudioCard {
-    HorizontalLayout {
-        spacing: 12px;
+    FlexboxLayout {
+        min-width: 0px;
         StudioHeading { title: I18n.t("studioProducts.title"); }
         Rectangle { horizontal-stretch: 1; }
         StudioButton {
@@ -53,12 +53,11 @@ export component StudioProductsPanel inherits StudioCard {
     }
     if StudioProducts.open: VerticalLayout {
         spacing: 12px;
-        Text { text: I18n.t("studioProducts.scope"); color: Floword.muted; wrap: word-wrap; }
-        HorizontalLayout {
-            spacing: 8px;
+        FlexboxLayout {
+        min-width: 0px;
             StudioButton { label: I18n.t("studioProducts.load"); enabled: !StudioProducts.busy && !StudioProducts.dirty && !StudioProducts.editing; clicked => { StudioProducts.load(); } }
-            StudioButton { label: I18n.t("studioProducts.add"); enabled: StudioProducts.loaded && !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.uncertain && StudioProducts.rows.length < 200; clicked => { StudioProducts.new-product(); } }
-            StudioButton { label: I18n.t("studioProducts.save"); primary: true; enabled: StudioProducts.dirty && !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.uncertain; clicked => { StudioProducts.save(); } }
+            StudioButton { label: I18n.t("studioProducts.add"); primary: !StudioProducts.dirty; enabled: StudioProducts.loaded && !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.uncertain && StudioProducts.rows.length < 200; clicked => { StudioProducts.new-product(); } }
+            StudioButton { label: I18n.t("studioProducts.save"); primary: StudioProducts.dirty; enabled: StudioProducts.dirty && !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.uncertain; clicked => { StudioProducts.save(); } }
             StudioButton { label: I18n.t("studioProducts.next"); enabled: StudioProducts.loaded && !StudioProducts.busy && !StudioProducts.dirty && !StudioProducts.editing && !StudioProducts.uncertain; clicked => { StudioProducts.next-product(); } }
         }
         if StudioProducts.dirty || StudioProducts.uncertain: StudioButton {
@@ -71,8 +70,8 @@ export component StudioProductsPanel inherits StudioCard {
             spacing: 6px;
             Text { text: product.title + " · " + product.price; color: product.active ? Floword.success : Floword.text; font-weight: 600; wrap: word-wrap; }
             Text { text: product.enabled ? I18n.t("studioProducts.enabled") : I18n.t("studioProducts.disabled"); color: Floword.muted; }
-            HorizontalLayout {
-                spacing: 8px;
+            FlexboxLayout {
+        min-width: 0px;
                 StudioButton { label: I18n.t("studioProducts.edit"); enabled: !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.uncertain; clicked => { StudioProducts.edit(product.index); } }
                 StudioButton { label: I18n.t("studioProducts.select"); enabled: !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.dirty && !StudioProducts.uncertain && product.enabled; clicked => { StudioProducts.select-product(product.index); } }
                 StudioButton { label: I18n.t("studioProducts.remove"); enabled: !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.uncertain; clicked => { StudioProducts.delete-index = product.index; } }
@@ -82,7 +81,8 @@ export component StudioProductsPanel inherits StudioCard {
         }
         if StudioProducts.delete-index >= 0: VerticalLayout {
             Text { text: I18n.t("studioProducts.confirmRemove"); color: Floword.warning; wrap: word-wrap; }
-            HorizontalLayout {
+            FlexboxLayout {
+        min-width: 0px;
                 StudioButton { label: I18n.t("studioProducts.remove"); enabled: !StudioProducts.busy; clicked => { StudioProducts.remove(StudioProducts.delete-index); } }
                 StudioButton { label: I18n.t("common.cancel"); clicked => { StudioProducts.delete-index = -1; } }
             }
@@ -90,14 +90,15 @@ export component StudioProductsPanel inherits StudioCard {
         if StudioProducts.editing: VerticalLayout {
             spacing: 10px;
             StudioField { label: I18n.t("studioProducts.name"); value: StudioProducts.title; edited(text) => { StudioProducts.title = text; } }
-            HorizontalLayout {
-                spacing: 12px;
+            FlexboxLayout {
+        min-width: 0px;
                 StudioField { label: I18n.t("studioProducts.price"); value: StudioProducts.price; edited(text) => { StudioProducts.price = text; } }
                 StudioField { label: I18n.t("studioProducts.duration"); value: StudioProducts.duration; edited(text) => { StudioProducts.duration = text; } }
             }
             StudioField { label: I18n.t("studioProducts.script"); multiline: true; value: StudioProducts.script; edited(text) => { StudioProducts.script = text; } }
             StudioButton { label: StudioProducts.enabled ? I18n.t("studioProducts.enabled") : I18n.t("studioProducts.disabled"); clicked => { StudioProducts.enabled = !StudioProducts.enabled; } }
-            HorizontalLayout {
+            FlexboxLayout {
+        min-width: 0px;
                 StudioButton { label: I18n.t("studioProducts.apply"); primary: true; clicked => { StudioProducts.apply(); } }
                 StudioButton { label: I18n.t("common.cancel"); clicked => { StudioProducts.editing = false; } }
             }

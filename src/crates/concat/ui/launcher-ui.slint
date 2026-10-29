@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// UI preferences are restored and saved by the existing Rust configuration.
+export global LauncherUi {
+    /// 0 = responsive Auto, 1 = Pinned open, 2 = Collapsed until opened.
+    in-out property <int> sidebar-mode: 0;
+    /// Transient focus accounting, never persisted.
+    in-out property <int> sidebar-focus-count: 0;
+    callback sidebar-mode-changed(mode: int);
+    callback theme-changed(dark: bool);
+    callback reduced-motion-changed(reduced: bool);
+}

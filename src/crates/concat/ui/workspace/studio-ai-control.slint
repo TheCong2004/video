@@ -1,0 +1,229 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Floword } from "../theme/floword.slint";
+import { Theme } from "../theme/theme.slint";
+import { Select } from "../primitives/primitives.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField, StudioStatus } from "studio-chrome.slint";
+import { PaneScroll } from "pane.slint";
+import { StudioAiPage } from "studio-ai.slint";
+import { ControlTheme, ControlCard, ControlAction, ControlFoldout } from "control-chrome.slint";
+export struct ControlStepRow { id:string, tool:string, state:string, title:string, detail:string, state-label:string, dependencies:string, error:string, input:string, output:string, approvable:bool, retryable:bool }
+export global AiControl {
+    in-out property <bool> workspace-open;
+    in-out property <int> source;
+    in-out property <int> web-provider;
+    in-out property <string> web-status;
+    in-out property <bool> web-login-busy;
+    in-out property <int> completed;
+    callback takeover-project();
+    callback web-login();
+    in-out property <string> command;
+    in-out property <string> script;
+    in-out property <string> model;
+    in-out property <int> workflow-kind;
+    in-out property <int> target-project;
+    in-out property <string> project-name;
+    in-out property <string> project-label;
+    in-out property <string> result-path;
+    in-out property <bool> show-details;
+    in-out property <bool> show-inputs;
+    callback open-project(); callback preview-result(); callback reveal-result();
+    in-out property <string> codex-path: "codex";
+    in-out property <string> codex-status: "Codex runtime chưa kiểm tra; tách biệt tài khoản development.";
+    in-out property <bool> codex-busy;
+    callback probe-codex();
+    in-out property <string> audio-path;
+    in-out property <string> attachments;
+    in-out property <int> mode;
+    in-out property <int> selected-step;
+    in-out property <string> step-input;
+    in-out property <bool> allow-network;
+    in-out property <bool> allow-mcp;
+    in-out property <bool> busy;
+    in-out property <bool> ready;
+    in-out property <bool> resumable;
+    in-out property <string> status: "Đang mở workflow store…";
+    in-out property <string> workflow-id;
+    in-out property <string> workflow-title;
+    in-out property <string> workflow-revision;
+    in-out property <string> activity;
+    in-out property <[ControlStepRow]> steps;
+    in-out property <[string]> history;
+    in-out property <[string]> favorites;
+    callback submit(); callback pick-assets(); callback pick-audio();
+    callback pause(); callback resume(); callback cancel(); callback retry(); callback approve();
+    callback refresh(); callback load-workflow(int); callback save-favorite(); callback mode-changed();
+    callback update-step();
+}
+component ControlTaskBlock inherits VerticalLayout {
+    in property <ControlStepRow> data;
+    in property <int> ordinal;
+    spacing:6px; min-width:0px;
+    if root.ordinal>0: Text {text:root.data.dependencies;color:Floword.muted;font-size:11px;wrap:word-wrap;min-width:0px;}
+    ControlFoldout {
+        title:(root.ordinal+1) + ". " + root.data.title;
+        summary:root.data.state-label;
+        expanded:root.data.state=="Running" || root.data.state=="WaitingInput" || root.data.approvable;
+        border-color:root.data.state=="Done" ? Floword.success.with-alpha(0.45)
+            : root.data.state=="Running" ? Floword.accent : ControlTheme.line;
+        toggled=>{AiControl.selected-step=root.ordinal;AiControl.step-input=root.data.input;}
+        Text {text:root.data.detail;color:Floword.muted;font-size:13px;wrap:word-wrap;min-width:0px;}
+        if root.data.error!="": StudioStatus {label:root.data.error;tone:2;}
+        if root.data.state=="WaitingInput" && !AiControl.allow-network && (root.data.tool=="ai.plan" || root.data.tool=="ai.script" || root.data.tool=="ai.edit"): ControlAction {
+            label:"Cho phép AI và tiếp tục";enabled:!AiControl.busy;
+            clicked=>{AiControl.allow-network=true;AiControl.resume();}
+        }
+        FlexboxLayout {spacing:8px;min-width:0px;
+            if root.data.approvable: ControlAction {label:"Cho phép bước này";primary:true;enabled:!AiControl.busy;clicked=>{AiControl.selected-step=root.ordinal;AiControl.approve();}}
+            if root.data.retryable: ControlAction {label:"Thử lại bước này";enabled:!AiControl.busy;clicked=>{AiControl.selected-step=root.ordinal;AiControl.retry();}}
+        }
+    }
+}
+
+component ControlComposer inherits ControlCard {
+    callback connections();
+    StudioHeading {title:"Bạn muốn AI làm gì?";font-size:17px;}
+    Text {text:"Viết yêu cầu. AI sẽ lập kế hoạch và thực hiện từng bước.";color:Floword.muted;font-size:12px;wrap:word-wrap;min-width:0px;}
+    StudioField {label:"Yêu cầu";placeholder:"Ví dụ: viết lời giới thiệu sản phẩm rồi dựng video từ tư liệu đã chọn…";multiline:true;input-height:96px;value:AiControl.command;enabled:!AiControl.busy;edited(t)=>{AiControl.command=t;}}
+    Text {text:"Nguồn AI";color:Floword.text;font-size:12px;font-weight:600;}
+    FlexboxLayout {spacing:6px;min-width:0px;
+        ControlAction {label:"Chat web";primary:AiControl.source==0;enabled:!AiControl.busy;clicked=>{AiControl.source=0;}}
+        ControlAction {label:"Kết nối API";primary:AiControl.source==1;enabled:!AiControl.busy;clicked=>{AiControl.source=1;}}
+    }
+    if AiControl.source==0: FlexboxLayout {spacing:6px;min-width:0px;
+        ControlAction {label:"ChatGPT";primary:AiControl.web-provider==0;enabled:!AiControl.busy;clicked=>{AiControl.web-provider=0;}}
+        ControlAction {label:"Claude";primary:AiControl.web-provider==2;enabled:!AiControl.busy;clicked=>{AiControl.web-provider=2;}}
+        ControlAction {label:"Gemini";primary:AiControl.web-provider==1;enabled:!AiControl.busy;clicked=>{AiControl.web-provider=1;}}
+    }
+    if AiControl.source==0: FlexboxLayout {spacing:6px;min-width:0px;
+        ControlAction {label:AiControl.web-login-busy ? "Đang chờ đăng nhập…" : "Đăng nhập web · lưu phiên";enabled:!AiControl.busy && !AiControl.web-login-busy;clicked=>{AiControl.web-login();}}
+    }
+    if AiControl.source==0: Text {text:"Đăng nhập một lần trong cửa sổ trình duyệt riêng. Phiên được lưu trên máy và dùng lại; Concat không đọc mật khẩu.";color:Floword.muted;font-size:11px;wrap:word-wrap;min-width:0px;}
+    if AiControl.source==1: ControlAction {label:"Quản lý kết nối API";clicked=>{root.connections();}}
+    if AiControl.web-status!="": StudioStatus {label:AiControl.web-status;tone:4;}
+    FlexboxLayout {spacing:6px;min-width:0px;
+        ControlAction {label:AiControl.allow-network ? "Đã cho phép dùng AI" : "Cho phép dùng AI";enabled:!AiControl.busy;clicked=>{AiControl.allow-network=!AiControl.allow-network;}}
+    }
+    ControlAction {label:AiControl.busy ? "Đang thực hiện…" : "Lập kế hoạch và chạy";primary:true;enabled:AiControl.ready && !AiControl.busy && AiControl.command!="";clicked=>{AiControl.submit();}}
+    ControlFoldout {
+        title:"Tư liệu và lời thoại";
+        summary:AiControl.attachments!="" ? "Đã đính kèm tư liệu" : "Chọn ảnh, video hoặc giọng đọc";
+        expanded <=> AiControl.show-inputs;
+        FlexboxLayout {spacing:6px;min-width:0px;
+            ControlAction {label:"Thêm ảnh / video";enabled:!AiControl.busy;clicked=>{AiControl.pick-assets();}}
+            ControlAction {label:"Chọn giọng đọc";enabled:!AiControl.busy;clicked=>{AiControl.pick-audio();}}
+        }
+        if AiControl.audio-path!="": Text {text:"Đã chọn file giọng đọc";color:Floword.success;font-size:12px;wrap:word-wrap;min-width:0px;}
+        StudioField {label:"Lời thoại có sẵn · có thể để trống";multiline:true;input-height:100px;value:AiControl.script;enabled:!AiControl.busy;edited(t)=>{AiControl.script=t;}}
+    }
+    ControlFoldout {
+        title:"Tùy chọn tác vụ";
+        summary:"Kiểu tác vụ, cách duyệt và dự án";
+        Text {text:"Kiểu tác vụ";color:Floword.muted;font-size:12px;}
+        Select {options:["AI tự lập kế hoạch", "Dựng từ tư liệu có sẵn", "Xem thư viện · chỉ đọc"];current <=> AiControl.workflow-kind;enabled:!AiControl.busy;changed(i)=>{AiControl.workflow-kind=i;if i==2 && AiControl.command==""{AiControl.command="Xem thư viện video";}}}
+        Text {text:"Cách thực hiện";color:Floword.muted;font-size:12px;}
+        Select {options:["Tự động · trong quyền đã cấp", "Duyệt trước bước thay đổi", "Thủ công · duyệt từng bước"];current <=> AiControl.mode;enabled:!AiControl.busy;changed(i)=>{AiControl.mode=i;AiControl.mode-changed();}}
+        if AiControl.source==1: StudioField {label:"Model API · để trống dùng model đã chọn";value:AiControl.model;enabled:!AiControl.busy;edited(t)=>{AiControl.model=t;}}
+        Text {text:"Chỉnh sửa được áp dụng vào dự án đang mở.";color:Floword.muted;font-size:12px;wrap:word-wrap;min-width:0px;}
+        ControlAction {label:"Chọn dự án";enabled:AiControl.ready && !AiControl.busy;clicked=>{AiControl.open-project();}}
+        ControlAction {label:"Lưu yêu cầu thường dùng";enabled:!AiControl.busy && AiControl.command!="";clicked=>{AiControl.save-favorite();}}
+    }
+}
+
+component ControlPlanPanel inherits ControlCard {
+    callback takeover();
+    StudioHeading {title:"Kế hoạch thực hiện";font-size:17px;}
+    if AiControl.workflow-id=="": VerticalLayout {
+        spacing:12px;min-width:0px;
+        Rectangle {height:2px;background:ControlTheme.soft;}
+        Text {text:"Chưa có kế hoạch";color:Floword.text;font-size:16px;font-weight:600;wrap:word-wrap;min-width:0px;}
+        Text {text:"Sau khi gửi yêu cầu, các bước thực tế sẽ xuất hiện ở đây. Bạn có thể theo dõi, tạm dừng hoặc tiếp quản tác vụ.";color:Floword.muted;font-size:13px;wrap:word-wrap;min-width:0px;}
+    }
+    if AiControl.workflow-id!="": VerticalLayout {
+        spacing:12px;min-width:0px;
+        Text {text:AiControl.workflow-title;color:Floword.text;font-size:14px;font-weight:600;wrap:word-wrap;min-width:0px;}
+        Text {text:AiControl.completed + " / " + AiControl.steps.length + " bước hoàn thành";color:Floword.muted;font-size:12px;}
+        Rectangle {
+            height:4px;border-radius:2px;background:ControlTheme.soft;
+            Rectangle {x:0px;y:0px;width:parent.width * (AiControl.steps.length>0 ? AiControl.completed / AiControl.steps.length : 0);height:parent.height;border-radius:2px;background:Floword.success;animate width {duration:ControlTheme.motion;easing:ease-out;}}
+        }
+        FlexboxLayout {spacing:6px;min-width:0px;
+            if AiControl.busy: ControlAction {label:"Tạm dừng";clicked=>{AiControl.pause();}}
+            if !AiControl.busy && AiControl.resumable: ControlAction {label:"Tiếp tục";enabled:AiControl.ready;primary:true;clicked=>{AiControl.resume();}}
+            if AiControl.resumable: ControlAction {label:"Dừng tác vụ";clicked=>{AiControl.cancel();}}
+            ControlAction {label:"Về dự án";enabled:!AiControl.busy;clicked=>{root.takeover();}}
+        }
+        for step[index] in AiControl.steps: ControlTaskBlock {data:step;ordinal:index;}
+        if AiControl.result-path!="": FlexboxLayout {spacing:6px;min-width:0px;
+            ControlAction {label:"Xem video kết quả";primary:true;enabled:!AiControl.busy;clicked=>{AiControl.preview-result();}}
+            ControlAction {label:"Mở thư mục";enabled:!AiControl.busy;clicked=>{AiControl.reveal-result();}}
+        }
+    }
+}
+
+export component AiControlPage inherits VerticalLayout {
+    callback connections(); callback takeover();
+    in property <length> viewport-width:800px;
+    property <bool> wide:root.viewport-width>=1000px;
+    spacing:18px;min-width:0px;max-width:1120px;preferred-width:1120px;horizontal-stretch:1;alignment:start;
+    StudioStatus {label:AiControl.status;tone:AiControl.busy ? 4 : 0;}
+    GridLayout {
+        spacing:18px;min-width:0px;
+        ControlComposer {col:0;row:0;max-width:root.wide ? 360px : 4096px;horizontal-stretch:root.wide ? 0 : 1;connections=>{root.connections();}}
+        ControlPlanPanel {col:root.wide ? 1 : 0;row:root.wide ? 0 : 1;horizontal-stretch:1;takeover=>{root.takeover();}}
+    }
+    ControlFoldout {
+        title:"Yêu cầu đã lưu";summary:AiControl.history.length + " tác vụ";
+        ControlAction {label:"Làm mới lịch sử";enabled:!AiControl.busy;clicked=>{AiControl.refresh();}}
+        if AiControl.history.length==0: Text {text:"Chưa có tác vụ đã lưu.";color:Floword.muted;font-size:12px;}
+        for item[index] in AiControl.history: ControlAction {label:"Tác vụ " + (index+1) + " · " + item;max-width:4096px;enabled:!AiControl.busy;clicked=>{AiControl.load-workflow(index);}}
+        for favorite in AiControl.favorites: ControlAction {label:favorite;max-width:4096px;enabled:!AiControl.busy;clicked=>{AiControl.command=favorite;}}
+    }
+    ControlFoldout {
+        title:"Chi tiết kỹ thuật";summary:"Dữ liệu công cụ, nhật ký và kết nối nâng cao";expanded <=> AiControl.show-details;
+        Text {text:AiControl.workflow-id;color:Floword.muted;font-size:11px;wrap:word-wrap;min-width:0px;}
+        Text {text:AiControl.attachments;color:Floword.muted;font-size:11px;wrap:word-wrap;min-width:0px;}
+        if AiControl.steps.length>AiControl.selected-step && AiControl.selected-step>=0: VerticalLayout {
+            spacing:10px;min-width:0px;
+            Text {text:AiControl.steps[AiControl.selected-step].tool;color:Floword.text;font-size:12px;wrap:word-wrap;min-width:0px;}
+            StudioField {label:"Đầu vào JSON của bước đã chọn";multiline:true;input-height:120px;value:AiControl.step-input;enabled:!AiControl.busy;edited(t)=>{AiControl.step-input=t;}}
+            ControlAction {label:"Lưu đầu vào bước";enabled:!AiControl.busy && AiControl.step-input!="";clicked=>{AiControl.update-step();}}
+            Text {text:AiControl.steps[AiControl.selected-step].output;color:Floword.muted;font-size:11px;wrap:word-wrap;min-width:0px;}
+        }
+        Text {text:AiControl.activity;color:Floword.muted;font-size:11px;wrap:word-wrap;min-width:0px;}
+        ControlAction {label:AiControl.allow-mcp ? "MCP Control: đã bật" : "MCP Control: tắt";enabled:!AiControl.busy;clicked=>{AiControl.allow-mcp=!AiControl.allow-mcp;}}
+        StudioField {label:"Đường dẫn Codex CLI";value:AiControl.codex-path;enabled:!AiControl.busy;edited(t)=>{AiControl.codex-path=t;}}
+        ControlAction {label:AiControl.codex-busy ? "Đang kiểm tra…" : "Kiểm tra Codex runtime";enabled:!AiControl.busy && !AiControl.codex-busy;clicked=>{AiControl.probe-codex();}}
+        Text {text:AiControl.codex-status;color:Floword.muted;font-size:12px;wrap:word-wrap;min-width:0px;}
+    }
+}
+
+export component AiControlWorkspace inherits Rectangle {
+    callback connections();callback takeover();
+    property <bool> show-connections;
+    background:ControlTheme.ground;
+    TouchArea { }
+    VerticalLayout {
+        padding:20px;spacing:18px;
+        HorizontalLayout {
+            spacing:12px;min-height:56px;max-height:56px;
+            VerticalLayout {spacing:4px;horizontal-stretch:1;min-width:0px;alignment:center;
+                Text {text:"Phòng điều hành AI";font-size:22px;font-weight:700;color:Floword.text;wrap:word-wrap;min-width:0px;}
+                Text {text:"Yêu cầu rõ ràng. Theo dõi từng bước.";font-size:12px;color:Floword.muted;wrap:word-wrap;min-width:0px;}
+            }
+            if root.show-connections: ControlAction {label:"Về kế hoạch";clicked=>{root.show-connections=false;}}
+            ControlAction {label:"Về dự án";clicked=>{AiControl.workspace-open=false;root.takeover();}}
+        }
+        PaneScroll {
+            HorizontalLayout {
+                alignment:center;
+                if root.show-connections: StudioAiPage {max-width:1120px;horizontal-stretch:1;account=>{root.connections();}}
+                if !root.show-connections: AiControlPage {
+                    max-width:1120px;horizontal-stretch:1;
+                    viewport-width:root.width - 40px;
+                    connections=>{root.show-connections=true;}
+                    takeover=>{AiControl.pause();AiControl.workspace-open=false;root.takeover();}
+                }
+            }
+        }
+    }
+}

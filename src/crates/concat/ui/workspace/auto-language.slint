@@ -1,0 +1,287 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Auto language translation workspace backed by the adjacent pyVideoTrans CLI.
+import { Theme, Button, Select, Glyph, Icon } from "../primitives/primitives.slint";
+import { Pane, PaneHeader, PaneScroll } from "pane.slint";
+
+export struct TranslationQueueItem {
+    source-path: string,
+    status: string,
+    output-path: string,
+    source-text: string,
+    translated-text: string,
+    detail: string,
+}
+
+export global AutoLanguage {
+    in-out property <bool> active: false;
+    in-out property <string> source-path: "";
+    in-out property <string> source-files-json: "[]";
+    in-out property <int> source-file-count: 0;
+    in-out property <string> voice-role: "";
+    in-out property <[string]> voice-options: [];
+    in-out property <int> voice-role-index: 0;
+    in-out property <[TranslationQueueItem]> queue-items: [];
+    in-out property <int> queue-waiting: 0;
+    in-out property <int> queue-running: 0;
+    in-out property <int> queue-completed: 0;
+    in-out property <int> queue-failed: 0;
+    in-out property <int> selected-queue-index: -1;
+    in-out property <int> queue-filter: 0;
+    in-out property <string> selected-detail: "";
+    in-out property <string> output-path: "";
+    in-out property <string> status: "Chọn video và ngôn ngữ đích để bắt đầu.";
+    in-out property <string> source-text: "";
+    in-out property <string> translated-text: "";
+    in-out property <image> source-frame;
+    in-out property <image> translated-frame;
+    in-out property <int> source-language: 0;
+    in-out property <int> target-language: 0;
+    in-out property <bool> busy: false;
+    // Keep the monitor focused on the before/after video until the user asks
+    // for transcript details. The transcript can otherwise push below a
+    // short editor viewport and make the whole workspace look clipped.
+    in-out property <bool> details-open: false;
+    in-out property <bool> result-ready: false;
+    callback choose-video();
+    callback choose-videos();
+    callback choose-runtime();
+    callback refresh-voices();
+    callback select-queue-item(index: int);
+    callback translate();
+    callback cancel();
+    callback open-source();
+    callback open-output();
+    callback reveal-output();
+}
+
+component Note inherits Text {
+    color: Theme.fg-muted;
+    font-size: Theme.fs-sm;
+    wrap: word-wrap;
+    min-width: 0px;
+}
+
+/// Compact controls in the left media pane; the comparison lives in the main monitor.
+export component AutoLanguagePane inherits Rectangle {
+    min-width: 0px;
+    background: Theme.panel;
+    clip: true;
+
+    PaneScroll {
+        VerticalLayout {
+            padding: 16px;
+            spacing: 14px;
+            alignment: start;
+            min-width: 0px;
+
+            HorizontalLayout {
+                spacing: 8px;
+                Icon { glyph: Glyph.text-mark; size: 20px; tint: Theme.accent; }
+                Text {
+                    text: "Auto ngôn ngữ";
+                    color: Theme.fg; font-size: 20px; font-weight: 700;
+                    vertical-alignment: center; horizontal-stretch: 1; min-width: 0px;
+                }
+            }
+
+            Rectangle {
+                border-radius: Theme.r;
+                border-width: 1px; border-color: Theme.line;
+                background: Theme.field;
+                VerticalLayout {
+                    padding: 14px; spacing: 10px; min-width: 0px;
+                    Text {
+                        text: "Từ lời thoại gốc đến video đa ngôn ngữ";
+                        color: Theme.fg; font-size: 16px; font-weight: 700;
+                        wrap: word-wrap; min-width: 0px;
+                    }
+                    Note { text: "Nhận diện lời thoại → dịch phụ đề → lồng tiếng → ghép video. Màn hình chính hiển thị bản gốc và bản dịch cạnh nhau."; }
+                    VerticalLayout {
+                        spacing: 8px;
+                        Note { text: "Ngôn ngữ gốc"; }
+                        Select {
+                            horizontal-stretch: 1;
+                            min-width: 0px;
+                            options: ["Tự động phát hiện", "Tiếng Việt", "English", "中文", "日本語", "한국어", "Español", "Français", "Deutsch"];
+                            current <=> AutoLanguage.source-language;
+                            enabled: !AutoLanguage.busy;
+                        }
+                        Note { text: "Dịch và lồng tiếng sang"; }
+                        Select {
+                            horizontal-stretch: 1;
+                            min-width: 0px;
+                            options: ["Tiếng Việt", "English", "中文", "日本語", "한국어", "Español", "Français", "Deutsch"];
+                            current <=> AutoLanguage.target-language;
+                            enabled: !AutoLanguage.busy;
+                            changed(index) => { AutoLanguage.voice-role-index = 0; AutoLanguage.refresh-voices(); }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Button { label: AutoLanguage.source-path == "" ? "Chọn video từ máy" : "Đổi video"; enabled: !AutoLanguage.busy; clicked => { AutoLanguage.choose-video(); } }
+                        Text { text: AutoLanguage.source-path == "" ? "Chưa chọn video" : AutoLanguage.source-path; color: Theme.fg-muted; vertical-alignment: center; overflow: elide; horizontal-stretch: 1; min-width: 0px; }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Button { label: "Chọn nhiều video"; enabled: !AutoLanguage.busy; clicked => { AutoLanguage.choose-videos(); } }
+                        Text { text: AutoLanguage.source-file-count > 1 ? AutoLanguage.source-file-count + " video trong hàng chờ" : "Có thể dịch nhiều video cùng lúc"; color: Theme.fg-muted; vertical-alignment: center; horizontal-stretch: 1; min-width: 0px; }
+                    }
+                    Button {
+                        label: "Chọn thư mục pyVideoTrans";
+                        enabled: !AutoLanguage.busy;
+                        horizontal-stretch: 1;
+                        clicked => { AutoLanguage.choose-runtime(); }
+                    }
+                    Text { text: "Giọng lồng tiếng (bắt buộc)"; color: Theme.fg-muted; font-size: Theme.fs-sm; min-width: 0px; }
+                    Select {
+                        options: AutoLanguage.voice-options;
+                        current: AutoLanguage.voice-role-index;
+                        enabled: !AutoLanguage.busy && AutoLanguage.voice-options.length > 0;
+                        changed(index) => { AutoLanguage.voice-role-index = index; }
+                    }
+                    Note { text: AutoLanguage.voice-options.length == 0 ? "Chọn thư mục pyVideoTrans để nạp giọng đọc cho ngôn ngữ đích." : "Đầu ra gồm phụ đề dịch và giọng đọc lồng tiếng."; }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Button { label: AutoLanguage.busy ? "Đang dịch video…" : (AutoLanguage.source-file-count > 1 ? "Dịch hàng loạt (" + AutoLanguage.source-file-count + ")" : "Dịch video"); enabled: !AutoLanguage.busy && AutoLanguage.source-path != ""; horizontal-stretch: 1; clicked => { AutoLanguage.translate(); } }
+                        if AutoLanguage.busy: Button { label: "Hủy"; clicked => { AutoLanguage.cancel(); } }
+                    }
+                    Note { text: AutoLanguage.status; color: AutoLanguage.busy ? Theme.accent : Theme.fg-muted; }
+                }
+            }
+        }
+    }
+}
+
+/// Replaces the central monitor while Auto Language is selected.
+export component AutoLanguageMonitor inherits Pane {
+    PaneHeader {
+        title: "Auto ngôn ngữ · So sánh trước / sau";
+        Button {
+            label: AutoLanguage.details-open ? "Thu gọn chi tiết" : "Mở chi tiết";
+            clicked => { AutoLanguage.details-open = !AutoLanguage.details-open; }
+        }
+    }
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 12px;
+        vertical-stretch: 1;
+
+        Rectangle {
+            height: 140px;
+            border-radius: Theme.r; border-width: 1px; border-color: Theme.line;
+            background: Theme.field;
+            VerticalLayout {
+                padding: 8px; spacing: 6px; min-width: 0px;
+                HorizontalLayout {
+                    spacing: 10px;
+                    Text { text: "HÀNG ĐỢI"; color: Theme.fg; font-size: 12px; font-weight: 700; }
+                    Text { text: "Chờ " + AutoLanguage.queue-waiting; color: Theme.fg-muted; font-size: 11px; }
+                    Text { text: "Đang dịch " + AutoLanguage.queue-running; color: Theme.accent; font-size: 11px; }
+                    Text { text: "Hoàn tất " + AutoLanguage.queue-completed; color: #18834b; font-size: 11px; }
+                    Text { text: "Lỗi / Hủy " + AutoLanguage.queue-failed; color: #c43b36; font-size: 11px; }
+                    Select { options: ["Tất cả", "Chưa xong", "Hoàn tất", "Lỗi / Đã hủy"]; current <=> AutoLanguage.queue-filter; min-width: 80px; }
+                }
+                Flickable {
+                    height: 92px;
+                    content-height: queue-list.preferred-height;
+                    queue-list := VerticalLayout {
+                        spacing: 4px;
+                        for item[index] in AutoLanguage.queue-items: Rectangle {
+                            property <bool> matches-filter: AutoLanguage.queue-filter == 0 || (AutoLanguage.queue-filter == 1 && (item.status == "Đang chờ" || item.status == "Đang dịch")) || (AutoLanguage.queue-filter == 2 && item.status == "Hoàn tất") || (AutoLanguage.queue-filter == 3 && (item.status == "Lỗi" || item.status == "Đã hủy"));
+                            visible: self.matches-filter;
+                            height: self.matches-filter ? 30px : 0px;
+                            border-radius: Theme.r-sm;
+                            border-width: 1px;
+                            border-color: AutoLanguage.selected-queue-index == index ? Theme.accent : Theme.line;
+                            background: Theme.panel;
+                            HorizontalLayout {
+                                padding-left: 8px; padding-right: 8px; spacing: 8px;
+                                Text { text: (index + 1) + ". " + item.source-path; color: Theme.fg; font-size: 11px; overflow: elide; horizontal-stretch: 1; min-width: 0px; vertical-alignment: center; }
+                                Text { text: item.status; color: item.status == "Hoàn tất" ? #18834b : (item.status == "Lỗi" ? #c43b36 : Theme.fg-muted); font-size: 11px; vertical-alignment: center; }
+                                Button { label: "Xem"; clicked => { AutoLanguage.select-queue-item(index); } }
+                            }
+                        }
+                        if AutoLanguage.queue-items.length == 0: Text { text: "Chọn video rồi bấm Dịch để tạo hàng đợi."; color: Theme.fg-muted; font-size: 11px; }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            vertical-stretch: 1;
+            min-height: 180px;
+
+            Rectangle {
+                horizontal-stretch: 1; preferred-width: 0px; min-width: 0px;
+                border-radius: Theme.r; border-width: 1px; border-color: Theme.line;
+                background: Theme.field;
+                VerticalLayout {
+                    padding: 10px; spacing: 8px; min-width: 0px;
+                    Text { text: "TRƯỚC · VIDEO GỐC"; color: Theme.fg-muted; font-size: 12px; font-weight: 700; }
+                    Rectangle {
+                        vertical-stretch: 1; min-height: 130px;
+                        background: #10131a; border-radius: Theme.r-sm;
+                        Image { x: 0; y: 0; width: parent.width; height: parent.height; source: AutoLanguage.source-frame; image-fit: contain; }
+                        if AutoLanguage.source-frame.width == 0: Text { text: "Chưa có khung hình"; color: Theme.fg-muted; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                    Text { text: AutoLanguage.source-path == "" ? "Chọn video ở khung bên trái." : AutoLanguage.source-path; color: Theme.fg-muted; font-size: Theme.fs-sm; overflow: elide; min-width: 0px; }
+                    Button { label: "Mở video gốc"; enabled: AutoLanguage.source-path != ""; clicked => { AutoLanguage.open-source(); } }
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1; preferred-width: 0px; min-width: 0px;
+                border-radius: Theme.r; border-width: 1px; border-color: Theme.line;
+                background: Theme.field;
+                VerticalLayout {
+                    padding: 10px; spacing: 8px; min-width: 0px;
+                    Text { text: "SAU · VIDEO ĐÃ DỊCH"; color: Theme.fg-muted; font-size: 12px; font-weight: 700; }
+                    Rectangle {
+                        vertical-stretch: 1; min-height: 130px;
+                        background: #10131a; border-radius: Theme.r-sm;
+                        Image { x: 0; y: 0; width: parent.width; height: parent.height; source: AutoLanguage.translated-frame; image-fit: contain; }
+                        if AutoLanguage.translated-frame.width == 0: Text { text: AutoLanguage.result-ready ? "Không có ảnh xem trước" : "Video dịch sẽ hiện ở đây"; color: Theme.fg-muted; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                    Text { text: AutoLanguage.output-path == "" ? "Chưa có video kết quả." : AutoLanguage.output-path; color: Theme.fg-muted; font-size: Theme.fs-sm; overflow: elide; min-width: 0px; }
+                }
+            }
+        }
+
+        Rectangle {
+            border-radius: Theme.r; border-width: 1px; border-color: Theme.line;
+            background: Theme.field;
+            VerticalLayout {
+                padding: 10px; spacing: 8px; min-width: 0px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    Text { text: "VIDEO ĐÃ DỊCH"; color: Theme.fg; font-size: 12px; font-weight: 700; vertical-alignment: center; }
+                    Rectangle { horizontal-stretch: 1; }
+                    Button { label: "Mở video"; enabled: AutoLanguage.result-ready; clicked => { AutoLanguage.open-output(); } }
+                    Button { label: "Mở thư mục"; enabled: AutoLanguage.result-ready; clicked => { AutoLanguage.reveal-output(); } }
+                }
+                Note { text: AutoLanguage.selected-detail != "" ? AutoLanguage.selected-detail : AutoLanguage.status; }
+            }
+        }
+
+        if AutoLanguage.details-open: Rectangle {
+            height: 132px;
+            border-radius: Theme.r; border-width: 1px; border-color: Theme.line;
+            background: Theme.field;
+            HorizontalLayout {
+                padding: 10px; spacing: 10px; min-width: 0px;
+                VerticalLayout {
+                    horizontal-stretch: 1; min-width: 0px; spacing: 5px;
+                    Text { text: "CHI TIẾT · LỜI THOẠI GỐC"; color: Theme.fg-muted; font-size: 11px; font-weight: 700; }
+                    TextInput { text <=> AutoLanguage.source-text; read-only: true; color: Theme.fg; font-size: 11px; wrap: word-wrap; vertical-stretch: 1; }
+                }
+                VerticalLayout {
+                    horizontal-stretch: 1; min-width: 0px; spacing: 5px;
+                    Text { text: "LỜI THOẠI ĐÃ DỊCH"; color: Theme.fg-muted; font-size: 11px; font-weight: 700; }
+                    TextInput { text <=> AutoLanguage.translated-text; read-only: true; color: Theme.fg; font-size: 11px; wrap: word-wrap; vertical-stretch: 1; }
+                }
+            }
+        }
+    }
+}

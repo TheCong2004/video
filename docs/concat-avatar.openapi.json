@@ -1,0 +1,372 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Concat private local avatar preparation",
+    "version": "0.2.0",
+    "description": "App-owned numeric loopback only; per-launch bearer credential; browser Origin rejected. No Promax/cloud host."
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/concat/avatars": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Owner-scoped jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "data"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AvatarJob"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/concat/avatars/capabilities": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Runtime readiness; missing dependencies are not a ready engine",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "data"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "ready",
+                        "missing",
+                        "engine",
+                        "capabilities"
+                      ],
+                      "properties": {
+                        "ready": {
+                          "type": "boolean"
+                        },
+                        "missing": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "engine": {
+                          "const": "slive-1.0.18"
+                        },
+                        "capabilities": {
+                          "type": "object",
+                          "properties": {
+                            "face_preparation": {
+                              "type": "boolean"
+                            },
+                            "source_motion": {
+                              "type": "boolean"
+                            },
+                            "realtime_lipsync": {
+                              "const": false
+                            },
+                            "voice_clone": {
+                              "const": false
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/concat/avatars/import-video": {
+      "post": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 90
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Raw MP4/WebM, maximum 25 MiB; 1–30 seconds, dimensions at most 4096×4096. No arbitrary paths, base avatar or model name accepted.",
+          "content": {
+            "video/mp4": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "video/webm": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Job"
+          },
+          "400": {
+            "description": "Invalid name, media container, size or library limit"
+          },
+          "403": {
+            "description": "Invalid local session, Host or browser Origin"
+          },
+          "503": {
+            "description": "Runtime missing or one worker already busy; no job accepted"
+          }
+        }
+      }
+    },
+    "/api/v1/concat/avatars/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AvatarId"
+        }
+      ],
+      "get": {
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Job"
+          },
+          "404": {
+            "description": "No job owned by this principal"
+          }
+        }
+      },
+      "delete": {
+        "responses": {
+          "200": {
+              "description": "Owner's non-running local job and copied assets archived to library/.trash; original user video unchanged"
+          },
+          "400": {
+            "description": "Job still processing"
+          },
+          "404": {
+            "description": "No owned job"
+          }
+        }
+      }
+    },
+    "/api/v1/concat/avatars/{id}/source-video": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AvatarId"
+        }
+      ],
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Normalized original-motion video, muted, at most 384×684, 25 fps",
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not ready or not owned"
+          }
+        }
+      }
+    },
+    "/api/v1/concat/avatars/{id}/preview": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AvatarId"
+        }
+      ],
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Prepared preview",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not ready or not owned"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "parameters": {
+      "AvatarId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "responses": {
+      "Job": {
+        "description": "Actual persisted preparation state, not playback or real-time lip sync",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ok",
+                "data"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "data": {
+                  "$ref": "#/components/schemas/AvatarJob"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "AvatarJob": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "status",
+          "created_at",
+          "error_code",
+          "frames",
+          "duration_seconds",
+          "source_video_url",
+          "preview_url",
+          "capabilities"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "processing",
+              "ready",
+              "failed"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "error_code": {
+            "enum": [
+              "PREPARATION_FAILED",
+              "PROCESS_INTERRUPTED",
+              null
+            ]
+          },
+          "frames": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "duration_seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "source_video_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preview_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capabilities": {
+            "type": "object",
+            "required": [
+              "source_motion",
+              "face_prepared",
+              "realtime_lipsync",
+              "voice_clone"
+            ],
+            "properties": {
+              "source_motion": {
+                "type": "boolean"
+              },
+              "face_prepared": {
+                "type": "boolean"
+              },
+              "realtime_lipsync": {
+                "const": false
+              },
+              "voice_clone": {
+                "const": false
+              }
+            }
+          }
+        },
+        "description": "Media URLs are null and capabilities false until ready. Motions come from the source video; no new gestures/voice clone/realtime inference implied. Interrupted process reports failed. Additive API; no existing OpenTalking route is repurposed."
+      }
+    }
+  }
+}

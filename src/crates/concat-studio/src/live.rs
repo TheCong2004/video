@@ -11,6 +11,81 @@ pub const PROTOCOL_VERSION: u64 = 1;
 /// Maximum accepted JSONL frame size, matching the source runtime contract.
 pub const MAX_FRAME_BYTES: usize = 32 * 1024;
 
+/// Viewer label for speech and comments; account identifiers are not real names.
+pub fn viewer_name(actor: Option<&Value>) -> String {
+    let Some(actor) = actor else {
+        return "bạn".to_owned();
+    };
+    for field in ["displayName", "userName", "nickname"] {
+        let Some(raw) = actor.get(field).and_then(Value::as_str) else {
+            continue;
+        };
+        let cleaned: String = raw
+            .chars()
+            .map(|c| if c.is_control() { ' ' } else { c })
+            .collect();
+        let name = cleaned.trim();
+        let is_id = ["displayId", "uniqueId", "userId"].iter().any(|key| {
+            actor
+                .get(*key)
+                .and_then(Value::as_str)
+                .is_some_and(|id| name.eq_ignore_ascii_case(id.trim()))
+        });
+        if name.is_empty() || name.starts_with('@') || name.chars().all(char::is_numeric) || is_id {
+            continue;
+        }
+        return name.chars().take(64).collect();
+    }
+    "bạn".to_owned()
+}
+
+#[cfg(test)]
+mod viewer_name_tests {
+    use super::viewer_name;
+    use serde_json::json;
+
+    #[test]
+    fn reads_displayed_person_name_not_account_handle() {
+        assert_eq!(
+            viewer_name(Some(
+                &json!({"displayId":"teodeptrai26","userName":"Võ Thế Công"})
+            )),
+            "Võ Thế Công"
+        );
+    }
+
+    #[test]
+    fn never_falls_back_to_an_id_when_no_name_was_provided() {
+        for actor in [
+            json!({"displayId":"teodeptrai26","userId":"123"}),
+            json!({"displayId":"teodeptrai26","userName":"teodeptrai26"}),
+            json!({"userName":"@teodeptrai26"}),
+            json!({"userName":"1234567"}),
+            json!({"userName":" \n\t "}),
+        ] {
+            assert_eq!(viewer_name(Some(&actor)), "bạn");
+        }
+        assert_eq!(viewer_name(None), "bạn");
+    }
+
+    #[test]
+    fn preserves_vietnamese_and_bounds_untrusted_names() {
+        assert_eq!(
+            viewer_name(Some(
+                &json!({"displayName":" Võ Thế Công ","userName":"other"})
+            )),
+            "Võ Thế Công"
+        );
+        let name = viewer_name(Some(&json!({"userName":"Công ".repeat(100)})));
+        assert_eq!(name.chars().count(), 64);
+        assert!(
+            !viewer_name(Some(&json!({"userName":"Võ\nThế\tCông"})))
+                .chars()
+                .any(char::is_control)
+        );
+    }
+}
+
 /// A command that can be written to the connector's stdin JSONL stream.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LiveCommand {

@@ -1,0 +1,248 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Floword } from "../theme/floword.slint";
+import { Select, NumberField } from "../primitives/primitives.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+
+// One outer page scroller owns scrolling. Intrinsic, vertically stacked panels
+// avoid wrapping fixed-height scrollports and leaving hundreds of blank pixels.
+export struct SceneCardRow { index: int, id: string, title: string, narration: string, duration: string, status: string, warning: bool, thumbnail: image }
+export global ProductionScenes {
+    in-out property <[SceneCardRow]> rows;
+    in-out property <int> selected: -1;
+    in-out property <int> count;
+    in-out property <int> page;
+    in-out property <int> page-count: 1;
+    in-out property <int> filter;
+    in-out property <string> summary;
+    in-out property <string> status;
+    in-out property <string> qa;
+    in-out property <bool> busy;
+    in-out property <bool> can-undo;
+    in-out property <bool> can-redo;
+    in-out property <bool> has-output;
+    in-out property <bool> has-preview;
+    in-out property <image> selected-image;
+    in-out property <string> title;
+    in-out property <string> narration;
+    in-out property <float> duration: 5;
+    in-out property <int> style;
+    in-out property <int> camera;
+    in-out property <int> motion;
+    in-out property <string> setting;
+    in-out property <string> lighting;
+    in-out property <string> expression;
+    in-out property <string> prompt;
+    in-out property <string> sound;
+    in-out property <string> caption;
+    in-out property <string> asset-notes;
+    in-out property <string> command;
+    in-out property <[string]> layer-names;
+    in-out property <int> layer-index: -1;
+    in-out property <float> layer-x;
+    in-out property <float> layer-y;
+    in-out property <float> layer-width: 30;
+    in-out property <float> layer-opacity: 100;
+    in-out property <string> source-note;
+    in-out property <string> background-label;
+    in-out property <string> character-label;
+    in-out property <string> voice-label;
+    in-out property <string> music-label;
+    in-out property <[string]> models;
+    in-out property <int> model-index;
+    in-out property <int> resolution;
+    callback action(string);
+    callback select-shot(int);
+    callback choose-layer(int);
+    callback clear-layer(int);
+    callback preset(string);
+}
+
+export component SceneWorkspace inherits StudioCard {
+    init => { ProductionScenes.action("activate"); }
+    in property <int> phase: 2;
+    in property <string> script;
+    property <bool> draft-open: false;
+    callback script-edited(string);
+    spacing: 10px;
+    padding-v: 12px;
+    padding-h: 12px;
+    min-width: 0px;
+        StudioHeading { title: root.phase == 2 ? "Bảng phân cảnh" : root.phase == 3 ? "Tư liệu theo cảnh" : root.phase == 4 ? "Đạo diễn · nhân vật và bố cục" : root.phase == 5 ? "Tạo hình, video và xem thử" : root.phase == 6 ? "Lời dẫn, giọng đọc và phụ đề" : "Kiểm tra và dựng phim"; }
+        Text { text: ProductionScenes.summary; color: Floword.muted; wrap: word-wrap; }
+        if root.phase == 2 && ProductionScenes.count > 0: StudioButton { label: root.draft-open ? "Ẩn kịch bản đầu vào" : "Sửa kịch bản đầu vào"; compact: true; clicked => { root.draft-open = !root.draft-open; } }
+        if root.phase == 2 && (ProductionScenes.count == 0 || root.draft-open): StudioField { label: "Kịch bản đầu vào · mỗi đoạn một cảnh"; value: root.script; multiline: true; input-height: 120px; enabled: !ProductionScenes.busy; edited(v) => { root.script-edited(v); } }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: "Tách kịch bản thành cảnh"; primary: ProductionScenes.count == 0; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("split"); } }
+            StudioButton { label: "Thêm cảnh"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("add"); } }
+            StudioButton { label: "Mở phân cảnh"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("open"); } }
+            StudioButton { label: "Lưu bản phân cảnh"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("save"); } }
+            StudioButton { label: "Hoàn tác"; enabled: !ProductionScenes.busy && ProductionScenes.can-undo; clicked => { ProductionScenes.action("undo"); } }
+            StudioButton { label: "Làm lại"; enabled: !ProductionScenes.busy && ProductionScenes.can-redo; clicked => { ProductionScenes.action("redo"); } }
+        }
+        if root.phase == 2: VerticalLayout {
+            spacing: 8px;
+            Text { text: "AI viết kịch bản từ ý tưởng ở bước 1, dùng kết nối AI đã thiết lập."; color: Floword.muted; wrap: word-wrap; }
+            FlexboxLayout {
+                spacing: 8px; min-width: 0px;
+                StudioButton { label: "Tải model AI"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("models"); } }
+                Select { options: ProductionScenes.models; current <=> ProductionScenes.model-index; enabled: !ProductionScenes.busy; preferred-width: 280px; min-width: 0px; }
+                StudioButton { label: "AI viết phân cảnh"; enabled: !ProductionScenes.busy && ProductionScenes.models.length > 0; clicked => { ProductionScenes.action("script-ai"); } }
+            }
+        }
+        if ProductionScenes.count > 0: HorizontalLayout {
+            spacing: 8px;
+            Select { options: ["Tất cả cảnh", "Cảnh có cảnh báo", "Chưa có bản xem thử"]; current <=> ProductionScenes.filter; changed(index) => { ProductionScenes.action("filter"); } min-width: 0px; }
+            StudioButton { label: "‹"; compact: true; enabled: ProductionScenes.page > 0; clicked => { ProductionScenes.action("previous"); } }
+            Text { text: "Trang " + (ProductionScenes.page + 1) + "/" + ProductionScenes.page-count; color: Floword.muted; vertical-alignment: center; }
+            StudioButton { label: "›"; compact: true; enabled: ProductionScenes.page + 1 < ProductionScenes.page-count; clicked => { ProductionScenes.action("next"); } }
+        }
+        if ProductionScenes.count == 0: Text { text: "Nhập kịch bản ở bước 2 rồi tách cảnh, hoặc thêm một cảnh để bắt đầu. Mỗi cảnh giữ riêng lời dẫn, số giây và các lớp tư liệu."; color: Floword.muted; wrap: word-wrap; }
+        FlexboxLayout {
+            min-width: 0px; spacing: 10px;
+            for shot in ProductionScenes.rows: Rectangle {
+                preferred-width: 190px; max-width: 240px; min-width: 140px; height: 168px;
+                border-width: ProductionScenes.selected == shot.index ? 2px : 1px;
+                border-color: ProductionScenes.selected == shot.index ? Floword.accent : Floword.line;
+                border-radius: 14px; background: Floword.field; clip: true;
+                VerticalLayout {
+                    padding: 10px; spacing: 6px;
+                    Image { source: shot.thumbnail; height: 60px; image-fit: contain; }
+                    Text { text: (shot.index + 1) + ". " + shot.title; color: Floword.text; font-weight: 700; overflow: elide; }
+                    Text { text: shot.duration + " · " + shot.status; color: shot.warning ? Floword.warning : Floword.success; font-size: 11px; overflow: elide; }
+                    Text { text: shot.narration; color: Floword.muted; font-size: 12px; wrap: word-wrap; max-height: 42px; overflow: elide; }
+                }
+                TouchArea { enabled: !ProductionScenes.busy; mouse-cursor: pointer; clicked => { ProductionScenes.select-shot(shot.index); } }
+            }
+        }
+    if ProductionScenes.selected >= 0: VerticalLayout {
+        spacing: 10px; alignment: start;
+        StudioHeading { title: ProductionScenes.title == "" ? "Cảnh " + (ProductionScenes.selected + 1) : ProductionScenes.title; }
+        if root.phase == 5 && ProductionScenes.selected-image.width > 0: Image { source: ProductionScenes.selected-image; height: 220px; image-fit: contain; }
+        FlexboxLayout {
+            spacing: 8px; min-width: 0px;
+            StudioButton { label: "Lưu chỉnh sửa"; primary: true; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("commit"); } }
+            StudioButton { label: "Nhân đôi"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("duplicate"); } }
+            StudioButton { label: "Đưa lên"; enabled: !ProductionScenes.busy && ProductionScenes.selected > 0; clicked => { ProductionScenes.action("up"); } }
+            StudioButton { label: "Đưa xuống"; enabled: !ProductionScenes.busy && ProductionScenes.selected + 1 < ProductionScenes.count; clicked => { ProductionScenes.action("down"); } }
+            StudioButton { label: "Xóa cảnh"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("delete"); } }
+        }
+        StudioField { label: "Tên cảnh"; value: ProductionScenes.title; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.title = v; } }
+        HorizontalLayout {
+            spacing: 12px;
+            Text { text: "Số giây của cảnh"; color: Floword.text; vertical-alignment: center; }
+            NumberField { value <=> ProductionScenes.duration; minimum: 0.5; maximum: 600; precision: 2; step: 0.5; enabled: !ProductionScenes.busy; }
+        }
+        if root.phase == 2 || root.phase == 6: VerticalLayout {
+            spacing: 10px;
+            StudioField { label: "Lời dẫn / lời thoại"; value: ProductionScenes.narration; multiline: true; input-height: 110px; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.narration = v; } }
+            StudioField { label: "Phụ đề riêng (để trống dùng lời dẫn)"; value: ProductionScenes.caption; multiline: true; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.caption = v; } }
+            StudioField { label: "Nguồn và ghi chú"; value: ProductionScenes.source-note; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.source-note = v; } }
+        }
+        if root.phase == 3 || root.phase == 4 || root.phase == 6: VerticalLayout {
+            spacing: 10px;
+            Text { text: "Các lớp tư liệu của cảnh"; font-weight: 700; color: Floword.text; }
+            for label[index] in [ProductionScenes.background-label, ProductionScenes.character-label, ProductionScenes.voice-label, ProductionScenes.music-label]: VerticalLayout {
+                spacing: 5px;
+                Text { text: label; color: Floword.muted; wrap: word-wrap; }
+                FlexboxLayout {
+                    min-width: 0px; spacing: 8px;
+                    StudioButton { label: ["Chọn nền · ảnh/video", "Chọn lớp nhân vật · PNG", "Tải giọng đọc", "Chọn nhạc nền"][index]; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.choose-layer(index); } }
+                    StudioButton { label: "Bỏ lớp"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.clear-layer(index); } }
+                }
+            }
+            if root.phase == 3 || root.phase == 4: VerticalLayout {
+                spacing: 8px;
+                StudioButton { label: "Thêm lớp hình / đạo cụ"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.choose-layer(5); } }
+                if ProductionScenes.layer-names.length > 0: VerticalLayout {
+                    spacing: 8px;
+                    Select { options: ProductionScenes.layer-names; current <=> ProductionScenes.layer-index; enabled: !ProductionScenes.busy; changed(index) => { ProductionScenes.action("layer-select"); } }
+                    Text { text: "Vị trí ngang / dọc (% khung)"; color: Floword.muted; }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        NumberField { value <=> ProductionScenes.layer-x; minimum: -100; maximum: 100; enabled: !ProductionScenes.busy; }
+                        NumberField { value <=> ProductionScenes.layer-y; minimum: -100; maximum: 100; enabled: !ProductionScenes.busy; }
+                    }
+                    Text { text: "Chiều rộng / độ hiện (%)"; color: Floword.muted; }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        NumberField { value <=> ProductionScenes.layer-width; minimum: 1; maximum: 200; enabled: !ProductionScenes.busy; }
+                        NumberField { value <=> ProductionScenes.layer-opacity; minimum: 0; maximum: 100; enabled: !ProductionScenes.busy; }
+                    }
+                    FlexboxLayout {
+                        min-width: 0px; spacing: 8px;
+                        StudioButton { label: "Lưu lớp"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("commit"); } }
+                        StudioButton { label: "Bỏ lớp đang chọn"; enabled: !ProductionScenes.busy && ProductionScenes.layer-index >= 0; clicked => { ProductionScenes.action("layer-delete"); } }
+                    }
+                }
+            }
+            if root.phase == 3: VerticalLayout {
+                spacing: 8px;
+                StudioField { label: "Danh sách tài nguyên cần chuẩn bị"; value: ProductionScenes.asset-notes; multiline: true; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.asset-notes = v; } }
+                StudioButton { label: "AI phân tích tài nguyên của cảnh"; enabled: !ProductionScenes.busy && ProductionScenes.models.length > 0; clicked => { ProductionScenes.action("assets-ai"); } }
+            }
+        }
+        if root.phase == 4 || root.phase == 5: VerticalLayout {
+            spacing: 10px;
+            Text { text: "Phong cách hình ảnh"; color: Floword.muted; }
+            Select { options: ["2D", "2.5D", "Phong cách 3D"]; current <=> ProductionScenes.style; enabled: !ProductionScenes.busy; }
+            Text { text: "2D/2.5D dựng từ lớp ảnh/video. Phong cách 3D dùng video do công cụ AI tạo; chỉnh vật thể 3D cần mô hình và renderer riêng."; color: Floword.muted; wrap: word-wrap; }
+            StudioField { label: "Bối cảnh"; value: ProductionScenes.setting; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.setting = v; } }
+            Text { text: "Góc máy"; color: Floword.muted; }
+            Select { options: ["Toàn cảnh", "Trung cảnh", "Cận mặt", "Góc cao", "Góc thấp"]; current <=> ProductionScenes.camera; enabled: !ProductionScenes.busy; }
+            Text { text: "Chuyển động máy"; color: Floword.muted; }
+            Select { options: ["Đứng yên", "Đẩy vào", "Lùi ra", "Máy lia ngang"]; current <=> ProductionScenes.motion; enabled: !ProductionScenes.busy; }
+            StudioField { label: "Ánh sáng"; value: ProductionScenes.lighting; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.lighting = v; } }
+            StudioField { label: "Biểu cảm / hành động nhân vật"; value: ProductionScenes.expression; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.expression = v; } }
+            StudioField { label: "Chỉ đạo hình ảnh bổ sung"; value: ProductionScenes.prompt; multiline: true; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.prompt = v; } }
+            StudioField { label: "Chỉ đạo tiếng động (gắn âm thanh ở bước tư liệu)"; value: ProductionScenes.sound; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.sound = v; } }
+            StudioField { label: "Ra lệnh đạo diễn bằng tiếng Việt"; placeholder: "Ví dụ: cận mặt nhân vật, ánh sáng hoàng hôn, camera tiến chậm…"; value: ProductionScenes.command; enabled: !ProductionScenes.busy; edited(v) => { ProductionScenes.command = v; } }
+            StudioButton { label: "AI áp dụng chỉ đạo cho cảnh"; enabled: !ProductionScenes.busy && ProductionScenes.models.length > 0; clicked => { ProductionScenes.action("direct-ai"); } }
+            FlexboxLayout {
+                min-width: 0px; spacing: 6px;
+                for name in ["Điện ảnh", "Lịch sử", "Chibi", "Giới thiệu sản phẩm"]: StudioButton { label: name; compact: true; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.preset(name); } }
+            }
+            FlexboxLayout {
+                min-width: 0px; spacing: 8px;
+                StudioButton { label: "Dùng chỉ đạo cho mọi cảnh"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("apply-direction"); } }
+                StudioButton { label: "Đưa cảnh vào quy trình Promax"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("workflow"); } }
+            }
+        }
+        if root.phase == 6: FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: "Tạo giọng cho cảnh"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("voice"); } }
+            StudioButton { label: "Khớp số giây theo giọng"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("fit-voice"); } }
+            StudioButton { label: "Dùng âm thanh gốc của video"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("original-audio"); } }
+        }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: "Dựng xem thử cảnh"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("preview"); } }
+            StudioButton { label: "Mở bản xem thử"; enabled: !ProductionScenes.busy && ProductionScenes.has-preview; clicked => { ProductionScenes.action("play-preview"); } }
+            StudioButton { label: "Nhận video tạo sẵn"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.choose-layer(4); } }
+        }
+    }
+    if ProductionScenes.count > 0: VerticalLayout {
+        spacing: 10px; alignment: start;
+        StudioHeading { title: "Kiểm tra & xuất"; }
+        Text { text: ProductionScenes.qa; color: Floword.muted; wrap: word-wrap; }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: "Kiểm tra tất cả cảnh"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("qa"); } }
+            StudioButton { label: "Xuất SRT"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("srt"); } }
+            StudioButton { label: "Dựng xem thử tất cả"; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("preview-all"); } }
+        }
+        if root.phase == 7: VerticalLayout {
+            spacing: 10px;
+            Select { options: ["720p · xem nhanh", "1080p · xuất phim"]; current <=> ProductionScenes.resolution; enabled: !ProductionScenes.busy; }
+            FlexboxLayout {
+                min-width: 0px; spacing: 8px;
+                StudioButton { label: "Dựng phim hoàn chỉnh"; primary: true; enabled: !ProductionScenes.busy; clicked => { ProductionScenes.action("render"); } }
+                StudioButton { label: "Mở video đã dựng"; enabled: !ProductionScenes.busy && ProductionScenes.has-output; clicked => { ProductionScenes.action("play-output"); } }
+                StudioButton { label: "Nhập video vào Concat"; enabled: !ProductionScenes.busy && ProductionScenes.has-output; clicked => { ProductionScenes.action("import"); } }
+                StudioButton { label: "Lưu video ra thư mục"; enabled: !ProductionScenes.busy && ProductionScenes.has-output; clicked => { ProductionScenes.action("export-video"); } }
+            }
+        }
+    }
+    if ProductionScenes.busy: StudioButton { label: "Dừng sau công đoạn hiện tại"; clicked => { ProductionScenes.action("cancel"); } }
+    if ProductionScenes.status != "": StudioCard { spacing: 8px; padding-v: 10px; Text { text: ProductionScenes.status; color: Floword.text; wrap: word-wrap; } }
+}

@@ -4,6 +4,7 @@ import { Floword } from "../theme/floword.slint";
 import { Select } from "../primitives/primitives.slint";
 import { Glyph, Icon } from "../icons.slint";
 import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+import { PromaxAvatarPanel } from "studio-promax-avatars.slint";
 
 export struct StudioAvatarRow { id: string, label: string, model-type: string }
 export struct StudioVoiceRow { id: string, label: string }
@@ -34,6 +35,20 @@ export global StudioOpenTalking {
     in-out property <int> model-index;
     in-out property <string> title;
     in-out property <string> script;
+    in-out property <string> duration-seconds: "10";
+    in-out property <string> gesture-seconds: "5";
+    in-out property <string> gesture-url: "http://127.0.0.1:8768";
+    in-out property <string> gesture-token;
+    in-out property <string> gesture-image-name;
+    in-out property <image> gesture-image;
+    in-out property <string> gesture-audio-name;
+    in-out property <string> gesture-status;
+    in-out property <bool> gesture-busy;
+    in-out property <bool> gesture-consent;
+    callback choose-gesture-image();
+    callback choose-gesture-audio();
+    callback clear-gesture-audio();
+    callback generate-gestures();
     in-out property <bool> busy;
     in-out property <bool> catalogs-loaded;
     in-out property <string> status;
@@ -55,11 +70,56 @@ export global StudioOpenTalking {
     callback set-tab(int);
 }
 
+component StudioCharacterMotionSetup inherits StudioCard {
+    in property <length> text-width: 500px;
+    in property <[string]> clips;
+    in property <bool> enabled-profile;
+    in property <bool> busy;
+    in property <string> status;
+    callback choose-motion-clip(int);
+    callback clear-motion-clip(int);
+    callback toggle-motion-clips();
+    StudioHeading { title: "Chuẩn bị cử chỉ nhân vật"; glyph: Glyph.film; }
+    Text { width: root.text-width; text: "AI tạo sẵn ba clip cùng nhân vật. Tạo xong sẽ tự lưu và gán cho LIVE; khi trả lời, LIVE chọn cử chỉ rồi khớp môi với lời mới. Chỉ tạo trước phiên LIVE."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+    if StudioOpenTalking.gesture-image.width > 0: Image { source: StudioOpenTalking.gesture-image; width: root.text-width; height: 140px; image-fit: contain; }
+    StudioButton { label: StudioOpenTalking.gesture-image-name == "" ? "1. Chọn ảnh nhân vật để AI tạo cử chỉ" : "Đổi ảnh · " + StudioOpenTalking.gesture-image-name; enabled: !StudioOpenTalking.gesture-busy && !root.busy; clicked => { StudioOpenTalking.choose-gesture-image(); } }
+    FlexboxLayout {
+        min-width: 0px; spacing: 8px;
+        StudioButton { label: StudioOpenTalking.gesture-audio-name == "" ? "2. Tải âm thanh dẫn cử chỉ (tùy chọn)" : "Âm thanh: " + StudioOpenTalking.gesture-audio-name; enabled: !StudioOpenTalking.gesture-busy && !root.busy; clicked => { StudioOpenTalking.choose-gesture-audio(); } }
+        if StudioOpenTalking.gesture-audio-name != "": StudioButton { label: "Dùng giọng đang chọn"; enabled: !StudioOpenTalking.gesture-busy; clicked => { StudioOpenTalking.clear-gesture-audio(); } }
+    }
+    Text { width: root.text-width; text: "Không tải âm thanh: dùng giọng đã chọn ở trên hoặc giọng mẫu LIVE. Khi bấm Tạo, ảnh và âm thanh sẽ được gửi tới dịch vụ AI đã thiết lập để tạo clip."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+    StudioField { label: "3. Số giây mỗi clip cử chỉ · từ 2 đến 10"; value: StudioOpenTalking.gesture-seconds; enabled: !StudioOpenTalking.gesture-busy; edited(value) => { StudioOpenTalking.gesture-seconds = value; } }
+    StudioButton { label: StudioOpenTalking.gesture-consent ? "Đã xác nhận quyền sử dụng ảnh và giọng" : "Tôi có quyền dùng ảnh và giọng này · bấm xác nhận"; primary: StudioOpenTalking.gesture-consent; enabled: !StudioOpenTalking.gesture-busy; clicked => { StudioOpenTalking.gesture-consent = !StudioOpenTalking.gesture-consent; } }
+    StudioButton { label: StudioOpenTalking.gesture-busy ? "Đang tạo bộ cử chỉ…" : "Tạo 3 clip cử chỉ bằng AI và gán cho LIVE"; primary: true; enabled: !root.busy && !StudioOpenTalking.gesture-busy && StudioOpenTalking.gesture-consent && StudioOpenTalking.gesture-image-name != ""; clicked => { StudioOpenTalking.generate-gestures(); } }
+    if StudioOpenTalking.gesture-status != "": Text { width: root.text-width; text: StudioOpenTalking.gesture-status; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+    for label[index] in ["Trả lời", "Chào người xem", "Giới thiệu sản phẩm"]: VerticalLayout {
+        min-width: 0px; spacing: 6px;
+        Text { width: root.text-width; text: label + ": " + (index < root.clips.length ? root.clips[index] : "Chưa chọn clip"); color: Floword.text; font-size: 12px; wrap: word-wrap; }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: "Chọn clip"; compact: true; enabled: !root.busy; clicked => { root.choose-motion-clip(index); } }
+            StudioButton { label: "Bỏ chọn"; compact: true; enabled: !root.busy; clicked => { root.clear-motion-clip(index); } }
+        }
+    }
+    StudioButton { label: root.enabled-profile ? "Đang dùng bộ cử chỉ đã chuẩn bị" : "Dùng bộ cử chỉ này"; primary: root.enabled-profile; enabled: !root.busy; clicked => { root.toggle-motion-clips(); } }
+    if root.status != "": Text { text: root.status; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+}
+
 export component StudioOpenTalkingPage inherits VerticalLayout {
+    in property <length> viewport-width: 1080px;
+    in property <[string]> motion-clips;
+    in property <bool> motion-enabled;
+    in property <bool> motion-busy;
+    in property <string> motion-status;
+    callback choose-motion-clip(int);
+    callback clear-motion-clip(int);
+    callback toggle-motion-clips();
     in-out property <bool> is-live-route: false;
     in property <length> viewport-height: 720px;
     property <bool> stacked: root.width < 840px;
     property <int> tab-columns: root.width < 660px ? 2 : root.width < 1080px ? 3 : 5;
+    private property <bool> advanced-open;
     callback navigate-to-live();
     spacing: 16px;
     alignment: start;
@@ -71,368 +131,24 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
         triggered => { StudioOpenTalking.refresh-jobs(); }
     }
 
-    // TOP HEADER CARD (Matches ArtCraft OpenTalking Studio Hub)
-    Rectangle {
-        border-radius: 16px;
-        border-width: 1px;
-        border-color: Floword.line;
-        background: Floword.surface;
-        min-height: header-layout.preferred-height;
-
-        header-layout := VerticalLayout {
-            padding: 16px;
-            spacing: 14px;
-
-            // Row 1: Brand title, Engine status badge & Refresh button
-            HorizontalLayout {
-                alignment: space-between;
-
-                HorizontalLayout {
-                    spacing: 12px;
-
-                    // Avatar Robot Icon
-                    Rectangle {
-                        width: 44px;
-                        height: 44px;
-                        border-radius: 12px;
-                        background: Floword.cyan.with-alpha(0.18);
-                        border-width: 1px;
-                        border-color: Floword.cyan.with-alpha(0.4);
-
-                        Icon {
-                            glyph: Glyph.film;
-                            size: 20px;
-                            tint: Floword.cyan;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                        }
-                    }
-
-                    VerticalLayout {
-                        spacing: 2px;
-                        alignment: center;
-
-                        FlexboxLayout {
-                            spacing: 8px;
-                            Text {
-                                text: "OPENTALKING STUDIO";
-                                color: Floword.text;
-                                font-size: 17px;
-                                font-weight: 800;
-                            }
-
-                            // Engine Status Pill
-                            Rectangle {
-                                border-radius: 10px;
-                                background: StudioOpenTalking.engine-status != "OFFLINE" ? Floword.success.with-alpha(0.2) : Floword.danger.with-alpha(0.2);
-                                border-width: 1px;
-                                border-color: StudioOpenTalking.engine-status != "OFFLINE" ? Floword.success.with-alpha(0.4) : Floword.danger.with-alpha(0.4);
-
-                                HorizontalLayout {
-                                    padding-left: 8px;
-                                    padding-right: 8px;
-                                    padding-top: 3px;
-                                    padding-bottom: 3px;
-
-                                    Text {
-                                        text: "ENGINE " + StudioOpenTalking.engine-status;
-                                        color: StudioOpenTalking.engine-status != "OFFLINE" ? Floword.success : Floword.danger;
-                                        font-size: 10px;
-                                        font-weight: 700;
-                                    }
-                                }
-                            }
-                        }
-
-                        Text {
-                            text: I18n.t("studioOpenTalking.subtitle");
-                            color: Floword.muted;
-                            font-size: 12px;
-                            wrap: word-wrap;
-                        }
-                    }
-                }
-
-                // Refresh Button
-                HorizontalLayout {
-                    alignment: end;
-                    Rectangle {
-                        width: 36px;
-                        height: 36px;
-                        border-radius: 10px;
-                        border-width: 1px;
-                        border-color: Floword.line;
-                        background: refresh-touch.has-hover ? Floword.raised : Floword.field;
-
-                        Icon {
-                            glyph: Glyph.sparkle;
-                            size: 16px;
-                            tint: Floword.cyan;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                        }
-
-                        refresh-touch := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { StudioOpenTalking.refresh(); }
-                        }
-                    }
-                }
-            }
-
-            // Row 2: Navigation Tabs (5 Tabs: Create, Avatars, Voices, Interactive, History)
-            GridLayout {
-                spacing: 8px;
-
-                // Tab 0: Tạo Video Người Ảo
-                Rectangle {
-                    row: 0;
-                    col: 0;
-                    border-radius: 10px;
-                    background: StudioOpenTalking.active-tab == 0 ? Floword.raised : tab0-touch.has-hover ? Floword.raised.with-alpha(0.6) : Floword.field;
-                    border-width: 1px;
-                    border-color: StudioOpenTalking.active-tab == 0 ? Floword.cyan : Floword.line;
-
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        padding-top: 8px;
-                        padding-bottom: 8px;
-                        spacing: 8px;
-
-                        Icon { glyph: Glyph.film; size: 14px; tint: StudioOpenTalking.active-tab == 0 ? Floword.cyan : Floword.muted; }
-                        Text {
-                            text: I18n.t("studioOpenTalking.tabCreate");
-                            color: StudioOpenTalking.active-tab == 0 ? Floword.cyan : Floword.text;
-                            font-size: 13px;
-                            font-weight: StudioOpenTalking.active-tab == 0 ? 700 : 500;
-                        }
-                    }
-
-                    tab0-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { StudioOpenTalking.active-tab = 0; }
-                    }
-                }
-
-                // Tab 1: Kho Nhân Vật
-                Rectangle {
-                    row: 0;
-                    col: 1;
-                    border-radius: 10px;
-                    background: StudioOpenTalking.active-tab == 1 ? Floword.raised : tab1-touch.has-hover ? Floword.raised.with-alpha(0.6) : Floword.field;
-                    border-width: 1px;
-                    border-color: StudioOpenTalking.active-tab == 1 ? Floword.violet : Floword.line;
-
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        padding-top: 8px;
-                        padding-bottom: 8px;
-                        spacing: 8px;
-
-                        Icon { glyph: Glyph.sparkle; size: 14px; tint: StudioOpenTalking.active-tab == 1 ? Floword.violet : Floword.muted; }
-                        Text {
-                            text: I18n.t("studioOpenTalking.tabAvatars") + " (" + StudioOpenTalking.avatars.length + ")";
-                            color: StudioOpenTalking.active-tab == 1 ? Floword.violet : Floword.text;
-                            font-size: 13px;
-                            font-weight: StudioOpenTalking.active-tab == 1 ? 700 : 500;
-                        }
-                    }
-
-                    tab1-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { StudioOpenTalking.active-tab = 1; }
-                    }
-                }
-
-                // Tab 2: Giọng Nói & Lồng Tiếng
-                Rectangle {
-                    row: root.tab-columns == 2 ? 1 : 0;
-                    col: root.tab-columns == 2 ? 0 : 2;
-                    border-radius: 10px;
-                    background: StudioOpenTalking.active-tab == 2 ? Floword.raised : tab2-touch.has-hover ? Floword.raised.with-alpha(0.6) : Floword.field;
-                    border-width: 1px;
-                    border-color: StudioOpenTalking.active-tab == 2 ? Floword.violet : Floword.line;
-
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        padding-top: 8px;
-                        padding-bottom: 8px;
-                        spacing: 8px;
-
-                        Icon { glyph: Glyph.volume; size: 14px; tint: StudioOpenTalking.active-tab == 2 ? Floword.violet : Floword.muted; }
-                        Text {
-                            text: I18n.t("studioOpenTalking.tabVoices") + " (" + StudioOpenTalking.voices.length + ")";
-                            color: StudioOpenTalking.active-tab == 2 ? Floword.violet : Floword.text;
-                            font-size: 13px;
-                            font-weight: StudioOpenTalking.active-tab == 2 ? 700 : 500;
-                        }
-                    }
-
-                    tab2-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { StudioOpenTalking.active-tab = 2; }
-                    }
-                }
-
-                // Tab 3: Hội Thoại Trực Tiếp (Active Pill with LIVE badge)
-                Rectangle {
-                    row: root.tab-columns < 5 ? 1 : 0;
-                    col: root.tab-columns == 2 ? 1 : root.tab-columns == 3 ? 0 : 3;
-                    border-radius: 10px;
-                    background: StudioOpenTalking.active-tab == 3 ? Floword.raised : tab3-touch.has-hover ? Floword.raised.with-alpha(0.6) : Floword.field;
-                    border-width: 1px;
-                    border-color: StudioOpenTalking.active-tab == 3 ? Floword.danger : Floword.line;
-
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        padding-top: 8px;
-                        padding-bottom: 8px;
-                        spacing: 8px;
-
-                        Icon { glyph: Glyph.waveform; size: 14px; tint: StudioOpenTalking.active-tab == 3 ? Floword.danger : Floword.muted; }
-                        Text {
-                            text: I18n.t("studioOpenTalking.tabInteractive");
-                            color: StudioOpenTalking.active-tab == 3 ? Floword.text : Floword.text;
-                            font-size: 13px;
-                            font-weight: 700;
-                        }
-
-                        // LIVE tag
-                        Rectangle {
-                            border-radius: 4px;
-                            background: Floword.danger;
-
-                            HorizontalLayout {
-                                padding-left: 5px;
-                                padding-right: 5px;
-                                padding-top: 1px;
-                                padding-bottom: 1px;
-                                Text {
-                                    text: "LIVE";
-                                    color: #ffffff;
-                                    font-size: 9px;
-                                    font-weight: 800;
-                                }
-                            }
-                        }
-                    }
-
-                    tab3-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            StudioOpenTalking.active-tab = 3;
-                            root.navigate-to-live();
-                        }
-                    }
-                }
-
-                // Tab 4: Lịch Sử Video
-                Rectangle {
-                    row: root.tab-columns == 2 ? 2 : root.tab-columns == 3 ? 1 : 0;
-                    col: root.tab-columns == 2 ? 0 : root.tab-columns == 3 ? 1 : 4;
-                    border-radius: 10px;
-                    background: StudioOpenTalking.active-tab == 4 ? Floword.raised : tab4-touch.has-hover ? Floword.raised.with-alpha(0.6) : Floword.field;
-                    border-width: 1px;
-                    border-color: StudioOpenTalking.active-tab == 4 ? Floword.cyan : Floword.line;
-
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        padding-top: 8px;
-                        padding-bottom: 8px;
-                        spacing: 8px;
-
-                        Icon { glyph: Glyph.clock; size: 14px; tint: StudioOpenTalking.active-tab == 4 ? Floword.cyan : Floword.muted; }
-                        Text {
-                            text: I18n.t("studioOpenTalking.tabHistory") + " (" + StudioOpenTalking.jobs.length + ")";
-                            color: StudioOpenTalking.active-tab == 4 ? Floword.cyan : Floword.text;
-                            font-size: 13px;
-                            font-weight: StudioOpenTalking.active-tab == 4 ? 700 : 500;
-                        }
-                    }
-
-                    tab4-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { StudioOpenTalking.active-tab = 4; }
-                    }
-                }
-
-            }
-
-            if StudioOpenTalking.status != "": Rectangle {
-                border-radius: 8px;
-                background: Floword.field;
-                border-width: 1px;
-                border-color: Floword.line;
-
-                HorizontalLayout {
-                    padding: 8px;
-                    Text { text: StudioOpenTalking.status; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
-                }
-            }
-        }
+    HorizontalLayout {
+        spacing: 8px;
+        StudioHeading { title: "Video nhân vật"; }
+        StudioButton { label: "Làm mới"; compact: true; enabled: !StudioOpenTalking.busy; clicked => { StudioOpenTalking.refresh(); } }
     }
+    FlexboxLayout {
+        spacing: 8px;
+        StudioButton { label: "Tạo video"; primary: StudioOpenTalking.active-tab == 0; compact: true; clicked => { StudioOpenTalking.active-tab = 0; } }
+        StudioButton { label: "Nhân vật"; primary: StudioOpenTalking.active-tab == 1; compact: true; clicked => { StudioOpenTalking.active-tab = 1; } }
+        StudioButton { label: "Giọng đọc"; primary: StudioOpenTalking.active-tab == 2; compact: true; clicked => { StudioOpenTalking.active-tab = 2; } }
+        StudioButton { label: "LIVE"; primary: StudioOpenTalking.active-tab == 3; compact: true; clicked => { StudioOpenTalking.active-tab = 3; root.navigate-to-live(); } }
+        StudioButton { label: "Video đã tạo"; primary: StudioOpenTalking.active-tab == 4; compact: true; clicked => { StudioOpenTalking.active-tab = 4; } }
+    }
+    if StudioOpenTalking.status != "": Text { text: StudioOpenTalking.status; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
 
     // TAB 0: TẠO VIDEO NGƯỜI ẢO
     if StudioOpenTalking.active-tab == 0: VerticalLayout {
         spacing: 16px;
-
-        // 3-STEP BEGINNER PIPELINE GUIDE
-        Rectangle {
-            background: Floword.surface;
-            border-radius: 12px;
-            border-width: 1px;
-            border-color: Floword.line-bright;
-            HorizontalLayout {
-                padding: 12px;
-                padding-left: 16px;
-                padding-right: 16px;
-                spacing: 12px;
-                alignment: space-between;
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: center;
-                    Rectangle {
-                        width: 22px; height: 22px; border-radius: 6px;
-                        background: Floword.cyan.with-alpha(0.2);
-                        Text { text: "1"; color: Floword.cyan; font-size: 11px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
-                    }
-                    Text { text: "Chọn Nhân Vật"; color: Floword.text; font-size: 12px; font-weight: 600; }
-                }
-
-                Text { text: "→"; color: Floword.muted; font-size: 14px; vertical-alignment: center; }
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: center;
-                    Rectangle {
-                        width: 22px; height: 22px; border-radius: 6px;
-                        background: Floword.violet.with-alpha(0.2);
-                        Text { text: "2"; color: Floword.violet; font-size: 11px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
-                    }
-                    Text { text: "Chọn Giọng & Kịch Bản"; color: Floword.text; font-size: 12px; font-weight: 600; }
-                }
-
-                Text { text: "→"; color: Floword.muted; font-size: 14px; vertical-alignment: center; }
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: center;
-                    Rectangle {
-                        width: 22px; height: 22px; border-radius: 6px;
-                        background: Floword.success.with-alpha(0.2);
-                        Text { text: "3"; color: Floword.success; font-size: 11px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
-                    }
-                    Text { text: "Tạo Video 1-Chạm"; color: Floword.text; font-size: 12px; font-weight: 600; }
-                }
-            }
-        }
-
 
         // 2-COLUMN WORKSPACE
         GridLayout {
@@ -446,10 +162,9 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                 horizontal-stretch: 1;
                 min-width: 0px;
                 preferred-width: 440px;
-                max-height: self.min-height;
                 spacing: 14px;
 
-                StudioHeading { title: "1. THIẾT LẬP NHÂN VẬT & MÔ HÌNH"; glyph: Glyph.film; }
+                StudioHeading { title: "Nhân vật và giọng đọc"; glyph: Glyph.film; }
 
                 VerticalLayout {
                     spacing: 6px;
@@ -463,7 +178,8 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                     Select { options: StudioOpenTalking.voice-options; current <=> StudioOpenTalking.voice-index; placeholder: I18n.t("studioOpenTalking.chooseVoice"); height: 38px; background: Floword.field; border-color: Floword.line; enabled: !StudioOpenTalking.busy; }
                 }
 
-                HorizontalLayout {
+                StudioButton { label: root.advanced-open ? "Thu gọn tùy chọn" : "Tùy chọn nâng cao"; compact: true; clicked => { root.advanced-open = !root.advanced-open; } }
+                if root.advanced-open: VerticalLayout {
                     spacing: 12px;
                     VerticalLayout {
                         horizontal-stretch: 1;
@@ -481,9 +197,11 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
 
                 Rectangle { height: 1px; background: Floword.line; }
 
-                StudioHeading { title: "2. TIÊU ĐỀ & KỊCH BẢN"; glyph: Glyph.text-mark; }
+                StudioHeading { title: "Nội dung"; glyph: Glyph.text-mark; }
 
                 StudioField { label: I18n.t("studioOpenTalking.videoTitle"); value: StudioOpenTalking.title; enabled: !StudioOpenTalking.busy; edited(text) => { StudioOpenTalking.title = text; } }
+                StudioField { label: "Thời lượng video không lời (giây) · 1–120"; value: StudioOpenTalking.duration-seconds; enabled: !StudioOpenTalking.busy; edited(text) => { StudioOpenTalking.duration-seconds = text; } }
+                Text { text: "Video có lời giữ đủ lời thoại; thời lượng theo âm thanh. Clip cử chỉ AI có ô số giây riêng bên dưới."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
                 StudioField { label: I18n.t("studioOpenTalking.script"); placeholder: I18n.t("studioOpenTalking.scriptHint"); multiline: true; value: StudioOpenTalking.script; enabled: !StudioOpenTalking.busy; edited(text) => { StudioOpenTalking.script = text; } }
             }
 
@@ -515,6 +233,12 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                         source: StudioOpenTalking.avatar-preview;
                         image-fit: contain;
                     }
+                    if StudioOpenTalking.avatar-preview.width == 0: VerticalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        Icon { glyph: Glyph.film; size: 32px; tint: Floword.muted; }
+                        Text { text: "Chọn nhân vật để xem trước"; color: Floword.muted; horizontal-alignment: center; wrap: word-wrap; }
+                    }
 
                     // Glassmorphic subtle edge vignette
                     Rectangle {
@@ -527,47 +251,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                         alignment: space-between;
                         padding: 14px;
 
-                        // Top header pills
-                        HorizontalLayout {
-                            alignment: space-between;
-                            Rectangle {
-                                background: #000000c0;
-                                border-radius: 10px;
-                                border-width: 1px;
-                                border-color: #ffffff20;
-                                HorizontalLayout {
-                                    padding-left: 10px; padding-right: 10px; padding-top: 4px; padding-bottom: 4px;
-                                    spacing: 6px;
-                                    Rectangle {
-                                        width: 8px; height: 8px; border-radius: 4px;
-                                        background: StudioOpenTalking.engine-status != "OFFLINE" ? Floword.success : Floword.danger;
-                                        y: (parent.height - self.height) / 2;
-                                    }
-                                    Text {
-                                        text: "ENGINE " + StudioOpenTalking.engine-status;
-                                        color: #ffffff; font-size: 11px; font-weight: 700;
-                                    }
-                                }
-                            }
-
-                            Rectangle {
-                                background: #000000c0;
-                                border-radius: 10px;
-                                border-width: 1px;
-                                border-color: #ffffff20;
-                                HorizontalLayout {
-                                    padding-left: 10px; padding-right: 10px; padding-top: 4px; padding-bottom: 4px;
-                                    spacing: 6px;
-                                    Icon { glyph: Glyph.film; size: 12px; tint: Floword.cyan; }
-                                    Text {
-                                        text: StudioOpenTalking.avatar-options.length > 0 && StudioOpenTalking.avatar-index < StudioOpenTalking.avatar-options.length
-                                            ? StudioOpenTalking.avatar-options[StudioOpenTalking.avatar-index]
-                                            : "Chưa chọn nhân vật";
-                                        color: Floword.text; font-size: 11px; font-weight: 600;
-                                    }
-                                }
-                            }
-                        }
+                        Text { text: "Xem trước"; color: Floword.text; font-size: 12px; }
 
                         // Bottom overlay subtitle/voice note
                         Rectangle {
@@ -580,7 +264,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                                 spacing: 8px;
                                 Icon { glyph: Glyph.volume; size: 14px; tint: Floword.cyan; }
                                 Text {
-                                    text: StudioOpenTalking.script != "" ? StudioOpenTalking.script : "Xem trước nhân vật ảo & kịch bản hội thoại. Nhập nội dung để bắt đầu kết xuất.";
+                                    text: StudioOpenTalking.script != "" ? StudioOpenTalking.script : "Chưa có lời thoại";
                                     color: #f1f5f9;
                                     font-size: 12px;
                                     overflow: elide;
@@ -595,66 +279,25 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                 // Preconditions & Trigger Card
                 StudioCard {
                     spacing: 12px;
-                    StudioHeading { title: "3. KIỂM TRA ĐIỀU KIỆN & BẮT ĐẦU"; glyph: Glyph.sparkle; }
-
-                    // Condition check items
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Icon {
-                            glyph: StudioOpenTalking.avatar-options.length > 0 ? Glyph.check : Glyph.close;
-                            size: 14px;
-                            tint: StudioOpenTalking.avatar-options.length > 0 ? Floword.success : Floword.warning;
-                        }
-                        Text {
-                            text: StudioOpenTalking.avatar-options.length > 0 ? "Đã xác nhận nhân vật phát biểu" : "Chưa chọn nhân vật";
-                            color: StudioOpenTalking.avatar-options.length > 0 ? Floword.text : Floword.muted;
-                            font-size: 12px;
-                        }
-                    }
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Icon {
-                            glyph: StudioOpenTalking.voice-options.length > 0 ? Glyph.check : Glyph.close;
-                            size: 14px;
-                            tint: StudioOpenTalking.voice-options.length > 0 ? Floword.success : Floword.warning;
-                        }
-                        Text {
-                            text: StudioOpenTalking.voice-options.length > 0 ? "Đã nạp giọng đọc AI" : "Chưa chọn giọng nói";
-                            color: StudioOpenTalking.voice-options.length > 0 ? Floword.text : Floword.muted;
-                            font-size: 12px;
-                        }
-                    }
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Icon {
-                            glyph: Glyph.check;
-                            size: 14px;
-                            tint: Floword.success;
-                        }
-                        Text {
-                            text: StudioOpenTalking.script != "" ? "Kịch bản: Đã nhập nội dung" : "Kịch bản tùy chọn: Để trống (Tự động tạo video cử động tự nhiên)";
-                            color: Floword.text;
-                            font-size: 12px;
-                        }
-                    }
-
-                    Text { text: I18n.t("studioOpenTalking.motionNote"); color: Floword.muted; wrap: word-wrap; font-size: 11px; }
-
+                    if StudioOpenTalking.avatar-options.length == 0: Text { text: "Chưa có nhân vật. Mở mục Nhân vật hoặc bấm Làm mới."; color: Floword.warning; wrap: word-wrap; }
+                    if StudioOpenTalking.voice-options.length == 0: Text { text: "Chưa có giọng đọc. Mở mục Giọng đọc hoặc bấm Làm mới."; color: Floword.warning; wrap: word-wrap; }
+                    if StudioOpenTalking.model-options.length == 0: Text { text: "Chưa có bộ tạo video. Bấm Làm mới để kiểm tra."; color: Floword.warning; wrap: word-wrap; }
+                    if root.advanced-open: Text { text: I18n.t("studioOpenTalking.motionNote"); color: Floword.muted; wrap: word-wrap; font-size: 12px; }
                     StudioButton {
-                        label: StudioOpenTalking.busy ? "Đang xử lý kết xuất..."
-                            : StudioOpenTalking.script != "" ? "Bắt đầu tạo Video Khớp Lời Nói"
-                            : "Tạo Video Chuyển Động Chờ (Không cần kịch bản)";
+                        label: StudioOpenTalking.busy ? "Đang tạo video…"
+                            : StudioOpenTalking.script != "" ? "Tạo video có lời thoại"
+                            : "Tạo video không lời";
                         primary: true;
                         enabled: !StudioOpenTalking.busy && StudioOpenTalking.catalogs-loaded
                             && StudioOpenTalking.avatar-options.length > 0 && StudioOpenTalking.voice-options.length > 0
                             && StudioOpenTalking.model-options.length > 0;
-                        clicked => { StudioOpenTalking.create(); }
+                        clicked => { StudioOpenTalking.confirm-create = true; }
                     }
                 }
             }
         }
+
+    }
 
         if StudioOpenTalking.confirm-create || StudioOpenTalking.stop-id != "" || StudioOpenTalking.delete-id != "": StudioCard {
             Text {
@@ -679,15 +322,25 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                 }
             }
         }
-    }
 
+
+    if StudioOpenTalking.active-tab == 0: StudioCharacterMotionSetup {
+        text-width: Math.max(0px, root.viewport-width - 32px);
+        clips: root.motion-clips; enabled-profile: root.motion-enabled;
+        busy: root.motion-busy; status: root.motion-status;
+        choose-motion-clip(index) => { root.choose-motion-clip(index); }
+        clear-motion-clip(index) => { root.clear-motion-clip(index); }
+        toggle-motion-clips => { root.toggle-motion-clips(); }
+    }
     // TAB 1: KHO NHÂN VẬT (Avatars Catalog)
     if StudioOpenTalking.active-tab == 1: VerticalLayout {
         spacing: 16px;
 
+        PromaxAvatarPanel { navigate-to-live => { root.navigate-to-live(); } }
+
         StudioCard {
-            StudioHeading { title: I18n.t("studioOpenTalking.tabAvatars") + " (" + StudioOpenTalking.avatars.length + ")"; }
-            Text { text: "Danh sách các nhân vật ảo đã cấu hình trên máy. Bạn có thể chọn nhân vật để tạo video hoặc phát Livestream."; color: Floword.muted; font-size: 13px; }
+            StudioHeading { title: "Nhân vật có sẵn"; }
+            StudioButton { label: root.advanced-open ? "Ẩn thông tin kỹ thuật" : "Thông tin kỹ thuật"; compact: true; clicked => { root.advanced-open = !root.advanced-open; } }
 
             if StudioOpenTalking.avatars.length == 0: Rectangle {
                 border-radius: 12px;
@@ -708,7 +361,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                 border-color: Floword.line;
                 background: Floword.field;
 
-                HorizontalLayout {
+                FlexboxLayout {
                     padding: 14px;
                     spacing: 16px;
                     alignment: space-between;
@@ -744,7 +397,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                                 font-weight: 700;
                             }
 
-                            Text {
+                            if root.advanced-open: Text {
                                 text: "Model: " + avatar.model-type + " · ID: " + avatar.id;
                                 color: Floword.muted;
                                 font-size: 12px;
@@ -806,7 +459,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                 border-color: Floword.line;
                 background: Floword.field;
 
-                HorizontalLayout {
+                FlexboxLayout {
                     padding: 14px;
                     spacing: 16px;
                     alignment: space-between;
@@ -842,7 +495,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                                 font-weight: 700;
                             }
 
-                            Text {
+                            if root.advanced-open: Text {
                                 text: "Mã giọng: " + voice.id;
                                 color: Floword.muted;
                                 font-size: 12px;
@@ -878,15 +531,15 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
 
     // TAB 3: HỘI THOẠI TRỰC TIẾP
     if StudioOpenTalking.active-tab == 3: StudioCard {
-        StudioHeading { title: "Hội Thoại Trực Tiếp (TikTok LIVE Studio)"; }
+        StudioHeading { title: "LIVE"; }
         Text {
-            text: "Mở màn hình TikTok LIVE Studio 3 cột đầy đủ (Màn hình Live, sóng âm, ghim sản phẩm & sự kiện). Bấm nút bên dưới để vào phiên Live:";
+            text: "Chọn nhân vật, kết nối kênh và theo dõi bình luận.";
             color: Floword.muted;
             font-size: 13px;
         }
         HorizontalLayout {
             StudioButton {
-                label: "Mở TikTok LIVE Studio";
+                label: "Mở LIVE";
                 primary: true;
                 clicked => { root.navigate-to-live(); }
             }
@@ -900,6 +553,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
 
         StudioCard {
             StudioHeading { title: I18n.t("studioOpenTalking.history") + " (" + StudioOpenTalking.jobs.length + ")"; }
+            StudioButton { label: root.advanced-open ? "Ẩn chi tiết" : "Chi tiết video"; compact: true; clicked => { root.advanced-open = !root.advanced-open; } }
 
             if StudioOpenTalking.catalogs-loaded && StudioOpenTalking.jobs.length == 0:
                 Text { text: I18n.t("studioOpenTalking.empty"); color: Floword.muted; wrap: word-wrap; font-size: 13px; }
@@ -932,7 +586,7 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                             padding-bottom: 3px;
 
                             Text {
-                                text: job.status;
+                                text: job.status == "completed" ? "Đã xong" : job.status == "processing" ? "Đang tạo" : job.status == "queued" ? "Đang chờ" : job.status == "cancelled" ? "Đã dừng" : job.status == "failed" ? "Chưa hoàn tất" : job.status;
                                 color: job.status == "completed" ? #34d399 : job.status == "processing" ? #60a5fa : #f87171;
                                 font-size: 11px;
                                 font-weight: 700;
@@ -941,9 +595,9 @@ export component StudioOpenTalkingPage inherits VerticalLayout {
                     }
                 }
 
-                Text { text: "ID: " + job.id + " · Driver: " + job.driver + " · Thời lượng: " + job.duration + " · Ngày tạo: " + job.created; color: Floword.muted; font-size: 12px; }
+                if root.advanced-open: Text { text: "ID: " + job.id + " · Driver: " + job.driver + " · Thời lượng: " + job.duration + " · Ngày tạo: " + job.created; color: Floword.muted; font-size: 12px; }
 
-                HorizontalLayout {
+                FlexboxLayout {
                     spacing: 8px;
                     if job.status == "queued" || job.status == "processing": StudioButton {
                         label: I18n.t("studioOpenTalking.stop"); enabled: !StudioOpenTalking.busy;

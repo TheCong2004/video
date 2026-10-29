@@ -1,0 +1,27 @@
+import { StudioWeb, StudioWebPage } from "../../src/crates/concat/ui/workspace/studio-web.slint";
+import { StudioHotclip, StudioHotclipPage } from "../../src/crates/concat/ui/workspace/studio-hotclip.slint";
+export { StudioWeb }
+export { StudioHotclip }
+export component App inherits Window {
+    title: root.hotclip-mode ? "Concat embedded Hotclip verification" : "Concat embedded NexPulse verification";
+    width: 1100px; height: 720px;
+    in-out property <bool> web-host-allowed: true;
+    in-out property <bool> hotclip-mode: false;
+    // App-compatible surface for compiling the shared native smoke function.
+    in-out property <int> open-menu: -1;
+    callback menu-opened(int);
+    menu-opened(index) => {
+        root.open-menu = index;
+        root.web-host-allowed = index < 0;
+        if index >= 0 { StudioHotclip.hide-native(); }
+    }
+    property <int> hotclip-request: StudioHotclip.open-request;
+    changed hotclip-request => { if root.hotclip-request > 0 { StudioHotclip.active = true; } }
+    property <int> web-request: StudioWeb.open-request;
+    changed web-request => { if root.web-request > 0 { StudioHotclip.active = false; StudioHotclip.hide-native(); } }
+    Rectangle { width: 200px; height: 100%; background: #111827;
+        Text { text: root.hotclip-mode ? "Hotclip" : "NexPulse"; x: 20px; y: 30px; color: white; font-size: 20px; }
+    }
+    if !root.hotclip-mode: StudioWebPage { x: 200px; width: Math.max(0px, parent.width - 200px); height: 100%; }
+    if root.hotclip-mode: StudioHotclipPage { x: 200px; width: Math.max(0px, parent.width - 200px); height: 100%; }
+}

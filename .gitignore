@@ -56,6 +56,9 @@ desktop.ini
 # Native compiler scratch, isolated acceptance fixtures and local service logs.
 # Keep caches on D without accidentally committing them or credentials.
 /.runtime/
+integrations/slive/**/__pycache__/
+integrations/lipsync/**/__pycache__/
+integrations/motion/**/__pycache__/
 # Generated Windows packages/installers are deliverables, not source.
 /dist/
 dist/
@@ -103,4 +106,8 @@ pnpm-debug.log*
 /scratch/
 scratch/
 
+
+
+resources/bin/
+/resources/bin/
 

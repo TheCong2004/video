@@ -115,7 +115,7 @@ export component Select inherits Rectangle {
         : (root.open || (trigger.has-hover && root.enabled)) ? Theme.field-hover
         : Theme.field;
 
-    animate background { duration: 120ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background { duration: Theme.motion-hover; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     /// Whether row `index` is one of the `disabled`.
     pure function off(index: int) -> bool {

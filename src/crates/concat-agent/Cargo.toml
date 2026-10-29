@@ -12,6 +12,7 @@ concat-studio.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true
+unicode-normalization-alignments = "=0.1.12"
 
 [lints]
 workspace = true

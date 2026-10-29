@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "task_id": "task-demo-01",
+  "trace_id": "tr-1",
+  "session_id": "demo-live-01",
+  "origin_event_id": "sim:room1:c1",
+  "type": "speech_and_scene",
+  "priority": "P1",
+  "generation_id": 2,
+  "deadline_at": "2026-10-26T03:30:04Z",
+  "expected_session_revision": 12,
+  "product_ref": {
+    "sku": "DURIAN-2KG",
+    "revision": 37
+  },
+  "speech": {
+    "text": "Dạ em đang kiểm tra tình trạng hàng của mẫu này ạ.",
+    "voice_id": "host-demo",
+    "language": "vi-VN"
+  },
+  "motion": {
+    "gesture": "attentive",
+    "emotion": "friendly"
+  },
+  "scene": {
+    "scene_id": "product_focus",
+    "show_price": false,
+    "show_sku": "DURIAN-2KG"
+  },
+  "platform_actions": []
+}

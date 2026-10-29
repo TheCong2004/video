@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kedi Liquid · Token specimen, không phải screenshot ứng dụng</title>
+<style>
+:root { font-family:"Hanken Grotesk",system-ui,sans-serif; color:#17365D; background:#EDF5FC; }
+* { box-sizing:border-box; }
+body { margin:0; padding:24px; }
+header { max-width:1200px; margin:auto auto 24px; }
+h1 { font-size:28px; margin:0 0 12px; }
+header p { max-width:78ch; line-height:1.5; }
+.compare { max-width:1200px; margin:auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
+.specimen[data-theme="light"] {
+  --kedi-background-primary: #F7FAFE;
+  --kedi-background-secondary: #EDF5FC;
+  --kedi-surface-primary: #FFFFFF;
+  --kedi-surface-secondary: #F5F8FC;
+  --kedi-surface-raised: #FFFFFF;
+  --kedi-surface-tint: #E6EEFF;
+  --kedi-text-primary: #17365D;
+  --kedi-text-secondary: #506985;
+  --kedi-text-muted: #637B97;
+  --kedi-brand-primary: #315DCC;
+  --kedi-brand-hover: #264DAF;
+  --kedi-brand-soft: #E6EEFF;
+  --kedi-on-brand: #FFFFFF;
+  --kedi-accent-yellow: #FFC83D;
+  --kedi-navigation-selected: #FFF3CF;
+  --kedi-navigation-selected-ink: #17365D;
+  --kedi-border-default: #DCE6F2;
+  --kedi-border-strong: #B4C7DE;
+  --kedi-border-soft: #EAF0F7;
+  --kedi-success: #087F5B;
+  --kedi-warning: #94600C;
+  --kedi-danger: #D70015;
+  --kedi-info: #1667AC;
+  --kedi-violet: #6C4FC5;
+}
+.specimen[data-theme="dark"] {
+  --kedi-background-primary: #0B1221;
+  --kedi-background-secondary: #121D30;
+  --kedi-surface-primary: #172339;
+  --kedi-surface-secondary: #1D2D46;
+  --kedi-surface-raised: #1D2D46;
+  --kedi-surface-tint: #1E2D4A;
+  --kedi-text-primary: #F5F5F7;
+  --kedi-text-secondary: #A1A1A6;
+  --kedi-text-muted: #6E6E73;
+  --kedi-brand-primary: #7BA6FF;
+  --kedi-brand-hover: #96B9FF;
+  --kedi-brand-soft: #1E2D4A;
+  --kedi-on-brand: #0B1221;
+  --kedi-accent-yellow: #FFD359;
+  --kedi-navigation-selected: #382F16;
+  --kedi-navigation-selected-ink: #FFE8A3;
+  --kedi-border-default: #304460;
+  --kedi-border-strong: #FFFFFF33;
+  --kedi-border-soft: #243552;
+  --kedi-success: #38D9A5;
+  --kedi-warning: #FFBE62;
+  --kedi-danger: #FF453A;
+  --kedi-info: #70C7FF;
+  --kedi-violet: #B59EFF;
+}
+.specimen { overflow:hidden; min-width:0; border:1px solid var(--kedi-border-default); border-radius:20px; color:var(--kedi-text-primary); background:var(--kedi-background-primary); }
+nav { padding:16px; display:flex; flex-wrap:wrap; gap:8px; border-bottom:1px solid var(--kedi-border-default); background:var(--kedi-surface-primary); }
+nav span { padding:10px 16px; border-radius:12px; }
+.nav-active { color:var(--kedi-navigation-selected-ink); background:var(--kedi-navigation-selected); font-weight:600; }
+.content { padding:24px; background:radial-gradient(circle at 95% 0%,color-mix(in srgb,var(--kedi-brand-primary) 6%,transparent),transparent 45%); }
+.eyebrow { font-size:11px; letter-spacing:.04em; color:var(--kedi-text-secondary); }
+h2 { font-size:24px; line-height:1.25; margin:16px 0; }
+h3 { font-size:16px; margin:0 0 16px; }
+p { line-height:1.45; }.secondary { color:var(--kedi-text-secondary); font-size:14px; }
+.card { padding:18px; border-radius:16px; border:1px solid var(--kedi-border-default); background:var(--kedi-surface-primary); margin:24px 0; }
+label { display:grid; gap:8px; font-size:14px; }
+input { min-width:0; width:100%; height:40px; border:1px solid var(--kedi-border-default); border-radius:12px; padding:0 12px; color:var(--kedi-text-primary); background:var(--kedi-surface-secondary); font:inherit; }
+input::placeholder { color:var(--kedi-text-secondary); }
+.actions { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+button { min-height:40px; padding:8px 16px; border:1px solid var(--kedi-brand-primary); border-radius:12px; color:var(--kedi-on-brand); background:var(--kedi-brand-primary); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+button:hover:not(:disabled) { background:var(--kedi-brand-hover); }
+button:disabled { opacity:.55; cursor:default; }
+:focus-visible { outline:2px solid var(--kedi-brand-primary); outline-offset:3px; }
+output { display:block; font-size:12px; line-height:1.45; color:var(--kedi-text-secondary); }
+.swatches { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:16px; }
+.swatch { height:36px; display:block; border:1px solid var(--kedi-border-default); border-radius:12px; margin-bottom:8px; }
+code,small { display:block; font-size:11px; overflow-wrap:anywhere; }
+small { margin-top:4px; color:var(--kedi-text-secondary); }
+@media(max-width:800px) { .compare { grid-template-columns:1fr; } body { padding:16px; } .content { padding:16px; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }
+</style>
+</head>
+<body>
+<header><h1>Kedi Liquid — Token specimen</h1><p>Đây là mẫu HTML độc lập để xem token Light/Dark, không phải screenshot Concat, không phải app thay thế và không chứng minh luồng backend đã hoạt động. Không dùng logo hoặc tài nguyên từ website tham chiếu. Bề mặt tĩnh; không có hiệu ứng chạy liên tục.</p><p><a href="README.md">Đọc đặc tả</a> · <a href="design-tokens.json">Token JSON</a></p></header>
+<main class="compare"><section class="specimen" data-theme="light" aria-label="Token specimen light">
+  <nav aria-label="Điều hướng minh họa light"><span class="nav-active">Hotclip · Light</span><span>Thư viện</span></nav>
+  <div class="content">
+    <p class="eyebrow">TOKEN SPECIMEN · KHÔNG PHẢI APP SCREENSHOT</p>
+    <h2>Biến video dài thành clip ngắn</h2>
+    <p class="secondary">Mẫu màu sắc, typography và component. Không gọi AI hoặc backend.</p>
+    <div class="card"><h3>Trường nhập &amp; nút minh họa</h3>
+      <label>Tên video <input type="text" placeholder="Ví dụ: Buổi chia sẻ của tôi"></label>
+      <div class="actions"><button type="button" onclick="this.closest('.card').querySelector('output').textContent='Đây chỉ là phản hồi trong token specimen; không có tác vụ video được chạy.'">Thử phản hồi</button><button type="button" disabled>Đang xử lý · mẫu</button></div>
+      <output aria-live="polite">Bạn có thể Tab vào nút để xem focus ring.</output>
+    </div>
+    <div class="swatches"><div><span class="swatch" style="background:var(--kedi-brand-primary)"></span><code>brand-primary</code><small>#315DCC</small></div><div><span class="swatch" style="background:var(--kedi-navigation-selected)"></span><code>navigation-selected</code><small>#FFF3CF</small></div><div><span class="swatch" style="background:var(--kedi-success)"></span><code>success</code><small>#087F5B</small></div><div><span class="swatch" style="background:var(--kedi-warning)"></span><code>warning</code><small>#94600C</small></div><div><span class="swatch" style="background:var(--kedi-danger)"></span><code>danger</code><small>#D70015</small></div></div>
+  </div>
+</section><section class="specimen" data-theme="dark" aria-label="Token specimen dark">
+  <nav aria-label="Điều hướng minh họa dark"><span class="nav-active">Hotclip · Dark</span><span>Thư viện</span></nav>
+  <div class="content">
+    <p class="eyebrow">TOKEN SPECIMEN · KHÔNG PHẢI APP SCREENSHOT</p>
+    <h2>Biến video dài thành clip ngắn</h2>
+    <p class="secondary">Mẫu màu sắc, typography và component. Không gọi AI hoặc backend.</p>
+    <div class="card"><h3>Trường nhập &amp; nút minh họa</h3>
+      <label>Tên video <input type="text" placeholder="Ví dụ: Buổi chia sẻ của tôi"></label>
+      <div class="actions"><button type="button" onclick="this.closest('.card').querySelector('output').textContent='Đây chỉ là phản hồi trong token specimen; không có tác vụ video được chạy.'">Thử phản hồi</button><button type="button" disabled>Đang xử lý · mẫu</button></div>
+      <output aria-live="polite">Bạn có thể Tab vào nút để xem focus ring.</output>
+    </div>
+    <div class="swatches"><div><span class="swatch" style="background:var(--kedi-brand-primary)"></span><code>brand-primary</code><small>#7BA6FF</small></div><div><span class="swatch" style="background:var(--kedi-navigation-selected)"></span><code>navigation-selected</code><small>#382F16</small></div><div><span class="swatch" style="background:var(--kedi-success)"></span><code>success</code><small>#38D9A5</small></div><div><span class="swatch" style="background:var(--kedi-warning)"></span><code>warning</code><small>#FFBE62</small></div><div><span class="swatch" style="background:var(--kedi-danger)"></span><code>danger</code><small>#FF453A</small></div></div>
+  </div>
+</section></main>
+</body></html>

@@ -53,7 +53,15 @@ export async function callBridge(connection, request) {
       chunks.push(chunk);
       if (!chunk.includes(10)) return;
       socket.destroy();
-      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch { fail(); }
+      try {
+        const result=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        // The legacy bridge groups authentication, queue and deadline failures.
+        // A Control submission may already have persisted before a reply is lost.
+        if(result?.ok===false && /^Bridge unavailable, invalid request or timeout;/.test(result.error || '')) {
+          result.error='Bridge unavailable, invalid request or timeout; outcome unknown. Inspect Concat workflow history before any retry. No approval was granted by this response.';
+        }
+        resolve(result);
+      } catch { fail(); }
     });
     socket.once('end', () => { if (!socket.destroyed) fail(); });
   });
@@ -61,10 +69,11 @@ export async function callBridge(connection, request) {
 
 export function createServer(call) {
   const server = new McpServer({ name: 'concat-ai-edit', version: '0.1.0' });
+  const controlOutput = {ok:z.boolean(),error:z.string().optional(),capabilities:z.array(z.unknown()).optional(),workflow:z.unknown().optional(),busy:z.boolean().optional(),workflowId:z.string().optional()};
   const respond = async request => {
     try {
       const result = await call(request);
-      return { content: [{ type: 'text', text: JSON.stringify(result) }], isError: result.ok !== true };
+      return { content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent:result, isError: result.ok !== true };
     } catch {
       return { content: [{ type: 'text', text: 'Concat connection failed or outcome unknown. No approval was granted. Do not automatically replay a proposal.' }], isError: true };
     }
@@ -82,6 +91,37 @@ export function createServer(call) {
     inputSchema: { scope: z.string().min(1).max(128), plan: z.record(z.string(), z.unknown()) },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, ({ scope, plan }) => respond({ action: 'propose', scope, plan }));
+  server.registerTool('concat_control_capabilities', {
+    description: 'Discover only Control Center tools with installed native executors, schemas and permission metadata. Does not grant permission or claim full application coverage.',
+    inputSchema: {}, outputSchema:controlOutput, annotations: {readOnlyHint:true,openWorldHint:false},
+  }, () => respond({action:'control',operation:'capabilities',input:{}}));
+  server.registerTool('concat_control_status', {
+    description: 'Read actual persisted workflow states, receipts and blockers. Requires separate MCP Control opt-in in Concat. A queued step is not a completed result.',
+    inputSchema: {}, outputSchema:controlOutput, annotations: {readOnlyHint:true,openWorldHint:false},
+  }, () => respond({action:'control',operation:'status',input:{}}));
+  server.registerTool('concat_control_submit', {
+    description: 'Submit a native Control workflow using operator-attached assets. Requires MCP Control opt-in; cannot grant network permissions, approve steps, choose filesystem roots, or override apply policy. Do not replay after an unknown outcome. Poll status; report completion only after validated steps finish.',
+    inputSchema: {command:z.string().min(1).max(16000),script:z.string().max(12000).default(''),model:z.string().max(500).default(''),audioPath:z.string().max(4096).default(''),workflowKind:z.enum(['auto','render_assets','library']).default('auto')},
+    outputSchema:controlOutput,
+    annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:false,openWorldHint:false},
+  }, input => respond({action:'control',operation:'submit',input}));
+  server.registerTool('concat_campaign_list', {
+    description:'List real stored campaigns and progress. Requires MCP Control opt-in. No credentials or approval authority.',
+    inputSchema:{},annotations:{readOnlyHint:true,openWorldHint:false},
+  },()=>respond({action:'control',operation:'campaign.list',input:{}}));
+  const campaignId=z.string().regex(/^campaign-[a-f0-9]{32}$/);
+  server.registerTool('concat_campaign_get', {
+    description:'Read a real campaign plan/status and up to 25 video summaries, or one video record. Queued/running is not completed; published requires verified platform ID/URL.',
+    inputSchema:{campaign_id:campaignId,video_id:z.string().regex(/^video-\d{5}$/).optional(),offset:z.number().int().min(0).max(1000).default(0)},annotations:{readOnlyHint:true,openWorldHint:false},
+  },input=>respond({action:'control',operation:'campaign.get',input}));
+  server.registerTool('concat_campaign_draft', {
+    description:'Create a draft or propose a version change, using ONLY operator-attached assets. Never activates, approves, grants rights, or bypasses locked plan fields. An exact reviewed version must be approved in the native UI before workers run.',
+    inputSchema:{plan:z.record(z.string(),z.unknown()),campaign_id:campaignId.optional(),expected_revision:z.number().int().nonnegative().optional()},annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:false,openWorldHint:false},
+  },input=>respond({action:'control',operation:'campaign.draft',input}));
+  server.registerTool('concat_campaign_control', {
+    description:'Pause/cancel, resume an ALREADY operator-approved campaign, or allocate slots inside its approved Page/time/quota policy. Cannot approve a draft, change budget/scope, connect accounts or release human locks. Accepted is not completion; poll real status.',
+    inputSchema:{campaign_id:campaignId,action:z.enum(['pause','resume','cancel','schedule'])},annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:false,openWorldHint:false},
+  },input=>respond({action:'control',operation:'campaign.control',input}));
   return server;
 }
 

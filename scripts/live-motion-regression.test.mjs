@@ -18,7 +18,9 @@ test('preview and clean output both prioritize the decoded video frame', () => {
     const ui = read(`src/crates/concat/ui/workspace/${file}`);
     assert.match(ui, /if StudioLive\.video-frame\.width > 0: Image/);
     assert.match(ui, /source: StudioLive\.video-frame/);
-    assert.match(ui, /StudioLive\.video-frame\.width <= 0 && StudioOpenTalking\.avatar-preview/);
+    assert.match(ui, file === 'studio-live.slint'
+      ? /StudioLive\.video-frame\.width == 0 && root\.has-avatar && root\.selected-preview\.width > 0/
+      : /StudioLive\.video-frame\.width <= 0 && StudioOpenTalking\.avatar-preview/);
   }
   const native = read('src/crates/concat/src/studio_live.rs');
   assert.match(native, /output\.set_video_frame\(source\.get_video_frame\(\)\)/);
@@ -32,5 +34,5 @@ test('motion is silent, bounded, cancellation-aware, and not advertised as realt
   assert.match(worker, /seek\(Rational::ZERO\)/);
   assert.doesNotMatch(worker, /AudioDecoder|speak_file|Command::new/);
   const ui = read('src/crates/concat/ui/workspace/studio-live.slint');
-  assert.match(ui, /chưa khớp môi theo câu AI mới/);
+  assert.match(ui, /Không khớp môi theo lời AI/);
 });

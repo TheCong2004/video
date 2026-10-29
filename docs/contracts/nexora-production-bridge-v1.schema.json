@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:concat:nexora:production-bridge:v1",
+  "title": "Native loopback POST /v1/local/concat/production/request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profileId", "method", "path", "body"],
+  "properties": {
+    "profileId": {"type": "string", "minLength": 1, "maxLength": 256},
+    "method": {"enum": ["GET", "POST"]},
+    "path": {"type": "string", "maxLength": 1024},
+    "body": {"type": ["object", "null"]}
+  },
+  "description": "Header X-Concat-Integration: 1 is required. Numeric 127.0.0.1 only, no redirects, browser Origin/Sec-Fetch-Site rejected. profileId must exist in Nexora on every request. Only artcraft workflow definitions, validate/start, run detail/list/cancel/resume are allowed. Request/response use the existing Promax envelope; HTTP status is preserved. Promax credentials stay native in Nexora. No retries for mutations. This header is not a cloud credential: local native applications share the existing loopback trust boundary. Cloud admission is separate and opt-in.",
+  "x-worker-transport": {
+    "identity": "POST /v1/local/concat/production/worker-identity with {profileId}; returns {client_id,device_id,tenant_id,user_id} only, never credentials",
+    "websocket": "GET /v1/local/concat/production/worker?profileId=<id>; same native headers. Nexora authenticates the upstream ArtCraft websocket using its own device session, forces clientType/clientId/deviceId, bounds messages to 1 MiB, and closes both sockets together. Existing Promax envelopes/ACK/results are unchanged.",
+    "scope": "Worker accepts only locally reserved workflow/Page/graph snapshots. Local artifacts never become remote path inputs. Missing capabilities continue to block preflight. No Concat login or cloud-token export is added.",
+    "infrastructureError": "Upstream HTTP 503 with error.code TRANSPORT_ORIGIN_NOT_CONFIGURED is mapped to native HTTP 503 PROMAX_TRANSPORT_NOT_CONFIGURED (retryable false). Other upstream bodies or credentials are never returned. Concat stops its reconnect loop for this deployment error and explains that runtime configuration is required."
+  }
+}

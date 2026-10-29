@@ -24,6 +24,8 @@ concat-shorts = { path = "crates/concat-shorts" }
 concat-effects = { path = "crates/concat-effects" }
 concat-text = { path = "crates/concat-text" }
 concat-vision = { path = "crates/concat-vision" }
+concat-ui = { path = "crates/concat-ui" }
+concat-control-ui = { path = "crates/concat-control-ui" }
 concat = { path = "crates/concat" }
 
 serde_json = "1"
@@ -125,14 +127,14 @@ strip = "symbols"
 [profile.dev.package."*"]
 opt-level = 2
 
-# Keep engine/dependency caches bounded, but retain incremental compilation for
-# the frequently edited window crate. Windows uses this standard dev profile
-# until sherpa-onnx-sys supports custom profile output directories.
+# Keep engine/dependency caches bounded. The generated window crate's incremental
+# snapshots reached 14+ GB after an interrupted Windows build; do not retain them.
+# Windows uses this standard dev profile until sherpa supports custom profiles.
 [profile.dev]
 incremental = false
 
 [profile.dev.package.concat]
-incremental = true
+incremental = false
 opt-level = 0
 codegen-units = 256
 # Generated Slint debug symbols can consume gigabytes on Windows. Keep the
@@ -141,6 +143,19 @@ debug = 0
 
 [profile.test]
 incremental = false
+
+# Keep the generated view reusable when only a native business adapter changes.
+[profile.dev.package.concat-ui]
+incremental = false
+opt-level = 0
+codegen-units = 256
+debug = 0
+
+[profile.dev.package.concat-control-ui]
+incremental = false
+opt-level = 0
+codegen-units = 256
+debug = 0
 
 # Slint's Skia renderer, as published, with one change: text is pixel-snapped
 # on a low-density screen (see patches/README.md). The copy is 1.18.1 exactly;

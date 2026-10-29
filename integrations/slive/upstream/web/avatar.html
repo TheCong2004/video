@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tạo Avatar - Slive Vip</title>
+  <link rel="shortcut icon" href="favicon.png" type="image/png">
+  <link rel="stylesheet" href="studio.css">
+</head>
+<body class="avatar-page">
+  <main class="avatar-shell">
+    <header class="avatar-heading">
+      <div>
+        <span class="eyebrow">SLIVE VIP • AVATAR LAB</span>
+        <h1>Tạo nhân vật AI của bạn</h1>
+        <p>Tải video khuôn mặt lên, chọn mô hình và theo dõi tiến trình xử lý ngay trong studio.</p>
+      </div>
+      <span class="status-pill online"><i></i> Hệ thống sẵn sàng</span>
+    </header>
+
+    <div class="avatar-grid">
+      <section class="panel avatar-form-panel">
+        <div class="panel-head">
+          <div><span class="panel-icon">✦</span> TẠO AVATAR MỚI</div>
+          <span class="panel-kicker">Thiết lập nguồn</span>
+        </div>
+        <form id="taskForm" class="avatar-form">
+          <label>
+            <span>Mô hình xử lý</span>
+            <select name="model" id="modelSelect" required>
+              <option value="wav2lip">Mô hình Tiêu chuẩn — Tự nhiên & Mượt mà</option>
+            </select>
+          </label>
+          <label>
+            <span>Tên Avatar</span>
+            <input type="text" name="avatar_id" placeholder="Ví dụ: mc_thoi_trang_01" pattern="[A-Za-z0-9_-]+" required>
+            <small>Chỉ dùng chữ không dấu, số, dấu gạch ngang hoặc gạch dưới.</small>
+          </label>
+          <label class="file-drop" id="fileDrop">
+            <input type="file" name="video_file" id="videoFile" accept="video/*" required>
+            <strong>＋ Chọn video khuôn mặt</strong>
+            <span id="fileName">MP4/MOV, khuôn mặt rõ và nhìn thẳng</span>
+          </label>
+
+          <details class="advanced-box">
+            <summary>⚙ Tham số nâng cao</summary>
+            <div class="advanced-grid">
+              <label><span>Kích thước ảnh</span><input type="number" name="img_size" value="384" min="64" step="64"></label>
+              <label><span>BBox shift</span><input type="number" name="bbox_shift" value="0"></label>
+              <label><span>Khoảng đệm</span><input type="text" name="pads" value="0 10 0 0"></label>
+              <label><span>Face batch</span><input type="number" name="face_det_batch_size" value="4" min="1"></label>
+            </div>
+          </details>
+
+          <button type="submit" class="btn btn-primary btn-block" id="submitBtn">↑ TẢI LÊN & TẠO AVATAR</button>
+          <p class="form-message" id="formMessage" role="status"></p>
+        </form>
+      </section>
+
+      <section class="panel avatar-task-panel">
+        <div class="panel-head">
+          <div><span class="panel-icon">☷</span> TIẾN TRÌNH XỬ LÝ</div>
+          <button class="btn btn-ghost" id="refreshBtn" type="button">↻ Làm mới</button>
+        </div>
+        <div class="task-list" id="taskList">
+          <div class="empty-state"><span class="loading-dot"></span> Đang tải danh sách tác vụ...</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const taskForm = document.getElementById('taskForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const taskList = document.getElementById('taskList');
+    const formMessage = document.getElementById('formMessage');
+    const videoFile = document.getElementById('videoFile');
+
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[character]);
+
+    videoFile.addEventListener('change', () => {
+      document.getElementById('fileName').textContent = videoFile.files[0]?.name || 'MP4/MOV, khuôn mặt rõ và nhìn thẳng';
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', refreshTasks);
+
+    taskForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'ĐANG TẢI LÊN & XỬ LÝ...';
+      formMessage.className = 'form-message';
+      formMessage.textContent = '';
+      try {
+        const response = await fetch('/api/avatar/task', { method: 'POST', body: new FormData(taskForm) });
+        const result = await response.json();
+        if (!response.ok || result.code !== 0) throw new Error(result.msg || 'Không thể tạo tác vụ');
+        formMessage.className = 'form-message success';
+        formMessage.textContent = `Đã nhận tác vụ ${result.data.task_id}. Bạn có thể tiếp tục làm việc trong khi hệ thống xử lý.`;
+        taskForm.reset();
+        document.getElementById('fileName').textContent = 'MP4/MOV, khuôn mặt rõ và nhìn thẳng';
+        refreshTasks();
+      } catch (error) {
+        formMessage.className = 'form-message error';
+        formMessage.textContent = error.message || 'Lỗi mạng khi gửi tác vụ.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '↑ TẢI LÊN & TẠO AVATAR';
+      }
+    });
+
+    async function refreshTasks() {
+      try {
+        const response = await fetch('/api/avatar/tasks');
+        const result = await response.json();
+        if (!response.ok || result.code !== 0) throw new Error(result.msg || 'Không thể tải tác vụ');
+        renderTasks(result.data.tasks || []);
+      } catch (error) {
+        taskList.innerHTML = `<div class="empty-state error">${escapeHtml(error.message || 'Không thể kết nối hệ thống Avatar.')}</div>`;
+      }
+    }
+
+    function renderTasks(tasks) {
+      if (!tasks.length) {
+        taskList.innerHTML = '<div class="empty-state">Chưa có tác vụ. Tạo Avatar đầu tiên ở khung bên trái.</div>';
+        return;
+      }
+      taskList.innerHTML = tasks.map((task) => {
+        const status = String(task.status || 'pending').toLowerCase();
+        const progress = Math.max(0, Math.min(100, Number(task.progress) || 0));
+        const date = task.start_time ? new Date(task.start_time * 1000).toLocaleString('vi-VN') : '—';
+        return `<article class="task-card">
+          <div class="task-head">
+            <div><strong>${escapeHtml(task.avatar_id)}</strong><small>#${escapeHtml(task.task_id)}</small></div>
+            <span class="task-status ${escapeHtml(status)}">${statusLabel(status)}</span>
+          </div>
+          <div class="task-meta"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:75%;" title="${escapeHtml(task.stage || date)}">${escapeHtml(task.stage || date)}</span><span style="font-weight:600;">${progress}%</span></div>
+          <div class="task-progress"><i style="width:${progress}%"></i></div>
+          ${task.error_msg ? `<p class="task-error">${escapeHtml(task.error_msg)}</p>` : ''}
+          ${status === 'pending' ? `<button class="btn btn-danger task-cancel" data-id="${escapeHtml(task.task_id)}">Hủy tác vụ</button>` : ''}
+        </article>`;
+      }).join('');
+      taskList.querySelectorAll('.task-cancel').forEach((button) => button.addEventListener('click', () => deleteTask(button.dataset.id)));
+    }
+
+    function statusLabel(status) {
+      return ({ pending: 'Đang chờ', running: 'Đang xử lý', completed: 'Hoàn tất', failed: 'Thất bại' })[status] || status;
+    }
+
+    async function deleteTask(taskId) {
+      if (!confirm('Hủy tác vụ đang chờ này?')) return;
+      try {
+        const response = await fetch(`/api/avatar/task/${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+        const result = await response.json();
+        if (!response.ok || result.code !== 0) throw new Error(result.msg || 'Không thể hủy tác vụ');
+        refreshTasks();
+      } catch (error) {
+        formMessage.className = 'form-message error';
+        formMessage.textContent = error.message;
+      }
+    }
+
+    refreshTasks();
+    setInterval(refreshTasks, 3000);
+  </script>
+</body>
+</html>

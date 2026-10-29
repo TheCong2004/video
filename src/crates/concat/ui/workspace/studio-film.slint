@@ -1,0 +1,686 @@
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+//! Slint UI for native Film Creation from idea.
+
+import { Floword } from "../theme/floword.slint";
+import { Select } from "../primitives/primitives.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export struct FilmProjectItem {
+    id: string,
+    title: string,
+    detail: string,
+    thumbnail: image,
+    duration: string,
+    is-ready: bool,
+}
+
+export global FilmStudio {
+    // Idea and project setup
+    in-out property <string> idea: "";
+    in-out property <string> film-name: "";
+    in-out property <int> genre-index: 0;
+    in-out property <float> duration-minutes: 1.0;
+    in-out property <int> language-index: 0;
+    in-out property <string> visual-style: "Điện ảnh sống động";
+    in-out property <string> visual-notes: "Ánh sáng tự nhiên, góc máy điện ảnh, màu sắc chân thực";
+    in-out property <int> ratio-index: 0;
+    in-out property <int> music-index: 0;
+    in-out property <string> music-file: "";
+    in-out property <int> voice-index: 0;
+    in-out property <int> speed-index: 1;
+    in-out property <string> voicetube-key: "";
+    in-out property <bool> narration: true;
+    in-out property <bool> subtitles: true;
+    in-out property <bool> retry: true;
+
+    // Execution state
+    in-out property <bool> busy: false;
+    in-out property <string> status: "Sẵn sàng tạo phim";
+    in-out property <string> current-stage: "";
+    in-out property <int> progress-percent: 0;
+    in-out property <string> last-output-path: "";
+    in-out property <int> shot-count: 0;
+
+    // Saved projects
+    in-out property <[FilmProjectItem]> project-items: [];
+    in-out property <[string]> project-names: [];
+    in-out property <int> selected-project: -1;
+
+    // Callbacks to Rust backend
+    callback auto-run();
+    callback save-step-by-step();
+    callback add-queue();
+    callback select-project(int);
+    callback new-project();
+    callback open-output-folder();
+    callback open-video-file();
+    callback import-to-timeline();
+}
+
+export component StudioFilmPage inherits VerticalLayout {
+    in property <length> viewport-width: 1080px;
+    spacing: 16px;
+    alignment: start;
+
+    // Top banner
+    Rectangle {
+        border-radius: 12px;
+        background: Floword.surface;
+        border-width: 1px;
+        border-color: Floword.line;
+
+        VerticalLayout {
+            padding-top: 18px;
+            padding-bottom: 18px;
+            padding-left: 20px;
+            padding-right: 20px;
+            spacing: 12px;
+            min-width: 0px;
+            VerticalLayout {
+                spacing: 4px;
+                min-width: 0px;
+                Text {
+                    text: "Làm phim từ ý tưởng";
+                    color: Floword.text;
+                    font-size: 20px;
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: "Nhập ý tưởng ➔ AI viết kịch bản, vẽ ảnh cảnh, lồng tiếng ➔ dựng thành phim hoàn chỉnh (Không cần kích hoạt key)";
+                    color: Floword.muted;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                    min-width: 0px;
+                }
+            }
+
+            FlexboxLayout {
+                spacing: 8px;
+                min-width: 0px;
+                StudioButton {
+                    label: FilmStudio.busy ? "Đang xử lý..." : "▶ Tạo phim AI ngay";
+                    primary: true;
+                    enabled: !FilmStudio.busy && FilmStudio.idea != "";
+                    clicked => { FilmStudio.auto-run(); }
+                }
+                StudioButton {
+                    label: "+ Phim mới";
+                    clicked => { FilmStudio.new-project(); }
+                }
+                StudioButton {
+                    label: "Mở thư mục video";
+                    clicked => { FilmStudio.open-output-folder(); }
+                }
+            }
+        }
+    }
+
+    // Main layout
+    HorizontalLayout {
+        spacing: 16px;
+        alignment: start;
+
+        // Left sidebar: Projects & Queue (YouTube Playlist style)
+        Rectangle {
+            width: 300px;
+            border-radius: 12px;
+            background: Floword.surface;
+            border-width: 1px;
+            border-color: Floword.line;
+
+            VerticalLayout {
+                padding-top: 14px;
+                padding-bottom: 14px;
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 10px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    VerticalLayout {
+                        spacing: 2px;
+                        Text {
+                            text: "Dự án phim (" + FilmStudio.project-items.length + ")";
+                            color: Floword.text;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: "Danh sách phim đã tạo";
+                            color: Floword.muted;
+                            font-size: 11px;
+                        }
+                    }
+                    StudioButton {
+                        label: "+ Phim mới";
+                        clicked => { FilmStudio.new-project(); }
+                    }
+                }
+
+                Rectangle { height: 1px; background: Floword.line; }
+
+                if FilmStudio.project-items.length == 0: Text {
+                    text: "Chưa có dự án nào. Bấm '+ Phim mới' để bắt đầu.";
+                    color: Floword.muted;
+                    font-size: 12px;
+                    wrap: word-wrap;
+                }
+
+                VerticalLayout {
+                    spacing: 6px;
+                    alignment: start;
+
+                        for item[idx] in FilmStudio.project-items: Rectangle {
+                            height: 64px;
+                            border-radius: 8px;
+                            background: FilmStudio.selected-project == idx
+                                ? Floword.accent.with-alpha(0.18)
+                                : (item-touch.has-hover ? Floword.field : Floword.surface);
+                            border-width: 1px;
+                            border-color: FilmStudio.selected-project == idx ? Floword.accent : Floword.line;
+                            clip: true;
+
+                            item-touch := TouchArea {
+                                clicked => { FilmStudio.select-project(idx); }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 8px;
+                                padding-top: 6px;
+                                padding-bottom: 6px;
+                                spacing: 8px;
+                                alignment: center;
+
+                                // Active play indicator line (like YouTube playlist active item)
+                                if FilmStudio.selected-project == idx: Rectangle {
+                                    width: 3px;
+                                    height: 38px;
+                                    background: Floword.accent;
+                                    border-radius: 2px;
+                                }
+
+                                // 16:9 Thumbnail container
+                                Rectangle {
+                                    width: 90px;
+                                    height: 50px;
+                                    border-radius: 5px;
+                                    background: #0f172a;
+                                    clip: true;
+
+                                    if item.thumbnail.width > 0: Image {
+                                        source: item.thumbnail;
+                                        image-fit: cover;
+                                        width: parent.width;
+                                        height: parent.height;
+                                    }
+                                    if item.thumbnail.width <= 0: Rectangle {
+                                        background: @linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                                        Text {
+                                            text: "🎬";
+                                            font-size: 16px;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    // Play icon overlay
+                                    Rectangle {
+                                        background: #00000030;
+                                        Text {
+                                            text: "▶";
+                                            color: white;
+                                            font-size: 13px;
+                                            font-weight: 700;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    // Duration tag in bottom-right corner
+                                    Rectangle {
+                                        x: parent.width - self.width - 3px;
+                                        y: parent.height - self.height - 3px;
+                                        width: dur-txt.preferred-width + 8px;
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #000000b0;
+
+                                        dur-txt := Text {
+                                            text: item.duration;
+                                            color: white;
+                                            font-size: 9px;
+                                            font-weight: 700;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    TouchArea {
+                                        clicked => {
+                                            FilmStudio.select-project(idx);
+                                            FilmStudio.open-video-file();
+                                        }
+                                    }
+                                }
+
+                                // Title & detail text
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    alignment: center;
+                                    spacing: 3px;
+
+                                    Text {
+                                        text: item.title;
+                                        color: FilmStudio.selected-project == idx ? Floword.accent : Floword.text;
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        overflow: elide;
+                                        max-height: 32px;
+                                        wrap: word-wrap;
+                                    }
+                                    Text {
+                                        text: item.detail;
+                                        color: Floword.muted;
+                                        font-size: 11px;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+                        }
+                    }
+            }
+        }
+
+        // Right side: Film Creation Form & Pipeline
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0px;
+            spacing: 16px;
+            alignment: start;
+
+                // Selected Project Banner Card
+                if FilmStudio.selected-project >= 0 || FilmStudio.last-output-path != "": StudioCard {
+                    padding-v: 14px;
+                    padding-h: 16px;
+                    background: Floword.surface;
+                    border-color: Floword.accent;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        spacing: 16px;
+
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 4px;
+                            alignment: center;
+
+                            Text {
+                                text: "🎬 Đang xem dự án: " + (FilmStudio.film-name != "" ? FilmStudio.film-name : "Phim đã chọn");
+                                font-size: 15px;
+                                font-weight: 700;
+                                color: Floword.accent;
+                            }
+                            Text {
+                                text: FilmStudio.last-output-path != ""
+                                    ? "✅ Đã có video sẵn sàng! Bấm '▶ Xem video ngay' để phát hoặc 'Nhập vào Timeline' để dựng."
+                                    : "Dự án kịch bản (Bấm '▶ Bắt đầu tạo phim AI ngay' để dựng thành phim).";
+                                font-size: 12px;
+                                color: Floword.muted;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+
+                            if FilmStudio.last-output-path != "": StudioButton {
+                                label: "▶ Xem video ngay";
+                                primary: true;
+                                clicked => { FilmStudio.open-video-file(); }
+                            }
+                            if FilmStudio.last-output-path != "": StudioButton {
+                                label: "🎬 Nhập vào Timeline";
+                                clicked => { FilmStudio.import-to-timeline(); }
+                            }
+                            StudioButton {
+                                label: "📁 Mở thư mục";
+                                clicked => { FilmStudio.open-output-folder(); }
+                            }
+                        }
+                    }
+                }
+
+                // Form setup card
+                StudioCard {
+                StudioHeading { title: "Làm phim từ ý tưởng"; }
+                Text {
+                    text: "Nhập ý tưởng và chọn cài đặt. Quản lý kịch bản, nhân vật, ảnh cảnh, clip và dựng phim theo từng công đoạn.";
+                    color: Floword.muted;
+                    font-size: 13px;
+                }
+
+                // 1. Idea Textarea
+                StudioField {
+                    label: "Ý tưởng phim (nhân vật, bối cảnh, mâu thuẫn, cú twist, cái kết)";
+                    placeholder: "Nhập ý tưởng phim của bạn tại đây... (Ví dụ: Ký sự một ngày làm gốm Bát Tràng...)";
+                    multiline: true;
+                    value: FilmStudio.idea;
+                    enabled: !FilmStudio.busy;
+                    edited(text) => { FilmStudio.idea = text; }
+                }
+
+                // Thanh thao tác nhanh ngay dưới ô ý tưởng
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    StudioButton {
+                        label: FilmStudio.busy ? "Đang xử lý phim..." : "▶ Bắt đầu tạo phim AI ngay";
+                        primary: true;
+                        enabled: !FilmStudio.busy && FilmStudio.idea != "";
+                        clicked => { FilmStudio.auto-run(); }
+                    }
+                    StudioButton {
+                        label: "+ Tạo dự án, chạy từng bước";
+                        enabled: !FilmStudio.busy && FilmStudio.idea != "";
+                        clicked => { FilmStudio.save-step-by-step(); }
+                    }
+                    if FilmStudio.last-output-path != "": StudioButton {
+                        label: "▶ Xem video";
+                        clicked => { FilmStudio.open-video-file(); }
+                    }
+                }
+
+                // 2. Name, Genre, Duration, Language (Grid 4)
+                HorizontalLayout {
+                    spacing: 12px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: "Tên phim (trống = AI tự đặt)"; color: Floword.muted; font-size: 12px; }
+                        StudioField {
+                            placeholder: "Nhập tên phim...";
+                            value: FilmStudio.film-name;
+                            enabled: !FilmStudio.busy;
+                            edited(text) => { FilmStudio.film-name = text; }
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: "Thể loại"; color: Floword.muted; font-size: 12px; }
+                        Select {
+                            options: ["AI tự chọn theo ý tưởng", "Phim tài liệu", "Phim ngắn điện ảnh", "Kịch tính / Gay cấn", "Hài hước", "Hoạt hình / Anime"];
+                            current <=> FilmStudio.genre-index;
+                            enabled: !FilmStudio.busy;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: "Độ dài (phút)"; color: Floword.muted; font-size: 12px; }
+                        StudioField {
+                            placeholder: "1.0";
+                            value: "1.0";
+                            enabled: !FilmStudio.busy;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: "Ngôn ngữ thoại"; color: Floword.muted; font-size: 12px; }
+                        Select {
+                            options: ["Tiếng Việt", "English (Mỹ)", "English (Anh)", "Tiếng Trung", "Tiếng Nhật"];
+                            current <=> FilmStudio.language-index;
+                            enabled: !FilmStudio.busy;
+                        }
+                    }
+                }
+
+                // 3. Visual style & prompt notes
+                HorizontalLayout {
+                    spacing: 12px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: "Phong cách hình ảnh"; color: Floword.muted; font-size: 12px; }
+                        StudioField {
+                            placeholder: "Ví dụ: Điện ảnh sống động, Anime, 3D Pixar...";
+                            value: FilmStudio.visual-style;
+                            enabled: !FilmStudio.busy;
+                            edited(text) => { FilmStudio.visual-style = text; }
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: "Yêu cầu thêm về hình"; color: Floword.muted; font-size: 12px; }
+                        StudioField {
+                            placeholder: "Ánh sáng tự nhiên, góc máy điện ảnh...";
+                            value: FilmStudio.visual-notes;
+                            enabled: !FilmStudio.busy;
+                            edited(text) => { FilmStudio.visual-notes = text; }
+                        }
+                    }
+                }
+
+                // 4. Ratio & Music
+                HorizontalLayout {
+                    spacing: 12px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: "Tỷ lệ khung hình"; color: Floword.muted; font-size: 12px; }
+                        Select {
+                            options: ["16:9 : YouTube / Điện ảnh", "9:16 : Shorts / TikTok", "1:1 : Vuông"];
+                            current <=> FilmStudio.ratio-index;
+                            enabled: !FilmStudio.busy;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: "Nhạc nền"; color: Floword.muted; font-size: 12px; }
+                        Select {
+                            options: ["AI tự phối theo cảm xúc", "Nhẹ nhàng / Acoustic", "Kịch tính / Cinematic Epic", "Vui tươi / Upbeat", "Không dùng nhạc nền"];
+                            current <=> FilmStudio.music-index;
+                            enabled: !FilmStudio.busy;
+                        }
+                    }
+                }
+
+                // 5. Voice & Voice speed
+                HorizontalLayout {
+                    spacing: 12px;
+                    VerticalLayout {
+                        horizontal-stretch: 2;
+                        spacing: 4px;
+                        Text { text: "Giọng đọc lồng tiếng (Auto ngôn ngữ)"; color: Floword.muted; font-size: 12px; }
+                        Select {
+                            options: [
+                                "Nam MC Bản Lĩnh (Nam Minh - Trầm ấm, thời sự)",
+                                "Nữ Truyền Cảm (Hoài My - Dịu dàng, cảm xúc)",
+                                "Nam Điện Ảnh (Andrew - Trầm vang Hollywood)",
+                                "Nữ Điện Ảnh (Ava - Ngọt ngào, tự nhiên)",
+                                "Nam Ký Sự (Brian - Dày dặn, phim tài liệu)",
+                                "Nữ Thuyết Minh (Emma - Nhẹ nhàng, tự nhiên)",
+                                "Nữ Tiếng Trung (Xiaoxiao - Phim cổ trang)",
+                                "Nữ Tiếng Nhật (Nanami - Anime/Manga)"
+                            ];
+                            current <=> FilmStudio.voice-index;
+                            enabled: !FilmStudio.busy;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: "Tốc độ đọc"; color: Floword.muted; font-size: 12px; }
+                        Select {
+                            options: ["Chậm rãi (0.9x)", "Chuẩn (1.0x)", "Nhanh nhẹn (1.1x)"];
+                            current <=> FilmStudio.speed-index;
+                            enabled: !FilmStudio.busy;
+                        }
+                    }
+                }
+
+                // 6. Checkboxes & Options
+                HorizontalLayout {
+                    spacing: 16px;
+                    Rectangle {
+                        border-radius: 6px;
+                        background: FilmStudio.narration ? Floword.accent.with-alpha(0.15) : Floword.field;
+                        border-width: 1px;
+                        border-color: FilmStudio.narration ? Floword.accent : Floword.line;
+                        height: 36px;
+                        TouchArea { clicked => { FilmStudio.narration = !FilmStudio.narration; } }
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 8px;
+                            alignment: center;
+                            Text { text: FilmStudio.narration ? "✔" : "○"; color: FilmStudio.narration ? Floword.accent : Floword.muted; }
+                            Text { text: "Có người dẫn chuyện"; color: Floword.text; font-size: 13px; vertical-alignment: center; }
+                        }
+                    }
+                    Rectangle {
+                        border-radius: 6px;
+                        background: FilmStudio.subtitles ? Floword.accent.with-alpha(0.15) : Floword.field;
+                        border-width: 1px;
+                        border-color: FilmStudio.subtitles ? Floword.accent : Floword.line;
+                        height: 36px;
+                        TouchArea { clicked => { FilmStudio.subtitles = !FilmStudio.subtitles; } }
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 8px;
+                            alignment: center;
+                            Text { text: FilmStudio.subtitles ? "✔" : "○"; color: FilmStudio.subtitles ? Floword.accent : Floword.muted; }
+                            Text { text: "Chèn phụ đề (Subtitles)"; color: Floword.text; font-size: 13px; vertical-alignment: center; }
+                        }
+                    }
+                    Rectangle {
+                        border-radius: 6px;
+                        background: FilmStudio.retry ? Floword.accent.with-alpha(0.15) : Floword.field;
+                        border-width: 1px;
+                        border-color: FilmStudio.retry ? Floword.accent : Floword.line;
+                        height: 36px;
+                        TouchArea { clicked => { FilmStudio.retry = !FilmStudio.retry; } }
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 8px;
+                            alignment: center;
+                            Text { text: FilmStudio.retry ? "✔" : "○"; color: FilmStudio.retry ? Floword.accent : Floword.muted; }
+                            Text { text: "Tự sửa cảnh & tối ưu ảnh"; color: Floword.text; font-size: 13px; vertical-alignment: center; }
+                        }
+                    }
+                }
+
+                // Status Banner / Progress (0% - 100%)
+                VerticalLayout {
+                    spacing: 8px;
+                    Rectangle {
+                        height: 50px;
+                        border-radius: 8px;
+                        background: FilmStudio.busy ? Floword.accent.with-alpha(0.12) : Floword.field;
+                        border-width: 1px;
+                        border-color: FilmStudio.busy ? Floword.accent : Floword.line;
+
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            alignment: space-between;
+                            Text {
+                                text: (FilmStudio.busy ? "⏳ " : "✨ ") + FilmStudio.status;
+                                color: FilmStudio.busy ? Floword.accent : Floword.text;
+                                font-size: 13px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                            HorizontalLayout {
+                                spacing: 12px;
+                                alignment: center;
+                                if FilmStudio.current-stage != "": Text {
+                                    text: FilmStudio.current-stage;
+                                    color: Floword.cyan;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                    vertical-alignment: center;
+                                }
+                                if FilmStudio.busy || FilmStudio.progress-percent > 0: Text {
+                                    text: FilmStudio.progress-percent + "%";
+                                    color: Floword.accent;
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    if FilmStudio.busy || FilmStudio.progress-percent > 0: Rectangle {
+                        height: 8px;
+                        border-radius: 4px;
+                        background: Floword.field;
+                        border-width: 1px;
+                        border-color: Floword.line;
+                        clip: true;
+
+                        Rectangle {
+                            x: 0;
+                            y: 0;
+                            width: parent.width * Math.clamp(FilmStudio.progress-percent / 100.0, 0, 1);
+                            height: parent.height;
+                            border-radius: 4px;
+                            background: FilmStudio.progress-percent >= 100 ? Floword.success : Floword.accent;
+                        }
+                    }
+                }
+
+                // Action Buttons
+                HorizontalLayout {
+                    spacing: 12px;
+                    StudioButton {
+                        label: FilmStudio.busy ? "Đang xử lý phim..." : "▶ Làm phim tự động";
+                        enabled: !FilmStudio.busy && FilmStudio.idea != "";
+                        clicked => { FilmStudio.auto-run(); }
+                    }
+                    StudioButton {
+                        label: "+ Tạo dự án, chạy từng bước";
+                        enabled: !FilmStudio.busy && FilmStudio.idea != "";
+                        clicked => { FilmStudio.save-step-by-step(); }
+                    }
+                    if FilmStudio.last-output-path != "": StudioButton {
+                        label: "🎬 Chỉnh sửa trên Timeline";
+                        primary: true;
+                        clicked => { FilmStudio.import-to-timeline(); }
+                    }
+                    StudioButton {
+                        label: "☷ Thêm nhiều phim vào hàng chờ";
+                        enabled: !FilmStudio.busy;
+                        clicked => { FilmStudio.add-queue(); }
+                    }
+                }
+            }
+
+            // 8 Production Steps Overview
+            StudioCard {
+                StudioHeading { title: "8 Công đoạn sản xuất điện ảnh tự động"; }
+                VerticalLayout {
+                    spacing: 8px;
+                    Text { text: "1. Kịch bản theo cảnh: mục tiêu, trở ngại, bước ngoặt và quan hệ nhân quả."; color: Floword.muted; font-size: 12px; }
+                    Text { text: "2. Ngữ pháp shot: toàn cảnh, cận cảnh, góc nhìn nhân vật và phản ứng."; color: Floword.muted; font-size: 12px; }
+                    Text { text: "3. Đạo diễn duyệt kịch bản: tính hợp lý, phong cách thoại và nhịp phim."; color: Floword.muted; font-size: 12px; }
+                    Text { text: "4. Diễn xuất & đạo cụ: mô tả chi tiết, ánh sáng và bối cảnh nhất quán."; color: Floword.muted; font-size: 12px; }
+                    Text { text: "5. Nhạc nền: AI tự động phân tầng âm thanh theo cảm xúc từng cảnh."; color: Floword.muted; font-size: 12px; }
+                    Text { text: "6. Ảnh nhân vật / ảnh cảnh: giữ nguyên khuôn mặt, trang phục và thần thái."; color: Floword.muted; font-size: 12px; }
+                    Text { text: "7. Clip thoại: tạo chuyển động đồng bộ khẩu hình và cảm xúc diễn xuất."; color: Floword.muted; font-size: 12px; }
+                    Text { text: "8. Dựng & xuất phim: ghép nối phân cảnh bằng FFmpeg, chèn phụ đề SRT và âm thanh hoàn chỉnh."; color: Floword.muted; font-size: 12px; }
+                }
+            }
+        }
+    }
+}

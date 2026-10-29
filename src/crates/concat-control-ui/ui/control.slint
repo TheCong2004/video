@@ -1,0 +1,118 @@
+import { AiControl, ControlStepRow, ControlComposer, ControlPlanPanel } from "@control-shared@";
+import { Theme } from "../../concat/ui/theme/theme.slint";
+import { Floword } from "../../concat/ui/theme/floword.slint";
+import { PaneScroll } from "../../concat/ui/workspace/pane.slint";
+import { ControlTheme, ControlAction, ControlFoldout, ControlCard } from "../../concat/ui/workspace/control-chrome.slint";
+import { StudioStatus } from "../../concat/ui/workspace/studio-chrome.slint";
+import { CampaignUi, CampaignRow, CampaignVideoRow, CampaignPanel } from "@campaign-ui@";
+export {CampaignUi,CampaignRow,CampaignVideoRow}
+export {CampaignStageRow} from "@campaign-ui@";
+export {AiControl,ControlStepRow,Theme}
+
+export component ControlWindow inherits Window {
+    title:"Kedi AI Control";
+    preferred-width:460px;preferred-height:760px;
+    min-width:340px;min-height:420px;max-width:1800px;
+    default-font-family:Theme.font;default-font-size:13px;
+    background:ControlTheme.ground;
+    in-out property <bool> show-plan;
+    in-out property <bool> show-campaign;
+    in property <bool> campaign-enabled:true;
+    in property <bool> nexora-busy;
+    in property <string> nexora-status:"Dùng kết nối Nexora của Xưởng phim AI";
+    callback open-nexora();callback refresh-nexora();
+    callback focus-main();callback tile-windows();callback dismiss();callback connections();
+    VerticalLayout {
+        padding:12px;spacing:12px;
+        Text {text:root.show-campaign ? "AI Automation · Campaign Manager" : root.show-plan ? "Kế hoạch thực hiện" : "AI Control";font-size:20px;font-weight:700;color:Floword.text;wrap:word-wrap;min-width:0px;}
+        Text {text:"Ra lệnh ở đây · theo dõi thao tác trong app chính";color:Floword.muted;font-size:12px;wrap:word-wrap;min-width:0px;}
+        FlexboxLayout {spacing:6px;
+            if root.campaign-enabled: ControlAction {label:root.show-campaign ? "← AI Control" : "Campaign Manager";clicked=>{root.show-campaign=!root.show-campaign;}}
+            if root.show-plan: ControlAction {label:"← Quay lại yêu cầu";clicked=>{root.show-plan=false;}}
+            ControlAction {label:"Hiện app chính";clicked=>{root.focus-main();}}
+            ControlAction {label:"Xếp cạnh nhau";clicked=>{root.tile-windows();}}
+            ControlAction {label:"Ẩn bảng AI";clicked=>{root.dismiss();}}
+        }
+        if root.show-campaign: ControlCard {
+            VerticalLayout {spacing:6px;min-width:0px;
+                ControlFoldout {title:"Đăng nhập AI web";summary:AiControl.web-login-busy ? "Cửa sổ đăng nhập đang mở · đóng cửa sổ khi xong" : "ChatGPT · Gemini · Claude · lưu phiên trên máy";
+                Text {text:"Chọn dịch vụ rồi đăng nhập một lần. Phiên được lưu trên máy.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                FlexboxLayout {spacing:6px;
+                    ControlAction {label:"ChatGPT";primary:AiControl.web-provider==0;enabled:!AiControl.web-login-busy && CampaignUi.campaign-state!="running";clicked=>{AiControl.web-provider=0;CampaignUi.text-model="web:chatgpt";CampaignUi.dirty=true;}}
+                    ControlAction {label:"Gemini";primary:AiControl.web-provider==1;enabled:!AiControl.web-login-busy && CampaignUi.campaign-state!="running";clicked=>{AiControl.web-provider=1;CampaignUi.text-model="web:gemini";CampaignUi.dirty=true;}}
+                    ControlAction {label:"Claude";primary:AiControl.web-provider==2;enabled:!AiControl.web-login-busy && CampaignUi.campaign-state!="running";clicked=>{AiControl.web-provider=2;CampaignUi.text-model="web:claude";CampaignUi.dirty=true;}}
+                    ControlAction {label:AiControl.web-login-busy ? "Đóng cửa sổ trình duyệt khi xong" : "Đăng nhập AI web";primary:true;enabled:!AiControl.web-login-busy;clicked=>{AiControl.web-login();}}
+                }
+                if AiControl.web-status!="": StudioStatus {label:AiControl.web-status;tone:AiControl.web-login-busy ? 4 : 0;}
+                }
+                if CampaignUi.action-error!="": StudioStatus {label:CampaignUi.action-error;tone:3;}
+                if CampaignUi.action-error=="": StudioStatus {label:CampaignUi.status;tone:CampaignUi.busy ? 4 : 0;}
+                Text {text:CampaignUi.selected-id=="" ? "Bắt đầu chiến dịch" : CampaignUi.campaign-state=="draft" ? "Bản nháp · cần duyệt trước khi chạy" : CampaignUi.campaign-state=="approved" || CampaignUi.campaign-state=="paused" ? "Kế hoạch đã duyệt · sẵn sàng chạy" : CampaignUi.campaign-state=="running" ? "Chiến dịch đang chạy" : "Điều khiển chiến dịch";font-weight:700;color:Floword.text;wrap:word-wrap;min-width:0px;}
+                if CampaignUi.selected-id=="": Text {text:"Nhập mục tiêu bên dưới, rồi lưu bản nháp. Sau khi lưu, nút duyệt sẽ hiện ngay tại đây.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                FlexboxLayout {spacing:6px;
+                    if CampaignUi.selected-id=="": ControlAction {label:"Lưu bản nháp";primary:true;enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("save");}}
+                    if CampaignUi.selected-id=="": ControlAction {label:CampaignUi.busy ? "Đang lập bản nháp…" : "AI lập bản nháp";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("propose");}}
+                    if CampaignUi.selected-id!="" && CampaignUi.dirty: ControlAction {label:"Lưu phiên bản mới";primary:true;enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("save");}}
+                    if CampaignUi.selected-id!="" && CampaignUi.campaign-state=="draft": ControlAction {label:"Duyệt kế hoạch";primary:true;enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("approve");}}
+                    if CampaignUi.selected-id!="" && (CampaignUi.campaign-state=="approved" || CampaignUi.campaign-state=="paused"): ControlAction {label:CampaignUi.busy ? "Đang khởi động…" : "Chạy / tiếp tục";primary:true;enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("start");}}
+                    if CampaignUi.selected-id!="" && CampaignUi.campaign-state=="running": ControlAction {label:"Nối worker";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("reattach-worker");}}
+                    if CampaignUi.selected-id!="" && CampaignUi.campaign-state=="running": ControlAction {label:"Tạm dừng";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("pause");}}
+                }
+            }
+        }
+        if root.show-campaign: PaneScroll { CampaignPanel {} }
+        if !root.show-campaign && !root.show-plan: PaneScroll {
+            VerticalLayout {spacing:14px;min-width:0px;alignment:start;
+                StudioStatus {label:AiControl.status;tone:AiControl.busy ? 4 : 0;}
+                ControlFoldout {title:"Nexora · Grok";summary:root.nexora-status;expanded:true;
+                    Text {text:"AI viết nội dung riêng → Grok tạo ảnh/video → Concat thêm lời đọc, phụ đề và dựng video. Dùng chung kết nối của Xưởng phim AI.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                    FlexboxLayout {spacing:6px;
+                        ControlAction {label:"Mở Nexora";enabled:!AiControl.busy && !root.nexora-busy;clicked=>{root.open-nexora();}}
+                        ControlAction {label:"Đọc hồ sơ Nexora";enabled:!AiControl.busy && !root.nexora-busy;clicked=>{root.refresh-nexora();}}
+                    }
+                }
+                ControlComposer {connections=>{root.connections();}}
+                if AiControl.workflow-id!="": ControlAction {label:"Xem kế hoạch đang thực hiện →";primary:true;clicked=>{root.show-plan=true;}}
+                ControlFoldout {title:"Yêu cầu đã lưu";summary:AiControl.history.length + " tác vụ";
+                    ControlAction {label:"Làm mới lịch sử";enabled:!AiControl.busy;clicked=>{AiControl.refresh();}}
+                    for item[index] in AiControl.history: ControlAction {label:item;max-width:4096px;enabled:!AiControl.busy;clicked=>{AiControl.load-workflow(index);}}
+                }
+            }
+        }
+        if !root.show-campaign && root.show-plan: PaneScroll {
+            VerticalLayout {spacing:14px;min-width:0px;alignment:start;
+                StudioStatus {label:AiControl.status;tone:AiControl.busy ? 4 : 0;}
+                if AiControl.web-status!="": StudioStatus {label:AiControl.web-status;tone:4;}
+                ControlPlanPanel {takeover=>{AiControl.pause();root.focus-main();}}
+            }
+        }
+    }
+}
+
+export component AutomationOverlay inherits Window {
+    title:"Kedi · AI đang thao tác";
+    no-frame:true;always-on-top:true;
+    background:#ffffff18;
+    in property <string> action-text;
+    in property <bool> target-visible;
+    in property <length> target-x;
+    in property <length> target-y;
+    in property <length> target-width;
+    in property <length> target-height;
+    callback takeover();
+    TouchArea { }
+    if root.target-visible: Rectangle {
+        x:root.target-x - 4px;y:root.target-y - 4px;
+        width:root.target-width + 8px;height:root.target-height + 8px;
+        border-width:3px;border-color:#315bd4;border-radius:8px;background:#315bd426;
+        Rectangle {x:parent.width/2 - 9px;y:parent.height/2 - 9px;width:18px;height:18px;border-radius:9px;background:#315bd4;border-width:3px;border-color:white;}
+    }
+    Rectangle {
+        x:12px;y:12px;width:min(parent.width - 24px,540px);height:108px;
+        border-radius:12px;background:#ffffffee;border-width:1px;border-color:#b7c8e9;
+        VerticalLayout {padding:12px;spacing:6px;
+            Text {text:root.action-text;font-family:Theme.font;font-size:13px;color:#18365e;wrap:word-wrap;min-width:0px;}
+            ControlAction {label:"Dừng và tiếp quản";clicked=>{root.takeover();}}
+        }
+    }
+}

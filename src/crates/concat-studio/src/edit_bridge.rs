@@ -73,6 +73,8 @@ pub fn parse_external_draft(text: &str) -> Result<(String, Value), &'static str>
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum EditRequest {
+    /// Opt-in Control Center operations; old editing permission does not grant them.
+    Control { operation:String, #[serde(default)] input:Value },
     /// Redacted current timeline plus the exact native edit schema.
     Context {},
     /// Current draft status, never source paths or credentials.
@@ -251,7 +253,7 @@ fn serve(
         };
         live.store(false, Ordering::Release);
         result
-    })().unwrap_or_else(|| json!({"ok":false,"error":"Bridge unavailable, invalid request or timeout; no edit was applied. Do not replay automatically."}));
+    })().unwrap_or_else(|| json!({"ok":false,"error":"Bridge unavailable, invalid request or timeout; outcome unknown. Inspect workflow history before retrying. Do not replay automatically."}));
     if let Ok(bytes) = serde_json::to_vec(&result) {
         let _ = stream.write_all(&bytes);
         let _ = stream.write_all(b"\n");

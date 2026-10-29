@@ -81,11 +81,80 @@ Analysis caches are bounded (12 entries / 32 MB); preview retention is eight
 owned files. Per-render scratch is removed after worker completion. Final
 publish packs and the bounded job ledger are retained for the user.
 
+## Transcript workbench (HotClip follow-up, 2026-10-20)
+
+Source implementation now includes a native **Cắt theo lời thoại** workbench,
+including when analysis finds zero automatic candidates:
+
+1. Chọn video gốc; thêm SRT/VTT đúng video nếu chưa cài Whisper đa ngôn ngữ.
+2. Bấm **Tìm đoạn để cắt**. Khi có lời thoại, phần **Cắt theo lời thoại** xuất hiện.
+3. Tìm cụm từ có dấu; chọn **Bắt đầu** ở câu đầu và **Kết thúc** ở câu cuối.
+   Mốc hiện bằng giây của video nguồn; khoảng nghỉ giữa các câu được giữ nguyên.
+4. Bấm **Thêm vùng chọn vào danh sách clip**. Vùng chọn phải nằm trong giới hạn
+   độ dài đã đặt lúc phân tích; không tự kéo dài video. Clip trùng vùng bị từ chối.
+5. **Xem đoạn**, rồi chọn xuất hoặc **Dựng trên timeline** để xem/sửa tiếp.
+   Việc thêm vùng chọn chưa ghi file, chưa sửa dự án, chưa tự chọn xuất.
+6. **Sửa câu** chỉ sửa nội dung phụ đề, không sửa tiếng nói. Có 64 bước hoàn tác/
+   làm lại riêng cho lời thoại. **Lưu bản phụ đề SRT** để giữ bản sửa trước khi
+   đóng app, đổi nguồn hoặc phân tích lại; chọn tên mới, không ghi đè phụ đề gốc.
+
+Search uses HotClip's normalized phrase matching concept (NFKC/lowercase/NFC,
+ignoring punctuation/spacing), supports Vietnamese combining accents and phrases
+spanning cues. It is not semantic/fuzzy search and does not remove accents.
+Results are bounded to 2,000 occurrences and 20 displayed cues per page. Source
+review is limited to 20,000 ordered, unique-ID cues / 1 MiB text. Edits are limited
+to 180 characters per cue to match native caption limits; timestamps never change.
+
+Text corrections feed both native subtitle rendering and exported clip SRTs.
+They clear prior output selections and mark candidates for review rather than
+silently retaining approval for changed evidence. Automatic title/rank suggestions
+are not regenerated on a text correction. Manual picks have explicit provenance
+and **no AI score**. Corrected source SRT export uses source times; clip exports
+continue remapping those times to their occupied intervals via the native renderer.
+
+The workbench itself makes no AI requests, downloads no model and uses no GPU.
+Analysis still obeys the explicitly selected local/configured-AI mode. Keep native
+multilingual Whisper for Vietnamese: HotClip's current SenseVoice, Paraformer and
+FireRed catalogue is not a drop-in Vietnamese ASR replacement. Do not install its
+default CLI model pack automatically.
+
+**Tìm câu nói lặp** also adapts HotClip `src/core/retakes.ts`: normalized character-
+bigram Dice similarity ≥0.72, at least six characters, looking at the next two
+cues within twenty source seconds. It scans on a worker only when requested,
+reports at most 2,000 pairs and can filter the transcript to those cues. Each
+marked cue links by source time to the similar cue. The measure is textual
+similarity, not a probability, speech-quality score or proof of a bad take.
+Unlike automatic deletion in a retake pipeline, Concat does **not** assume the
+last repetition is better: no audio/video is removed. Text edits/Undo invalidate
+the scan so stale pair labels are never used. Re-scan after corrections.
+
+### HotClip reuse map
+
+| HotClip capability | Concat status after this source change |
+|---|---|
+| Source-time highlight evidence, quote matching, gates and moments | Already adapted in `concat-agent/highlight.rs` |
+| Analysis, SRT/VTT and installed ASR | Native implementation in `concat-shorts/analysis.rs`; no second ASR runtime |
+| Transcript search/correction and cue-boundary clipping | Added in `concat-agent/transcript.rs`, `concat/auto_shorts_transcript.rs` and native Slint UI; session edits can be saved as a new source SRT |
+| Batch/watch, finite retry/cancel, safe output and QA | Already native; watch pauses for human review |
+| Preview, export, cover, source remapping and publish pack | Already uses the existing native timeline/renderer; no HotClip Electron pipeline |
+| Face/shot-aware reframing and multi-person selection | Not connected to a detector; static center-fill remains explicit |
+| Repeated takes | Added explicit nearby-cue similarity hints/filter; no automatic take removal |
+| Silence subtraction | Not integrated as audio/VAD-grounded reviewable proposals yet; do not infer silence from missing subtitles or cut speech automatically |
+| Word-aligned karaoke and speaker labels | Not available without a verified alignment/diarization pipeline |
+| Danmaku-driven highlights | Requires an explicit TikTok-event-to-source-time mapping; not wired |
+| Glossary, persistent transcript workspace, checkpointed ASR resume | Still missing; SRT save/import is the current persistence path |
+| Offline speech enhancement | Not integrated; must not be advertised as a fix for LIVE capture feedback |
+| Unattended editing/publishing or platform-specific upload | Not enabled by this integration |
+
+These are capability distinctions, not a claim that the reference application's
+entire feature set has been ported. Native project/revision/Undo authority remains
+unchanged. No ArtCraft or Promax runtime dependency is introduced.
+
 ## Honest limits
 
 Not yet provided by Auto Shorts: face detector/automatic subject acquisition,
 multi-person tracking, VLM scene descriptions, diarization, verified per-word
-karaoke alignment, a dedicated transcript correction/vocabulary UI, automatic
+karaoke alignment, a vocabulary/glossary editor, automatic
 music licensing/selection, job priority, unattended approval/export policy, or
 real platform publishing. Existing native caption styling/editing, effects,
 transitions, audio controls and MCP remain available in the main editor.

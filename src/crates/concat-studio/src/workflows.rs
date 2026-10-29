@@ -101,7 +101,7 @@ impl ProductionPlan {
             || !scenes.is_finite()
             || !(1.0..=30.0).contains(&scenes)
             || !duration.is_finite()
-            || !(10.0..=7200.0).contains(&duration)
+            || !(0.5..=7200.0).contains(&duration)
         {
             return Err(RunError::Input);
         }
@@ -124,7 +124,7 @@ impl ProductionPlan {
         {
             return Err(RunError::Input);
         }
-        let mut inputs = serde_json::json!({"brief": brief, "source_urls":urls, "scene_count":scenes as u32, "duration_seconds":duration as u32});
+        let mut inputs = serde_json::json!({"brief": brief, "source_urls":urls, "scene_count":scenes as u32, "duration_seconds":duration});
         for (key, value) in extra {
             if inputs.get(key).is_some()
                 || ["tenantId", "ownerId", "schedulerAuthority"].contains(&key.as_str())
@@ -146,9 +146,29 @@ pub struct WorkflowClient {
     origin: String,
     token: String,
     local_ai: bool,
+    nexora: Option<(crate::browser::BrowserClient, String)>,
 }
 
 impl WorkflowClient {
+    /// Retrieve the actual normalized definition used for worker graph binding.
+    pub fn definition(&self, id: &str) -> Result<serde_json::Value, WorkflowError> {
+        let id = workflow_path(id).map_err(|_| WorkflowError::Configuration)?;
+        self.get(&format!("/api/v1/artcraft/workflows/definitions/{id}"))
+    }
+    /// Register the bundled native graph only if absent; never overwrite a
+    /// server graph or silently replace the user's selected workflow.
+    pub fn ensure_native_definition(&self) -> Result<serde_json::Value, WorkflowError> {
+        let graph = crate::native_pipeline::definition();
+        let id = crate::native_pipeline::WORKFLOW;
+        if self.definitions()?.iter().any(|d| d.workflow_id == id) {
+            return self.definition(id);
+        }
+        self.post(
+            "/api/v1/artcraft/workflows/definitions",
+            &serde_json::json!({"definition":graph}),
+        )?;
+        self.definition(id)
+    }
     /// Non-secret endpoint for native connection diagnostics.
     pub fn endpoint_origin(&self) -> &str {
         &self.origin
@@ -288,6 +308,9 @@ impl WorkflowClient {
         body: &serde_json::Value,
         timeout: Duration,
     ) -> Result<serde_json::Value, WorkflowError> {
+        if let Some((client, profile)) = &self.nexora {
+            return nexora_request(client, profile, method, route, body, timeout);
+        }
         if self.local_ai {
             return crate::local_ai::request(
                 &self.origin,
@@ -369,6 +392,28 @@ impl WorkflowClient {
             origin: parsed.as_str().trim_end_matches('/').to_owned(),
             token,
             local_ai: false,
+            nexora: None,
+        })
+    }
+
+    /// Delegate to Nexora's native connection; never needs a Concat cloud login.
+    pub fn via_nexora(
+        client: crate::browser::BrowserClient,
+        profile: &str,
+    ) -> Result<Self, WorkflowError> {
+        if profile.is_empty()
+            || profile.len() > 256
+            || !profile
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
+        {
+            return Err(WorkflowError::Configuration);
+        }
+        Ok(Self {
+            origin: "nexora-native".into(),
+            token: String::new(),
+            local_ai: false,
+            nexora: Some((client, profile.into())),
         })
     }
 
@@ -440,6 +485,16 @@ impl WorkflowClient {
         route: &str,
         timeout: Duration,
     ) -> Result<serde_json::Value, WorkflowError> {
+        if let Some((client, profile)) = &self.nexora {
+            return nexora_request(
+                client,
+                profile,
+                "GET",
+                route,
+                &serde_json::Value::Null,
+                timeout,
+            );
+        }
         if self.local_ai {
             return crate::local_ai::request(
                 &self.origin,
@@ -490,6 +545,24 @@ impl WorkflowClient {
     }
 }
 
+fn nexora_request(
+    client: &crate::browser::BrowserClient,
+    profile: &str,
+    method: &str,
+    path: &str,
+    body: &serde_json::Value,
+    timeout: Duration,
+) -> Result<serde_json::Value, WorkflowError> {
+    let value = client.production_request(profile, method, path, body, timeout)?;
+    if value.get("ok").and_then(serde_json::Value::as_bool) != Some(true) {
+        return Err(WorkflowError::InvalidResponse);
+    }
+    value
+        .get("data")
+        .cloned()
+        .ok_or(WorkflowError::InvalidResponse)
+}
+
 fn youtube_id(raw: &str) -> Option<String> {
     if raw.len() > 2048 || raw.chars().any(char::is_control) {
         return None;
@@ -535,7 +608,7 @@ fn mutation_error(error: WorkflowError) -> RunError {
     }
 }
 
-fn workflow_path(id: &str) -> Result<String, RunError> {
+pub(crate) fn workflow_path(id: &str) -> Result<String, RunError> {
     if id.is_empty() || id.len() > 256 || id.chars().any(char::is_control) {
         return Err(RunError::Input);
     }
@@ -562,7 +635,7 @@ fn validate_inputs(inputs: &serde_json::Value) -> Result<(), RunError> {
     Ok(())
 }
 
-fn parse_run(value: &serde_json::Value) -> Result<RunSummary, WorkflowError> {
+pub(crate) fn parse_run(value: &serde_json::Value) -> Result<RunSummary, WorkflowError> {
     let text = |key: &str, max| -> Result<String, WorkflowError> {
         let text = value
             .get(key)
@@ -622,6 +695,17 @@ mod tests {
     use std::io::{Read, Write};
     use std::net::TcpListener;
 
+    #[test]
+    fn scene_duration_keeps_fractional_seconds() {
+        let plan =
+            ProductionPlan::new("storyboard".into(), "Một cảnh", "", 1.0, 5.5, "{}").unwrap();
+        assert_eq!(plan.inputs["duration_seconds"].as_f64(), Some(5.5));
+        assert!(ProductionPlan::new("storyboard".into(), "Một cảnh", "", 1.0, 0.49, "{}").is_err());
+        assert!(
+            ProductionPlan::new("storyboard".into(), "Một cảnh", "", 1.0, f32::NAN, "{}").is_err()
+        );
+    }
+
     fn fixture(status: &str, body: &str) -> (String, std::thread::JoinHandle<String>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind fixture");
         let origin = format!("http://{}", listener.local_addr().expect("address"));
@@ -666,6 +750,50 @@ mod tests {
 
     fn client(origin: &str) -> WorkflowClient {
         WorkflowClient::new(origin, Some("synthetic-access-token".into())).expect("safe origin")
+    }
+
+    #[test]
+    fn nexora_bridge_sends_selected_profile_without_a_cloud_login_or_token() {
+        let (origin, server) = fixture("200 OK", r#"{"ok":true,"data":[]}"#);
+        let browser = crate::browser::BrowserClient::with_token(
+            &origin,
+            Some("local-token-not-for-promax".into()),
+        )
+        .unwrap();
+        let client = WorkflowClient::via_nexora(browser, "profile-123").unwrap();
+        assert!(client.definitions().unwrap().is_empty());
+        let request = server.join().unwrap();
+        assert!(request.starts_with("POST /v1/local/concat/production/request "));
+        assert!(
+            request
+                .to_ascii_lowercase()
+                .contains("x-concat-integration: 1")
+        );
+        assert!(!request.to_ascii_lowercase().contains("authorization:"));
+        assert!(!request.contains("local-token-not-for-promax"));
+        let body: serde_json::Value =
+            serde_json::from_str(request.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+        assert_eq!(body["profileId"], "profile-123");
+        assert_eq!(body["method"], "GET");
+        assert_eq!(body["path"], "/api/v1/artcraft/workflows/definitions");
+        assert!(body["body"].is_null());
+    }
+
+    #[test]
+    fn nexora_bridge_keeps_auth_and_transport_failures_closed() {
+        for (status, expected) in [
+            ("401 Unauthorized", WorkflowError::Authentication),
+            ("503 Service Unavailable", WorkflowError::Unavailable),
+        ] {
+            let (origin, server) = fixture(status, r#"{"ok":false}"#);
+            let client = WorkflowClient::via_nexora(
+                crate::browser::BrowserClient::new(&origin).unwrap(),
+                "profile-123",
+            )
+            .unwrap();
+            assert!(matches!(client.definitions(), Err(e) if e == expected));
+            server.join().unwrap();
+        }
     }
 
     #[test]

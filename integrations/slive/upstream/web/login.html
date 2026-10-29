@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slive Vip · Đăng nhập</title>
+  <link rel="icon" href="favicon.png">
+  <link rel="stylesheet" href="studio.css">
+<script data-agency-branding>
+document.addEventListener('DOMContentLoaded', async () => {
+  if (location.protocol === 'file:') return;
+  try {
+    const response = await fetch('/api/agency/site', {cache: 'no-store'});
+    const site = await response.json();
+    if (!response.ok) throw new Error(site.error || 'Không tải được cấu hình đại lý.');
+    const name = site.name || site.branding?.siteName;
+    if (name) {
+      document.title = name;
+      document.querySelectorAll('[data-agency-name], .logo-title, .brand-name, .auth-product-title').forEach(el => { el.textContent = name; });
+    }
+    const logo = site.logo || site.branding?.logoUrl;
+    if (logo) {
+      document.querySelectorAll('img.brand-mark, img[data-agency-logo], .navbar-brand img').forEach(el => { el.src = logo; el.alt = name || 'Logo'; });
+      document.querySelectorAll('link[rel~="icon"]').forEach(el => { el.href = site.favicon || logo; });
+      const title = document.querySelector('.logo-title');
+      if (title && !document.querySelector('img[data-agency-logo]')) {
+        const image = document.createElement('img');
+        image.src = logo; image.alt = name || 'Logo'; image.dataset.agencyLogo = '';
+        image.style.cssText = 'display:block;width:64px;height:64px;object-fit:contain;margin:0 auto 12px';
+        title.before(image);
+      }
+    }
+    if (/^#[0-9a-f]{6}$/i.test(site.theme?.primaryColor || '')) document.documentElement.style.setProperty('--agency-primary', site.theme.primaryColor);
+  } catch (error) {
+    console.warn('Không tải được cấu hình thương hiệu đại lý:', error);
+  }
+});
+</script>
+</head>
+<body>
+  <main class="auth-page">
+    <section class="auth-hero">
+      <div class="brand">
+        <img src="favicon.png" class="brand-mark" style="width: 44px; height: 44px; object-fit: contain; margin-right: 12px; display: inline-block; filter: drop-shadow(0 0 10px rgba(0, 233, 255, 0.4));" alt="Slive Vip Logo">
+        <div class="brand-copy"><div class="brand-name">Slive Vip</div><div class="brand-sub">LIVE STUDIO</div></div>
+      </div>
+      <div class="auth-copy">
+        <div class="service-badge">◆ SLIVE VIP · AVATAR CÓ NGƯỜI</div>
+        <h1>Livestream bằng<br><span>nhân vật AI realtime.</span></h1>
+        <p>Điều khiển avatar 9:16, hội thoại AI và TikTok Event trong cùng một studio. Dùng cùng một tài khoản và ví trên Live Thường và Live VIP.</p>
+        <div class="auth-features">
+          <div class="auth-feature"><b>01</b><span>Slive Vip: avatar có người, video realtime</span></div>
+          <div class="auth-feature"><b>02</b><span>Live Thường: MC giọng nói, không hiển thị người</span></div>
+          <div class="auth-feature"><b>03</b><span>Ví dùng chung; mỗi loại live có đơn giá riêng</span></div>
+        </div>
+      </div>
+      <div class="auth-service-note"><strong>Tài khoản dùng chung, quyền lợi phân loại rõ ràng.</strong><br>Đăng nhập tại đây để mở Studio Slive Vip và sử dụng ví dùng chung.</div>
+    </section>
+
+    <section class="auth-main">
+      <div class="auth-card" id="auth-card">
+        <div class="auth-product-title">Slive Vip</div>
+        <h2 id="auth-title">Chào mừng trở lại</h2>
+        <p id="auth-subtitle">Đăng nhập để tiếp tục sử dụng Slive Vip.</p>
+        <div class="auth-tabs" id="auth-tabs">
+          <button class="auth-tab active" id="login-tab" type="button">ĐĂNG NHẬP</button>
+          <button class="auth-tab" id="register-tab" type="button">ĐĂNG KÝ</button>
+        </div>
+
+        <form class="auth-form" id="login-form">
+          <div class="form-group"><label for="username">Tên tài khoản</label><input class="field" id="username" autocomplete="username" placeholder="Nhập tên đăng nhập" required></div>
+          <div class="form-group"><label for="password">Mật khẩu</label><div class="password-wrap"><input class="field" id="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" required><button class="password-toggle" type="button" data-toggle-password="password">◉</button></div></div>
+          <div class="notice" id="login-notice"></div>
+          <button class="btn btn-primary btn-block" id="login-submit" type="submit">ĐĂNG NHẬP SLIVE VIP</button>
+        </form>
+
+        <form class="auth-form hidden" id="register-form">
+          <div class="form-group"><label for="reg-username">Tên tài khoản</label><input class="field" id="reg-username" autocomplete="username" placeholder="Tạo tên đăng nhập" required></div>
+          <div class="form-row">
+            <div class="form-group"><label for="reg-email">Email xác thực</label><input class="field" id="reg-email" type="email" autocomplete="email" placeholder="name@email.com" required></div>
+            <div class="form-group"><label for="reg-phone">Số điện thoại</label><input class="field" id="reg-phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="09xxxxxxxx" required></div>
+          </div>
+          <div class="form-group"><label for="reg-password">Mật khẩu</label><div class="password-wrap"><input class="field" id="reg-password" type="password" minlength="6" autocomplete="new-password" placeholder="Tối thiểu 6 ký tự" required><button class="password-toggle" type="button" data-toggle-password="reg-password">◉</button></div></div>
+          <div class="form-group"><label for="reg-confirm">Xác nhận mật khẩu</label><div class="password-wrap"><input class="field" id="reg-confirm" type="password" minlength="6" autocomplete="new-password" placeholder="Nhập lại mật khẩu" required><button class="password-toggle" type="button" data-toggle-password="reg-confirm">◉</button></div></div>
+          <div class="notice" id="register-notice"></div>
+          <button class="btn btn-primary btn-block" id="register-submit" type="submit">GỬI MÃ XÁC THỰC</button>
+        </form>
+
+        <form class="auth-form hidden" id="verify-form">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <button class="auth-back-btn" id="verify-back-top" type="button" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:11.5px; display:inline-flex; align-items:center; gap:5px; padding:2px 0;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              <span>Quay lại sửa thông tin</span>
+            </button>
+            <span class="muted" style="font-size:10px;">Bước 2/2</span>
+          </div>
+
+          <div class="service-callout"><div><b>Xác thực email</b><div class="muted" id="verify-email" style="font-size:10px;margin-top:4px">Mã OTP gồm 6 số, hiệu lực trong 5 phút.</div></div></div>
+          <div class="form-group"><label>Mã xác thực email</label><div class="otp-row" id="otp-row">
+            <input class="field otp-digit" inputmode="numeric" maxlength="1" aria-label="Số OTP 1">
+            <input class="field otp-digit" inputmode="numeric" maxlength="1" aria-label="Số OTP 2">
+            <input class="field otp-digit" inputmode="numeric" maxlength="1" aria-label="Số OTP 3">
+            <input class="field otp-digit" inputmode="numeric" maxlength="1" aria-label="Số OTP 4">
+            <input class="field otp-digit" inputmode="numeric" maxlength="1" aria-label="Số OTP 5">
+            <input class="field otp-digit" inputmode="numeric" maxlength="1" aria-label="Số OTP 6">
+          </div></div>
+          <div class="notice" id="verify-notice"></div>
+          <button class="btn btn-primary btn-block" id="verify-submit" type="submit">XÁC THỰC TÀI KHOẢN</button>
+          <button class="btn btn-ghost btn-block" id="resend-otp" type="button" style="margin-top:8px" disabled>GỬI LẠI MÃ SAU 300 GIÂY</button>
+          <button class="btn btn-ghost btn-block" id="verify-back" type="button" style="margin-top:8px; border:1px dashed rgba(255,255,255,0.15); font-size:11px;">← SỬA LẠI EMAIL / SỐ ĐIỆN THOẠI</button>
+
+          <!-- Hướng dẫn và thông báo mục Spam -->
+          <div class="spam-guidance-box" style="margin-top:14px; padding:10px 12px; border-radius:8px; background:rgba(245, 158, 11, 0.1); border:1px solid rgba(245, 158, 11, 0.35); font-size:11px; line-height:1.55; color:#fde68a;">
+            <div style="display:flex; gap:8px; align-items:flex-start;">
+              <span style="font-size:14px; line-height:1; flex-shrink:0;">⚠️</span>
+              <div>
+                <strong style="color:#fbbf24;">Lưu ý quan trọng:</strong> Nếu không thấy mã trong Hộp thư đến, vui lòng kiểm tra mục <strong>Thư rác (Spam)</strong>. Khi nhận được thư, hãy bấm nút <strong>"Báo cáo không phải spam" (Report not spam)</strong> để sau này mã xác thực được chuyển thẳng vào Hộp thư chính.
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <div class="auth-footer">S-Live Account · Live VIP và Live Thường dùng chung thông tin đăng nhập.</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const byId = (id) => document.getElementById(id);
+      const forms = { login: byId('login-form'), register: byId('register-form'), verify: byId('verify-form') };
+      const registration = { username: '', password: '', email: '', phone: '' };
+      let resendTimer = null;
+
+      function notice(id, message = '', success = false) {
+        const element = byId(id);
+        element.textContent = message;
+        element.classList.toggle('success', success);
+      }
+
+      function setMode(mode) {
+        Object.entries(forms).forEach(([name, form]) => form.classList.toggle('hidden', name !== mode));
+        byId('auth-card').classList.toggle('register-mode', mode === 'register');
+        byId('auth-card').classList.toggle('verify-mode', mode === 'verify');
+        byId('auth-tabs').classList.toggle('hidden', mode === 'verify');
+        byId('login-tab').classList.toggle('active', mode === 'login');
+        byId('register-tab').classList.toggle('active', mode === 'register');
+        byId('auth-title').textContent = mode === 'login' ? 'Chào mừng trở lại' : mode === 'register' ? 'Tạo tài khoản S-Live' : 'Nhập mã xác thực';
+        byId('auth-subtitle').textContent = mode === 'login' ? 'Đăng nhập để tiếp tục sử dụng Live VIP.' : mode === 'register' ? 'Một tài khoản cho Live VIP và Live Thường.' : 'Hoàn tất đăng ký tài khoản dùng chung.';
+      }
+
+      function backToRegister() {
+        setMode('register');
+        if (registration.username) byId('reg-username').value = registration.username;
+        if (registration.email) byId('reg-email').value = registration.email;
+        if (registration.phone) byId('reg-phone').value = registration.phone;
+        if (registration.password) {
+          byId('reg-password').value = registration.password;
+          byId('reg-confirm').value = registration.password;
+        }
+        notice('verify-notice');
+        notice('register-notice');
+      }
+
+      byId('verify-back').onclick = backToRegister;
+      byId('verify-back-top').onclick = backToRegister;
+
+      async function post(url, data) {
+        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.success === false) {
+          const raw = String(payload.error || payload.message || 'Yêu cầu không thành công.');
+          const loginError = url.includes('/api/auth/login');
+          if (payload.code === 'AGENCY_MISMATCH' || /đại lý|agency|tenant/i.test(raw)) {
+            throw new Error(loginError ? 'Tên tài khoản hoặc mật khẩu không chính xác.' : 'Không thể xử lý yêu cầu. Vui lòng thử lại sau.');
+          }
+          throw new Error(raw);
+        }
+        return payload;
+      }
+
+      function normalizePhone(value) { return value.replace(/\D/g, ''); }
+
+      function validateRegistration() {
+        const password = byId('reg-password').value;
+        const confirm = byId('reg-confirm').value;
+        const phone = normalizePhone(byId('reg-phone').value);
+        if (!/^(0[3|5|7|8|9])\d{8}$/.test(phone)) throw new Error('Số điện thoại Việt Nam chưa đúng định dạng.');
+        if (password.length < 6) throw new Error('Mật khẩu phải có ít nhất 6 ký tự.');
+        if (password !== confirm) throw new Error('Mật khẩu xác nhận không khớp.');
+        return { username: byId('reg-username').value.trim(), email: byId('reg-email').value.trim(), phone, password };
+      }
+
+      function startOtpCountdown(totalSeconds = 300) {
+        clearInterval(resendTimer);
+        let remaining = Math.max(1, Number(totalSeconds) || 300);
+        const button = byId('resend-otp');
+        button.disabled = true;
+
+        const updateLabel = () => {
+          const mins = Math.floor(remaining / 60);
+          const secs = remaining % 60;
+          const displayTime = mins > 0 ? `${mins} PHÚT ${secs > 0 ? secs + ' GIÂY' : ''}` : `${secs} GIÂY`;
+          button.textContent = remaining > 0 ? `GỬI LẠI MÃ SAU ${displayTime}` : 'GỬI LẠI MÃ OTP';
+        };
+
+        updateLabel();
+        resendTimer = setInterval(() => {
+          remaining -= 1;
+          updateLabel();
+          if (remaining <= 0) {
+            clearInterval(resendTimer);
+            button.disabled = false;
+            notice('verify-notice', 'Mã xác thực đã hết hạn, vui lòng nhấn Gửi lại mã OTP.');
+          }
+        }, 1000);
+      }
+
+      byId('login-tab').onclick = () => setMode('login');
+      byId('register-tab').onclick = () => setMode('register');
+      document.querySelectorAll('[data-toggle-password]').forEach((button) => button.addEventListener('click', () => {
+        const input = byId(button.dataset.togglePassword);
+        input.type = input.type === 'password' ? 'text' : 'password';
+      }));
+
+      byId('login-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = byId('login-submit');
+        notice('login-notice');
+        button.disabled = true;
+        button.textContent = 'ĐANG ĐĂNG NHẬP...';
+        try {
+          await post('/api/auth/login', {
+            username: byId('username').value.trim(),
+            password: byId('password').value,
+            appType: 'live_face'
+          });
+          const next = new URLSearchParams(window.location.search).get('next');
+          window.location.href = (next && next !== '/index.html' && !next.includes('resources.html')) ? next : '/dashboard.html';
+        } catch (error) { notice('login-notice', error.message); }
+        finally { button.disabled = false; button.textContent = 'ĐĂNG NHẬP SLIVE VIP'; }
+      });
+
+      byId('register-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = byId('register-submit');
+        notice('register-notice');
+        try { Object.assign(registration, validateRegistration()); }
+        catch (error) { notice('register-notice', error.message); return; }
+        button.disabled = true;
+        button.textContent = 'ĐANG GỬI OTP...';
+        try {
+          const payload = await post('/api/auth/register', registration);
+          if (payload.requiresVerification === false) throw new Error('Backend chưa bật xác thực email cho tài khoản mới.');
+          byId('verify-email').textContent = `Mã OTP đã gửi tới ${registration.email}.`;
+          setMode('verify');
+          if (!payload.alreadySent) {
+            document.querySelectorAll('.otp-digit').forEach((input) => { input.value = ''; });
+            document.querySelector('.otp-digit').focus();
+          }
+          notice('verify-notice', payload.message || `Mã OTP đã gửi tới ${registration.email}.`, true);
+          startOtpCountdown(payload.remainingSeconds || 300);
+        } catch (error) { notice('register-notice', error.message); }
+        finally { button.disabled = false; button.textContent = 'GỬI MÃ XÁC THỰC'; }
+      });
+
+      document.querySelectorAll('.otp-digit').forEach((input, index, inputs) => {
+        input.addEventListener('input', () => {
+          input.value = input.value.replace(/\D/g, '').slice(-1);
+          if (input.value && inputs[index + 1]) inputs[index + 1].focus();
+        });
+        input.addEventListener('keydown', (event) => {
+          if (event.key === 'Backspace' && !input.value && inputs[index - 1]) inputs[index - 1].focus();
+        });
+        input.addEventListener('paste', (event) => {
+          const digits = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+          if (!digits) return;
+          event.preventDefault();
+          inputs.forEach((field, position) => { field.value = digits[position] || ''; });
+          inputs[Math.min(digits.length, 6) - 1].focus();
+        });
+      });
+
+      byId('verify-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const code = Array.from(document.querySelectorAll('.otp-digit')).map((input) => input.value).join('');
+        if (code.length !== 6) return notice('verify-notice', 'Hãy nhập đủ 6 số OTP.');
+        const button = byId('verify-submit');
+        button.disabled = true;
+        button.textContent = 'ĐANG XÁC THỰC...';
+        try {
+          await post('/api/auth/verify-registration', { email: registration.email, code });
+          setMode('login');
+          byId('username').value = registration.username;
+          notice('login-notice', 'Đăng ký thành công. Hãy đăng nhập để sử dụng Live VIP.', true);
+        } catch (error) {
+          notice('verify-notice', error.message);
+          if (error.message.includes('hết hạn')) {
+            clearInterval(resendTimer);
+            const resendBtn = byId('resend-otp');
+            resendBtn.disabled = false;
+            resendBtn.textContent = 'GỬI LẠI MÃ OTP';
+          }
+        }
+        finally { button.disabled = false; button.textContent = 'XÁC THỰC TÀI KHOẢN'; }
+      });
+
+      byId('resend-otp').addEventListener('click', async () => {
+        const button = byId('resend-otp');
+        if (button.disabled) return;
+        button.disabled = true;
+        button.textContent = 'ĐANG GỬI MÃ...';
+        notice('verify-notice');
+        try {
+          const payload = await post('/api/auth/register', { ...registration, resend: true });
+          notice('verify-notice', payload.message || 'Đã gửi lại mã OTP. Vui lòng kiểm tra hộp thư (kể cả mục Spam).', true);
+          startOtpCountdown(payload.remainingSeconds || 300);
+        } catch (error) {
+          notice('verify-notice', error.message);
+          button.disabled = false;
+          button.textContent = 'GỬI LẠI MÃ OTP';
+        }
+      });
+
+      fetch('/api/auth/state').then(async (response) => {
+        if (response.ok) {
+          const next = new URLSearchParams(window.location.search).get('next');
+          window.location.href = (next && next !== '/index.html' && !next.includes('resources.html')) ? next : '/dashboard.html';
+        }
+      }).catch(() => {});
+    })();
+  </script>
+</body>
+</html>

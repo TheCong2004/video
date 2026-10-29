@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "SLive - TikTok Shop Auto-Pin Helper",
+  "version": "1.0.4",
+  "description": "Tự động ghim sản phẩm và đồng bộ kịch bản Livestream từ SLive AI sang TikTok Shop Streamer Dashboard",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://shop.tiktok.com/*",
+    "https://seller-vn.tiktok.com/*",
+    "https://seller.tiktok.com/*",
+    "http://127.0.0.1:5000/*",
+    "http://localhost:5000/*",
+    "http://127.0.0.1:8010/*",
+    "http://localhost:8010/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SLive TikTok Shop Auto-Pin Helper"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://shop.tiktok.com/streamer/live/product/dashboard*",
+        "https://shop.tiktok.com/streamer/live/*",
+        "https://seller-vn.tiktok.com/*",
+        "https://seller.tiktok.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ]
+}

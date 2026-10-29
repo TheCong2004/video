@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { I18n } from "../i18n.slint";
 import { Floword } from "../theme/floword.slint";
-import { Theme } from "../theme/theme.slint";
+import { PaneScroll } from "pane.slint";
 import { Glyph, Icon } from "../icons.slint";
 import { Select } from "../primitives/primitives.slint";
-import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField, StudioStatus } from "studio-chrome.slint";
 import { StudioAi } from "studio-ai.slint";
 import { StudioOpenTalking } from "studio-opentalking.slint";
+import { PromaxAvatarPicker, StudioPromaxAvatars } from "studio-promax-avatars.slint";
 import { StudioProducts, StudioProductsPanel } from "studio-products.slint";
 
 export struct StudioLiveCommentRow {
@@ -18,6 +19,15 @@ export struct StudioLiveCommentRow {
 }
 
 export global StudioLive {
+    in-out property <bool> kedi-available;
+    in-out property <string> kedi-state: "Created";
+    in-out property <string> kedi-status;
+    in-out property <string> kedi-reply;
+    in-out property <string> kedi-comment;
+    in-out property <bool> kedi-automatic;
+    callback kedi-control(string);
+    callback kedi-simulate(string);
+    callback kedi-speak(string);
     in-out property <image> video-frame;
     in-out property <string> motion-title;
     in-out property <string> motion-status;
@@ -27,6 +37,9 @@ export global StudioLive {
     callback use-builtin-motion();
     callback stop-motion();
     callback select-avatar-motion(int);
+    in-out property <int> avatar-source: 0;
+    in-out property <bool> output-help;
+    in-out property <bool> output-help-seen;
     in-out property <string> username;
     in-out property <string> message;
     in-out property <string> state: "stopped";
@@ -45,6 +58,38 @@ export global StudioLive {
     in-out property <bool> auto-product-reply;
     in-out property <bool> auto-product-rotation;
     in-out property <bool> is-speaking;
+    in-out property <bool> lipsync-enabled;
+    in-out property <bool> lipsync-active;
+    in-out property <bool> lipsync-busy;
+    in-out property <string> lipsync-url: "http://127.0.0.1:8766";
+    in-out property <string> lipsync-token;
+    in-out property <string> lipsync-status;
+    callback connect-lipsync();
+    callback ensure-lipsync();
+    callback disconnect-lipsync();
+    in-out property <bool> director-enabled;
+    in-out property <bool> director-busy;
+    in-out property <[string]> director-clips;
+    in-out property <string> director-status;
+    callback choose-director-clip(int);
+    callback clear-director-clip(int);
+    callback toggle-director();
+    callback test-director-file();
+    in-out property <bool> voice-server-enabled;
+    in-out property <bool> voice-server-busy;
+    in-out property <string> voice-server-url: "http://127.0.0.1:8767";
+    in-out property <string> voice-server-token;
+    in-out property <[string]> voice-server-names;
+    in-out property <int> voice-server-index: -1;
+    in-out property <string> voice-server-status;
+    in-out property <string> reference-voice-name;
+    in-out property <bool> voice-sample-mode;
+    callback use-sample-voice(bool);
+    callback connect-voice-server();
+    callback disconnect-voice-server();
+    callback select-server-voice(int);
+    callback enroll-server-voice();
+    callback enroll-video-voice();
     in-out property <string> displayed-subtitle: "";
     in-out property <bool> show-products;
     in-out property <bool> show-settings;
@@ -69,1090 +114,265 @@ export global StudioLive {
     callback toggle-output-window();
 }
 
-component LiveCheckbox inherits Rectangle {
-    in property <string> text;
-    in property <bool> checked;
-    in property <bool> enabled: true;
-    callback toggled();
-    min-height: 20px;
-    background: transparent;
-
-    HorizontalLayout {
-        spacing: 8px;
-        alignment: start;
-        VerticalLayout {
-            alignment: center;
-            Rectangle {
-                width: 16px;
-                height: 16px;
-                border-radius: 4px;
-                border-width: 1px;
-                border-color: root.checked ? Floword.success : Floword.line;
-                background: root.checked ? Floword.success.with-alpha(0.2) : Floword.field;
-                if root.checked: Icon {
-                    x: 2px; y: 2px; width: 12px; height: 12px;
-                    glyph: Glyph.check;
-                    tint: Floword.success;
-                }
-            }
-        }
-        Text {
-            text: root.text;
-            color: root.enabled ? Floword.text : Floword.muted;
-            font-size: 11.5px;
-            vertical-alignment: center;
-            wrap: word-wrap;
-            horizontal-stretch: 1;
-        }
-    }
-    TouchArea {
-        enabled: root.enabled;
-        mouse-cursor: pointer;
-        clicked => { root.toggled(); }
-    }
-}
 
 component LiveTabButton inherits Rectangle {
     in property <string> text;
     in property <bool> active;
     callback clicked();
-    border-radius: 6px;
-    background: root.active ? Floword.raised : transparent;
-    border-width: root.active ? 1px : 0px;
-    border-color: Floword.line;
-    min-height: 25px;
-    horizontal-stretch: 1;
-    caption := Text {
-        text: root.text;
-        color: root.active ? Floword.text : Floword.muted;
-        font-size: 10.5px;
-        font-weight: root.active ? 700 : 500;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-    }
-    TouchArea {
-        mouse-cursor: pointer;
-        clicked => { root.clicked(); }
-    }
-}
-
-component VoiceWaveBar inherits Rectangle {
-    in property <bool> active;
-    in property <length> target-height: 16px;
-    width: 3px;
-    height: root.active ? root.target-height : 4px;
-    border-radius: 1.5px;
-    background: root.active ? Floword.success : Floword.line;
-    animate height { duration: 180ms; easing: ease-in-out; }
+    min-width: 0px; min-height: 36px; max-height: 36px; horizontal-stretch: 1;
+    background: root.active ? Floword.raised : transparent; border-radius: 8px;
+    border-width: focus.has-focus || root.active ? 1px : 0px;
+    border-color: focus.has-focus ? Floword.cyan : Floword.line;
+    accessible-role: button; accessible-label: root.text;
+    Text { width: 100%; height: 100%; text: root.text; color: root.active ? Floword.text : Floword.muted; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap; }
+    focus := FocusScope { key-pressed(event) => { if event.text == Key.Return || event.text == " " { root.clicked(); return accept; } return reject; } }
+    TouchArea { mouse-cursor: pointer; clicked => { focus.focus(); root.clicked(); } }
 }
 
 export component StudioLivePage inherits VerticalLayout {
-    spacing: 12px;
-
-    // =========================================================================
-    // 1. UNIFIED BROADCAST HEADER TOOLBAR (Compact 46px)
-    // =========================================================================
-    Rectangle {
-        background: Floword.surface;
-        border-radius: 10px;
-        border-width: 1px;
-        border-color: Floword.line-bright;
-        height: 46px;
-
+    // Breakpoints must depend on the externally allocated viewport, not this
+    // layout's width: Grid/Flex measurement reads its children's minimum sizes.
+    // Reading root.width while choosing those sizes recurses at minimize widths.
+    in property <length> viewport-width: 1080px;
+    in property <length> viewport-height: 720px;
+    callback configure-ai();
+    callback configure-services();
+    callback manage-avatars();
+    property <bool> wide: root.viewport-width >= 980px;
+    property <bool> single: root.viewport-width < 650px;
+    property <bool> connected: StudioLive.state == "connected";
+    property <bool> recovering: StudioLive.state == "degraded" || StudioLive.state == "disconnected";
+    property <bool> connecting: StudioLive.state == "starting" || StudioLive.state == "connecting";
+    property <string> connection-label: root.connected ? "Đã kết nối" : root.recovering ? "Đang nối lại…" : root.connecting ? "Đang kết nối…" : StudioLive.state == "stopping" ? "Đang ngắt…" : StudioLive.state == "failed" ? "Kết nối thất bại" : "Chưa kết nối";
+    property <bool> has-avatar: StudioLive.avatar-source == 1 ? StudioPromaxAvatars.ready-ids.length > 0 : StudioOpenTalking.avatar-options.length > 0;
+    property <bool> has-product: StudioLive.pinned-title != "" || StudioProducts.active-title != "";
+    property <bool> ai-ready: StudioAi.models-loaded && StudioAi.models.length > 0;
+    // Explicit externally-derived text width keeps wrapped voice instructions in
+    // the card's preferred height. Do not measure the grid/card's own width here.
+    property <length> voice-text-width: Math.max(0px, (root.single ? root.viewport-width : root.wide ? 256px : 232px) - 32px);
+    property <image> selected-preview: StudioLive.avatar-source == 1 ? StudioPromaxAvatars.preview : StudioOpenTalking.avatar-preview;
+    min-width: 0px; spacing: 16px; alignment: start;
+    init => {
+        StudioLive.ensure-lipsync();
+        if !StudioOpenTalking.catalogs-loaded && !StudioOpenTalking.busy { StudioOpenTalking.refresh(); }
+        if !StudioPromaxAvatars.loaded && !StudioPromaxAvatars.busy { StudioPromaxAvatars.refresh(); }
+        if !StudioAi.models-loaded && !StudioAi.busy { StudioAi.load-models(); }
+        if StudioPromaxAvatars.live-active-id != "" { StudioLive.avatar-source = 1; }
+    }
+    FlexboxLayout {
+        spacing: 8px; min-width: 0px;
         HorizontalLayout {
-            padding-left: 12px;
-            padding-right: 12px;
-            spacing: 12px;
-            alignment: space-between;
-
-            // Brand title & Live Status Pill
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: start;
-
-                VerticalLayout {
-                    alignment: center;
-                    Rectangle {
-                        width: 28px;
-                        height: 28px;
-                        border-radius: 7px;
-                        background: Floword.cyan.with-alpha(0.18);
-                        border-width: 1px;
-                        border-color: Floword.cyan.with-alpha(0.4);
-
-                        Icon {
-                            glyph: Glyph.waveform;
-                            size: 14px;
-                            tint: Floword.cyan;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                        }
-                    }
-                }
-
-                VerticalLayout {
-                    alignment: center;
-                    Text {
-                        text: "TIKTOK LIVE AI BROADCAST";
-                        color: Floword.text;
-                        font-size: 13px;
-                        font-weight: 800;
-                        letter-spacing: 0.5px;
-                        vertical-alignment: center;
-                    }
-                }
-
-                Rectangle { width: 4px; }
-
-                // Live status pill (Fixed height 24px)
-                VerticalLayout {
-                    alignment: center;
-                    Rectangle {
-                        height: 24px;
-                        background: StudioLive.state == "connected" ? Floword.success.with-alpha(0.2)
-                            : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.2)
-                            : Floword.field;
-                        border-radius: 12px;
-                        border-width: 1px;
-                        border-color: StudioLive.state == "connected" ? Floword.success.with-alpha(0.5)
-                            : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning.with-alpha(0.5)
-                            : Floword.line;
-
-                        HorizontalLayout {
-                            padding-left: 9px;
-                            padding-right: 9px;
-                            spacing: 6px;
-                            alignment: center;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Rectangle {
-                                    width: 6px;
-                                    height: 6px;
-                                    border-radius: 3px;
-                                    background: StudioLive.state == "connected" ? Floword.success
-                                        : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? Floword.warning
-                                        : Floword.muted;
-                                }
-                            }
-
-                            Text {
-                                text: StudioLive.state == "connected" ? I18n.t("studioLive.connected")
-                                    : (StudioLive.state == "connecting" || StudioLive.state == "starting") ? I18n.t("studioLive.connecting")
-                                    : I18n.t("studioLive.stopped");
-                                color: StudioLive.state == "connected" ? Floword.success : Floword.text;
-                                font-size: 10.5px;
-                                font-weight: 700;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Center: Service Readiness indicators
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: center;
-
-                // Voice status badge
-                VerticalLayout {
-                    alignment: center;
-                    Rectangle {
-                        height: 24px;
-                        background: StudioOpenTalking.voice-options.length > 0 ? Floword.field : Floword.warning.with-alpha(0.12);
-                        border-radius: 6px;
-                        border-width: 1px;
-                        border-color: StudioOpenTalking.voice-options.length > 0 ? Floword.line : Floword.warning.with-alpha(0.3);
-
-                        HorizontalLayout {
-                            padding-left: 8px;
-                            padding-right: 8px;
-                            spacing: 6px;
-                            alignment: center;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Icon { glyph: Glyph.volume; size: 12px; tint: StudioOpenTalking.voice-options.length > 0 ? Floword.success : Floword.warning; }
-                            }
-                            Text {
-                                text: StudioOpenTalking.voice-options.length > 0 ? I18n.t("studioLive.voiceReady") : I18n.t("studioLive.voiceNotReady");
-                                color: StudioOpenTalking.voice-options.length > 0 ? Floword.text : Floword.warning;
-                                font-size: 10.5px;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-                }
-
-                // AI status badge
-                VerticalLayout {
-                    alignment: center;
-                    Rectangle {
-                        height: 24px;
-                        background: StudioAi.models-loaded ? Floword.field : Floword.warning.with-alpha(0.12);
-                        border-radius: 6px;
-                        border-width: 1px;
-                        border-color: StudioAi.models-loaded ? Floword.line : Floword.warning.with-alpha(0.3);
-
-                        HorizontalLayout {
-                            padding-left: 8px;
-                            padding-right: 8px;
-                            spacing: 6px;
-                            alignment: center;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Icon { glyph: Glyph.sparkle; size: 12px; tint: StudioAi.models-loaded ? Floword.success : Floword.warning; }
-                            }
-                            Text {
-                                text: StudioAi.models-loaded ? I18n.t("studioLive.aiReady") : I18n.t("studioLive.aiNotReady");
-                                color: StudioAi.models-loaded ? Floword.text : Floword.warning;
-                                font-size: 10.5px;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-                }
-
-                // Auto-reply badge
-                VerticalLayout {
-                    alignment: center;
-                    Rectangle {
-                        height: 24px;
-                        background: StudioLive.auto-reply ? Floword.success.with-alpha(0.15) : Floword.field;
-                        border-radius: 6px;
-                        border-width: 1px;
-                        border-color: StudioLive.auto-reply ? Floword.success.with-alpha(0.4) : Floword.line;
-
-                        HorizontalLayout {
-                            padding-left: 8px;
-                            padding-right: 8px;
-                            spacing: 6px;
-                            alignment: center;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Rectangle {
-                                    width: 6px;
-                                    height: 6px;
-                                    border-radius: 3px;
-                                    background: StudioLive.auto-reply ? Floword.success : Floword.warning;
-                                }
-                            }
-                            Text {
-                                text: StudioLive.auto-reply ? "Tự động: BẬT" : "Tự động: TẮT";
-                                color: StudioLive.auto-reply ? Floword.success : Floword.warning;
-                                font-size: 10.5px;
-                                font-weight: 600;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Right: Products & Settings
-            HorizontalLayout {
-                spacing: 6px;
-                alignment: end;
-
-                VerticalLayout {
-                    alignment: center;
-                    StudioButton {
-                        compact: true;
-                        label: I18n.t1("studioLive.manageProductsBtn", "" + StudioProducts.rows.length);
-                        clicked => { StudioLive.show-products = !StudioLive.show-products; }
-                    }
-                }
-
-                VerticalLayout {
-                    alignment: center;
-                    StudioButton {
-                        compact: true;
-                        label: I18n.t("studioLive.advancedSettings");
-                        clicked => { StudioLive.show-settings = !StudioLive.show-settings; }
-                    }
-                }
-            }
+            spacing: 12px; preferred-width: 350px; horizontal-stretch: 1; height: 36px;
+            Text { text: "TikTok LIVE"; color: Floword.text; font-size: 20px; font-weight: 700; vertical-alignment: center; }
+            // A fixed status badge avoids wrapped text asking Flexbox for its
+            // own width while Flexbox is still measuring the header height.
+            StudioStatus { width: 144px; height: 32px; label: root.connection-label; tone: root.connected ? 1 : root.connecting || root.recovering ? 2 : StudioLive.state == "failed" ? 3 : 0; }
+        }
+        StudioButton {
+            label: "Sản phẩm"; compact: true;
+            clicked => { StudioLive.show-products = !StudioLive.show-products; if StudioLive.show-products { StudioProducts.open = true; if !StudioProducts.loaded && !StudioProducts.busy { StudioProducts.load(); } } }
         }
     }
-
-    if StudioLive.inspection-result != "": Rectangle {
-        background: Floword.success.with-alpha(0.12);
-        border-radius: 8px;
-        border-width: 1px;
-        border-color: Floword.success.with-alpha(0.4);
-        HorizontalLayout {
-            padding-left: 12px;
-            padding-right: 12px;
-            padding-top: 8px;
-            padding-bottom: 8px;
-            spacing: 6px;
-            Icon { glyph: Glyph.check; size: 14px; tint: Floword.success; }
-            Text {
-                text: StudioLive.inspection-result;
-                color: Floword.success;
-                font-size: 12px;
-                font-weight: 600;
-                wrap: word-wrap;
-                horizontal-stretch: 1;
-            }
+    if StudioLive.status != "": StudioStatus { label: StudioLive.status; tone: StudioLive.state == "failed" ? 3 : root.recovering ? 2 : 0; }
+    if StudioLive.kedi-available: StudioCard {
+        StudioHeading { title: "Kedi Live Commerce"; }
+        Text { text: StudioLive.kedi-state + " · " + StudioLive.kedi-status; color: Floword.muted; wrap: word-wrap; min-width: 0px; }
+        FlexboxLayout {
+            spacing: 8px; min-width: 0px;
+            StudioButton { label: StudioLive.kedi-state == "Stopped" ? "Phiên mới" : "Bắt đầu"; enabled: StudioLive.kedi-state == "Created" || StudioLive.kedi-state == "Recovering" || StudioLive.kedi-state == "Stopped"; clicked => { StudioLive.kedi-control("start"); } }
+            StudioButton { label: StudioLive.kedi-state == "Paused" || !StudioLive.kedi-automatic ? "Tiếp tục" : "Tạm dừng"; enabled: StudioLive.kedi-state == "Live" || StudioLive.kedi-state == "Paused"; clicked => { StudioLive.kedi-control(StudioLive.kedi-state == "Paused" || !StudioLive.kedi-automatic ? "resume" : "pause"); } }
+            StudioButton { label: "Tiếp quản"; enabled: StudioLive.kedi-state == "Live"; clicked => { StudioLive.kedi-control("takeover"); } }
+            StudioButton { label: "Giới thiệu sản phẩm"; enabled: StudioLive.kedi-state == "Live"; clicked => { StudioLive.kedi-control("introduce"); } }
+            StudioButton { label: "Dừng Kedi"; enabled: StudioLive.kedi-state != "Stopped"; clicked => { StudioLive.kedi-control("stop"); } }
         }
-    }
-
-    if StudioLive.status != "": Rectangle {
-        background: Floword.warning.with-alpha(0.12);
-        border-radius: 8px;
-        border-width: 1px;
-        border-color: Floword.warning.with-alpha(0.4);
-        HorizontalLayout {
-            padding-left: 12px;
-            padding-right: 12px;
-            padding-top: 8px;
-            padding-bottom: 8px;
-            spacing: 6px;
-            Icon { glyph: Glyph.more; size: 14px; tint: Floword.warning; }
-            Text {
-                text: StudioLive.status;
-                color: Floword.warning;
-                font-size: 12px;
-                font-weight: 600;
-                wrap: word-wrap;
-                horizontal-stretch: 1;
-            }
+        StudioField { label: "Bình luận kiểm thử / lời nói thủ công"; value: StudioLive.kedi-comment; placeholder: "Shop ơi, giá bao nhiêu?"; edited(text) => { StudioLive.kedi-comment = text; } }
+        FlexboxLayout {
+            spacing: 8px; min-width: 0px;
+            StudioButton { label: "Mô phỏng bình luận"; enabled: StudioLive.kedi-state == "Live"; clicked => { StudioLive.kedi-simulate(StudioLive.kedi-comment); } }
+            StudioButton { label: "Nói thủ công"; enabled: StudioLive.kedi-state == "Live"; clicked => { StudioLive.kedi-speak(StudioLive.kedi-comment); } }
         }
+        if StudioLive.kedi-reply != "": Text { text: StudioLive.kedi-reply; color: Floword.text; wrap: word-wrap; min-width: 0px; }
     }
-
-    // =========================================================================
-    // 3. OPTIONAL MODALS / DRAWERS (Products & Settings)
-    // =========================================================================
-    if StudioLive.show-products: VerticalLayout {
-        spacing: 8px;
-        StudioProductsPanel { }
-        HorizontalLayout {
-            Rectangle { horizontal-stretch: 1; }
-            StudioButton {
-                compact: true;
-                label: I18n.t("studioProducts.hide");
-                clicked => { StudioLive.show-products = false; }
-            }
-        }
-    }
-
-    if StudioLive.show-settings: StudioCard {
-        StudioHeading { title: I18n.t("studioLive.settingsTitle"); glyph: Glyph.settings; font-size: 14px; }
-        Text { text: I18n.t("studioLive.obsGuide"); color: Floword.muted; font-size: 11.5px; wrap: word-wrap; }
-        Text { text: I18n.t("studioLive.obsSceneRule"); color: Floword.text; font-size: 12px; font-weight: 600; }
-        Text { text: I18n.t("studioLive.autoReplyNote"); color: Floword.warning; font-size: 11px; wrap: word-wrap; }
-        HorizontalLayout {
-            Rectangle { horizontal-stretch: 1; }
-            StudioButton {
-                compact: true;
-                label: I18n.t("common.cancel");
-                clicked => { StudioLive.show-settings = false; }
-            }
-        }
-    }
-
-    // =========================================================================
-    // 4. MAIN THREE-COLUMN WORKSPACE (Optimized for 1080p Viewport)
-    // =========================================================================
-    HorizontalLayout {
-        spacing: 12px;
-        min-width: 0px;
-
-        // ---------------------------------------------------------------------
-        // COLUMN 1: LIVE STUDIO OUTPUT & AVATAR SETTINGS (Compact 295px)
-        // ---------------------------------------------------------------------
+    if StudioLive.show-products: StudioProductsPanel { }
+    GridLayout {
+        spacing: 16px; min-width: 0px;
         StudioCard {
-            width: 295px;
-            horizontal-stretch: 0;
-            padding-v: 12px;
-            padding-h: 12px;
-            spacing: 8px;
-
-            StudioHeading { title: "1. KẾT NỐI TIKTOK LIVE"; glyph: Glyph.waveform; font-size: 12.5px; icon-size: 15px; }
-
-            // TikTok Username Input
-            StudioField {
-                compact: true;
-                label: "Kênh TikTok (@username):";
-                placeholder: "@ten_kenh_tiktok";
-                value: StudioLive.username;
-                enabled: !StudioLive.busy && !StudioLive.session-active;
-                edited(text) => { StudioLive.username = text; }
+            row: 0; col: 0; width: root.single ? Math.max(0px, root.viewport-width) : root.wide ? 256px : 232px;
+            horizontal-stretch: 0; spacing: 16px;
+            StudioHeading { title: "Điều khiển LIVE"; glyph: Glyph.waveform; font-size: 15px; }
+            StudioField { compact: true; label: "Kênh TikTok"; placeholder: "@ten_kenh"; value: StudioLive.username; enabled: !StudioLive.busy && !StudioLive.session-active; edited(text) => { StudioLive.username = text; } }
+            if !StudioLive.session-active: StudioButton {
+                label: StudioLive.busy ? "Đang kết nối…" : StudioLive.state == "failed" ? "Thử kết nối lại" : "Kết nối TikTok"; primary: true;
+                enabled: !StudioLive.busy && StudioLive.username != ""; clicked => { StudioLive.connect(StudioLive.username); }
             }
-
-            HorizontalLayout {
-                spacing: 6px;
-                if !StudioLive.session-active: StudioButton {
-                    compact: true;
-                    label: "Kiểm tra phòng";
-                    enabled: !StudioLive.busy && StudioLive.username != "";
-                    clicked => { StudioLive.inspect(StudioLive.username); }
-                }
-
-                if !StudioLive.session-active: StudioButton {
-                    compact: true;
-                    label: StudioLive.busy ? "Đang kết nối…" : "Kết nối Live";
-                    primary: true;
-                    enabled: !StudioLive.busy && StudioLive.username != "";
-                    clicked => { StudioLive.connect(StudioLive.username); }
-                }
-
-                if StudioLive.session-active: StudioButton {
-                    compact: true;
-                    label: StudioLive.busy ? "Đang ngắt…" : "Ngắt kết nối";
-                    enabled: !StudioLive.busy;
-                    clicked => { StudioLive.disconnect(); }
-                }
-            }
-
-            // Connection status feedback
-            Rectangle {
-                background: Floword.field;
-                border-radius: 6px;
-                border-width: 1px;
-                border-color: StudioLive.state == "connected" ? Floword.success.with-alpha(0.4) : Floword.line;
-                height: 24px;
-                HorizontalLayout {
-                    padding-left: 8px;
-                    padding-right: 8px;
-                    spacing: 6px;
-                    alignment: start;
-                    VerticalLayout {
-                        alignment: center;
-                        Rectangle {
-                            width: 6px; height: 6px; border-radius: 3px;
-                            background: StudioLive.state == "connected" ? Floword.success : Floword.warning;
-                        }
-                    }
-                    Text {
-                        text: StudioLive.state == "connected" ? "Đã kết nối phòng Live"
-                            : StudioLive.state == "connecting" ? "Đang dò tìm luồng phát..."
-                            : "Chưa kết nối · Nhập @username";
-                        color: StudioLive.state == "connected" ? Floword.success : Floword.muted;
-                        font-size: 10.5px;
-                        font-weight: 600;
-                        vertical-alignment: center;
-                    }
-                }
-            }
-
+            if StudioLive.session-active: StudioButton { label: StudioLive.state == "stopping" ? "Đang ngắt…" : StudioLive.busy && root.connecting ? "Đang kết nối…" : root.connected ? "Ngắt kết nối" : "Hủy kết nối"; enabled: !StudioLive.busy; clicked => { StudioLive.disconnect(); } }
             Rectangle { height: 1px; background: Floword.line; }
-
-            StudioHeading { title: "2. CHỌN NHÂN VẬT & CHUYỂN ĐỘNG LIVE"; glyph: Glyph.film; font-size: 12.5px; icon-size: 15px; }
-
-            // Avatar selection with motion video directly embedded
-            VerticalLayout {
+            Text { text: "Nhân vật"; color: Floword.text; font-size: 13px; font-weight: 600; }
+            HorizontalLayout {
                 spacing: 4px;
-                Text { text: I18n.t("studioOpenTalking.avatar"); color: Floword.text; font-size: 11.5px; font-weight: 600; }
-                Select {
-                    options: StudioOpenTalking.avatar-options;
-                    current <=> StudioOpenTalking.avatar-index;
-                    placeholder: I18n.t("studioOpenTalking.chooseAvatar");
-                    height: 32px;
-                    background: Floword.field;
-                    border-color: Floword.line;
-                    enabled: !StudioOpenTalking.busy;
-                    changed(index) => {
-                        StudioLive.select-avatar-motion(index);
-                        StudioOpenTalking.select-avatar(index);
-                    }
-                }
-                HorizontalLayout {
-                    spacing: 6px;
-                    StudioButton {
-                        compact: true;
-                        label: "+ Thêm video / clip từ máy";
-                        enabled: !StudioLive.motion-loading;
-                        clicked => { StudioLive.choose-motion(); }
-                    }
-                    StudioButton {
-                        compact: true;
-                        label: StudioLive.motion-playing ? "Dừng video" : "Phát lại video";
-                        enabled: !StudioLive.motion-loading;
-                        clicked => {
-                            if StudioLive.motion-playing {
-                                StudioLive.stop-motion();
-                            } else {
-                                StudioLive.select-avatar-motion(StudioOpenTalking.avatar-index);
-                            }
-                        }
-                    }
-                }
-                Text {
-                    text: StudioLive.motion-title != ""
-                        ? "🎬 Đang chạy video nhân vật: " + StudioLive.motion-title
-                        : "Chọn nhân vật ở trên để tự động chạy video chuyển động chờ.";
-                    color: StudioLive.motion-playing ? Floword.success : Floword.muted;
-                    font-size: 10.5px;
-                    wrap: word-wrap;
-                }
-                Text {
-                    text: "Clip chạy lặp, tắt tiếng gốc. Mắt, mặt và tay chân dùng chuyển động trong clip; chưa khớp môi theo câu AI mới.";
-                    color: Floword.warning; wrap: word-wrap; font-size: 10px;
-                }
+                LiveTabButton { text: "Có sẵn"; active: StudioLive.avatar-source == 0; clicked => { StudioLive.avatar-source = 0; } }
+                LiveTabButton { text: "Video của tôi"; active: StudioLive.avatar-source == 1; clicked => { StudioLive.avatar-source = 1; } }
             }
-
-            // Voice selection
-            VerticalLayout {
-                spacing: 3px;
-                Text { text: I18n.t("studioOpenTalking.voice"); color: Floword.text; font-size: 11.5px; font-weight: 600; }
-                Select {
-                    options: StudioOpenTalking.voice-options;
-                    current <=> StudioOpenTalking.voice-index;
-                    placeholder: I18n.t("studioOpenTalking.chooseVoice");
-                    height: 32px;
-                    background: Floword.field;
-                    border-color: Floword.line;
-                    enabled: !StudioOpenTalking.busy;
-                }
+            if StudioLive.avatar-source == 0: VerticalLayout {
+                spacing: 8px;
+                if StudioOpenTalking.avatar-options.length > 0: Select { options: StudioOpenTalking.avatar-options; current <=> StudioOpenTalking.avatar-index; placeholder: "Chọn nhân vật"; enabled: !StudioOpenTalking.busy && !StudioLive.motion-loading; changed(index) => { StudioOpenTalking.select-avatar(index); } }
+                if StudioOpenTalking.avatar-options.length == 0: StudioButton { label: StudioOpenTalking.busy ? "Đang tải nhân vật…" : "Tải nhân vật"; enabled: !StudioOpenTalking.busy; clicked => { StudioOpenTalking.refresh(); } }
             }
-
-            // Model selection
-            VerticalLayout {
-                spacing: 3px;
-                Text { text: I18n.t("studioAi.defaultModel"); color: Floword.text; font-size: 11.5px; font-weight: 600; }
-                Select {
-                    options: StudioAi.models;
-                    current <=> StudioAi.model-index;
-                    placeholder: I18n.t("studioAi.defaultModel");
-                    height: 32px;
-                    background: Floword.field;
-                    border-color: Floword.line;
-                    enabled: !StudioAi.busy && StudioAi.models-loaded;
-                }
+            if StudioLive.avatar-source == 1: VerticalLayout {
+                spacing: 8px;
+                PromaxAvatarPicker { compact: true; import-requested => { root.manage-avatars(); } }
+                StudioButton { label: "Kho nhân vật"; compact: true; enabled: !StudioPromaxAvatars.busy; clicked => { root.manage-avatars(); } }
             }
-
-            // Actions
+            Text { text: "Giọng nói"; color: Floword.text; font-size: 13px; font-weight: 600; }
             HorizontalLayout {
-                spacing: 6px;
-                StudioButton {
-                    compact: true;
-                    label: I18n.t("studioLive.testSpeech");
-                    enabled: !StudioLive.busy && !StudioLive.is-speaking;
-                    clicked => { StudioLive.speak-text(I18n.t("studioLive.testSpeechSample")); }
-                }
-                StudioButton {
-                    compact: true;
-                    label: StudioOpenTalking.busy ? I18n.t("studioOpenTalking.working") : I18n.t("studioOpenTalking.refresh");
-                    enabled: !StudioOpenTalking.busy;
-                    clicked => { StudioOpenTalking.refresh(); StudioAi.load-models(); }
-                }
+                min-width: 0px; spacing: 6px;
+                StudioButton { label: "Có sẵn"; compact: true; primary: !StudioLive.voice-sample-mode; enabled: !StudioLive.voice-server-busy && !StudioLive.is-speaking; clicked => { StudioLive.use-sample-voice(false); } }
+                StudioButton { label: "Giọng mẫu"; compact: true; primary: StudioLive.voice-sample-mode; enabled: !StudioLive.voice-server-busy && !StudioLive.is-speaking; clicked => { StudioLive.use-sample-voice(true); } }
             }
-
+            if !StudioLive.voice-sample-mode: VerticalLayout {
+                min-width: 0px; spacing: 8px;
+                if StudioOpenTalking.voice-options.length > 0: Select { options: StudioOpenTalking.voice-options; current <=> StudioOpenTalking.voice-index; placeholder: "Chọn giọng nói"; enabled: !StudioOpenTalking.busy; }
+                if StudioOpenTalking.voice-options.length == 0: StudioButton { label: StudioOpenTalking.busy ? "Đang tải giọng nói…" : "Tải giọng nói"; enabled: !StudioOpenTalking.busy; clicked => { StudioOpenTalking.refresh(); } }
+            }
+            if StudioLive.voice-sample-mode: VerticalLayout {
+                min-width: 0px; spacing: 8px;
+                Text { width: root.voice-text-width; text: "Dùng giọng trong video nhân vật, hoặc tải tệp giọng riêng để AI đọc lời mới."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+                if !StudioLive.voice-server-enabled: StudioButton { label: StudioLive.voice-server-busy ? "Đang tải giọng…" : "Giọng đã lưu"; compact: true; enabled: !StudioLive.voice-server-busy && !StudioLive.is-speaking; clicked => { StudioLive.connect-voice-server(); } }
+                if StudioLive.voice-server-enabled && StudioLive.voice-server-names.length > 0: VerticalLayout {
+                    min-width: 0px; spacing: 8px;
+                    Text { text: "Giọng đã lưu"; color: Floword.cyan; font-size: 12px; }
+                    Select { options: StudioLive.voice-server-names; current: StudioLive.voice-server-index; placeholder: "Chọn giọng của bạn"; enabled: !StudioLive.voice-server-busy && !StudioLive.is-speaking; changed(index) => { StudioLive.select-server-voice(index); } }
+                }
+                StudioButton { label: StudioLive.voice-server-busy ? "Đang chuẩn bị giọng…" : "Lấy giọng từ video nhân vật"; enabled: !StudioLive.voice-server-busy && !StudioLive.is-speaking; clicked => { StudioLive.enroll-video-voice(); } }
+                StudioButton { label: "Tải giọng lên · audio / video"; primary: true; enabled: !StudioLive.voice-server-busy && !StudioLive.is-speaking; clicked => { StudioLive.enroll-server-voice(); } }
+                StudioField { compact: true; label: "Tên giọng · không bắt buộc"; placeholder: "Tự đặt tên khi để trống"; value: StudioLive.reference-voice-name; enabled: !StudioLive.voice-server-busy && !StudioLive.is-speaking; edited(value) => { StudioLive.reference-voice-name = value; } }
+                Text { width: root.voice-text-width; text: "Chọn tệp có giọng của bạn, rõ một người nói và ít nhạc nền. App lấy 3–8 giây tiếng đầu để tạo giọng mới; mẫu được gửi và lưu trong dịch vụ giọng đã cấu hình."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+            }
+            if StudioLive.voice-server-status != "": StudioStatus { label: StudioLive.voice-server-status; }
+            StudioButton {
+                compact: true; label: StudioLive.is-speaking ? "Dừng giọng nói" : "Nghe thử giọng"; enabled: !StudioLive.busy && !StudioLive.voice-server-busy;
+                clicked => { if StudioLive.is-speaking { StudioLive.interrupt-speech(); } else { StudioLive.speak-text(I18n.t("studioLive.testSpeechSample")); } }
+            }
             Rectangle { height: 1px; background: Floword.line; }
-
-            // 3. LIVE OUTPUT WINDOW FOR TIKTOK LIVE STUDIO
-            VerticalLayout {
-                spacing: 6px;
-                StudioHeading { title: "3. CỬA SỔ PHÁT TIKTOK LIVE"; glyph: Glyph.sparkle; font-size: 12.5px; icon-size: 15px; }
-                Text {
-                    text: "Mở cửa sổ phát chuyên dụng tỉ lệ 9:16 để TikTok LIVE Studio bắt hình sạch (không dính giao diện).";
-                    color: Floword.muted;
-                    font-size: 10.5px;
-                    wrap: word-wrap;
-                }
-                StudioButton {
-                    primary: !StudioLive.output-window-open;
-                    label: StudioLive.output-window-open ? "Đóng Cửa Sổ Đầu Ra (Đang mở)" : "Mở Cửa Sổ Đầu Ra (TikTok LIVE)";
-                    clicked => { StudioLive.toggle-output-window(); }
-                }
-                Text {
-                    text: StudioLive.output-window-open
-                        ? "Đang mở 'Concat LIVE Output'. Trong TikTok LIVE Studio: Thêm nguồn -> Quay màn hình cửa sổ -> Chọn 'Concat LIVE Output'."
-                        : "Trong TikTok LIVE Studio: Thêm nguồn -> Quay màn hình cửa sổ -> Chọn 'Concat LIVE Output' sau khi mở.";
-                    color: StudioLive.output-window-open ? Floword.success : Floword.muted;
-                    font-size: 10px;
-                    wrap: word-wrap;
-                }
+            StudioButton {
+                label: StudioLive.output-window-open ? "Đóng màn hình LIVE" : "Mở màn hình LIVE"; primary: root.connected && !StudioLive.output-window-open;
+                enabled: StudioLive.output-window-open || StudioLive.video-frame.width > 0 || (root.has-avatar && root.selected-preview.width > 0);
+                clicked => { if !StudioLive.output-window-open && !StudioLive.output-help-seen { StudioLive.output-help = true; } StudioLive.toggle-output-window(); }
+            }
+            if StudioLive.output-help: VerticalLayout {
+                spacing: 8px;
+                Text { text: "TikTok LIVE Studio → Thêm nguồn → Cửa sổ → Concat LIVE Output"; color: Floword.text; font-size: 12px; wrap: word-wrap; }
+                StudioButton { label: "Đã hiểu"; compact: true; clicked => { StudioLive.output-help = false; StudioLive.output-help-seen = true; } }
             }
         }
-
-        // ---------------------------------------------------------------------
-        // COLUMN 2: LIVE AVATAR PREVIEW & SUBTITLES & PINNED PRODUCT
-        // ---------------------------------------------------------------------
         VerticalLayout {
-            horizontal-stretch: 1;
-            min-width: 320px;
-            spacing: 10px;
-
-            // Virtual Host Video Screen (Compact 290px)
-            Rectangle {
-                background: Floword.surface;
-                border-radius: 14px;
-                border-width: 1px;
-                border-color: Floword.line-bright;
-                height: 290px;
-                clip: true;
-
-                // Virtual Host Avatar Display (Dynamic preview or default avatar)
-                if StudioLive.video-frame.width > 0: Image {
-                    width: 100%; height: 100%;
-                    source: StudioLive.video-frame;
-                    image-fit: contain;
-                }
-                if StudioLive.video-frame.width <= 0 && StudioOpenTalking.avatar-preview.width > 0: Image {
-                    width: 100%;
-                    height: 100%;
-                    source: StudioOpenTalking.avatar-preview;
-                    image-fit: contain;
-                }
-                if StudioLive.video-frame.width <= 0 && StudioOpenTalking.avatar-preview.width <= 0: Image {
-                    width: 100%;
-                    height: 100%;
-                    source: @image-url("../../assets/avatars/mc-newscaster.png");
-                    image-fit: cover;
-                }
-
-                // Dark atmospheric gradient overlay for readability
-                Rectangle {
-                    width: 100%;
-                    height: 100%;
-                    background: @linear-gradient(180deg, #080D1BDD 0%, #080D1B22 35%, #080D1B22 65%, #080D1BEE 100%);
-                }
-
-                VerticalLayout {
-                    alignment: space-between;
-                    padding: 10px;
-
-                    // Top preview bar
-                    HorizontalLayout {
-                        alignment: space-between;
-
-                        // Speaking / Status Pill
-                        Rectangle {
-                            background: #000000cc;
-                            border-radius: 12px;
-                            border-width: 1px;
-                            border-color: #ffffff20;
-                            height: 24px;
-
-                            HorizontalLayout {
-                                padding-left: 8px;
-                                padding-right: 8px;
-                                spacing: 5px;
-                                alignment: center;
-                                VerticalLayout {
-                                    alignment: center;
-                                    Rectangle {
-                                        width: 6px;
-                                        height: 6px;
-                                        border-radius: 3px;
-                                        background: StudioLive.state == "connected" ? Floword.success : Floword.warning;
-                                    }
-                                }
-                                Text {
-                                    text: StudioLive.state == "connected" ? "LIVE PHÁT SÓNG" : "CHƯA KẾT NỐI PHIÊN LIVE";
-                                    color: #ffffff;
-                                    font-size: 10px;
-                                    font-weight: 700;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-
-                        // Host info badge
-                        Rectangle {
-                            background: #000000cc;
-                            border-radius: 12px;
-                            border-width: 1px;
-                            border-color: #ffffff20;
-                            height: 24px;
-
-                            HorizontalLayout {
-                                padding-left: 8px;
-                                padding-right: 8px;
-                                spacing: 5px;
-                                alignment: center;
-                                Icon { glyph: Glyph.sparkle; size: 11px; tint: Floword.cyan; }
-                                Text {
-                                    text: StudioLive.motion-playing ? StudioLive.motion-title : StudioOpenTalking.avatar-options.length > 0 && StudioOpenTalking.avatar-index < StudioOpenTalking.avatar-options.length
-                                        ? StudioOpenTalking.avatar-options[StudioOpenTalking.avatar-index]
-                                        : "Chưa chọn nhân vật";
-                                    color: #ffffff;
-                                    font-size: 10px;
-                                    font-weight: 600;
-                                }
-                            }
-                        }
-
-                        // Output window button
-                        StudioButton {
-                            compact: true;
-                            primary: !StudioLive.output-window-open;
-                            label: StudioLive.output-window-open ? "LIVE Window: BẬT" : "Mở Cửa Sổ LIVE";
-                            clicked => { StudioLive.toggle-output-window(); }
-                        }
-                    }
-
-                    // Bottom audio waveform & subtitle overlay
-                    VerticalLayout {
-                        spacing: 6px;
-
-                        // Audio Waveform & Interrupt
-                        HorizontalLayout {
-                            spacing: 8px;
-                            alignment: space-between;
-
-                            // Sound waves
-                            HorizontalLayout {
-                                spacing: 3px;
-                                alignment: center;
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 6px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 14px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 20px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 10px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 22px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 16px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 8px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 20px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 12px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 18px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 24px; }
-                                VoiceWaveBar { active: StudioLive.is-speaking; target-height: 10px; }
-                            }
-
-                            if StudioLive.is-speaking: StudioButton {
-                                compact: true;
-                                label: I18n.t("studioLive.interrupt");
-                                clicked => { StudioLive.interrupt-speech(); }
-                            }
-                        }
-
-                        // Subtitle card
-                        Rectangle {
-                            background: #000000dd;
-                            border-radius: 9px;
-                            border-width: 1px;
-                            border-color: #ffffff18;
-
-                            HorizontalLayout {
-                                padding-left: 8px;
-                                padding-right: 8px;
-                                padding-top: 6px;
-                                padding-bottom: 6px;
-                                spacing: 8px;
-                                Icon { glyph: Glyph.volume; size: 14px; tint: Floword.cyan; }
-                                Text {
-                                    text: StudioLive.displayed-subtitle;
-                                    color: #f1f5f9;
-                                    font-size: 11px;
-                                    font-weight: 500;
-                                    wrap: word-wrap;
-                                    horizontal-stretch: 1;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Pinned Product Card (Compact 74px)
-            Rectangle {
-                background: Floword.surface;
-                border-radius: 12px;
-                border-width: 1px;
-                border-color: Floword.line;
-                height: 74px;
-
+            row: root.single ? 1 : 0; col: root.single ? 0 : 1; min-width: 0px; horizontal-stretch: 1; spacing: 16px;
+            StudioCard {
+                spacing: 12px;
                 HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    padding-top: 8px;
-                    padding-bottom: 8px;
-                    spacing: 10px;
-                    alignment: space-between;
-
-                    VerticalLayout {
-                        spacing: 2px;
-                        horizontal-stretch: 1;
-                        alignment: center;
-
-                        HorizontalLayout {
-                            spacing: 6px;
-                            Rectangle {
-                                background: Floword.success.with-alpha(0.18);
-                                border-radius: 4px;
-                                border-width: 1px;
-                                border-color: Floword.success.with-alpha(0.3);
-                                HorizontalLayout {
-                                    padding-left: 5px;
-                                    padding-right: 5px;
-                                    padding-top: 1px;
-                                    padding-bottom: 1px;
-                                    Text {
-                                        text: I18n.t("studioLive.pinnedBadge");
-                                        color: Floword.success;
-                                        font-size: 9.5px;
-                                        font-weight: 700;
-                                    }
-                                }
-                            }
-                            Text {
-                                text: StudioLive.pinned-price != "" ? StudioLive.pinned-price
-                                    : (StudioProducts.active-price != "" ? StudioProducts.active-price : "-- đ");
-                                color: Floword.success;
-                                font-size: 11.5px;
-                                font-weight: 700;
-                            }
-                        }
-
-                        Text {
-                            text: StudioLive.pinned-title != "" ? StudioLive.pinned-title
-                                : (StudioProducts.active-title != "" ? StudioProducts.active-title : I18n.t("studioLive.noProduct"));
-                            color: Floword.text;
-                            font-size: 12.5px;
-                            font-weight: 700;
-                            overflow: elide;
-                        }
-
-                        Text {
-                            text: StudioLive.pinned-script != "" ? StudioLive.pinned-script
-                                : (StudioProducts.active-title != "" ? StudioProducts.active-title : I18n.t("studioLive.noProductScript"));
-                            color: Floword.muted;
-                            font-size: 10.5px;
-                            overflow: elide;
-                        }
+                    spacing: 8px;
+                    StudioHeading { title: "Xem trước"; glyph: Glyph.film; font-size: 15px; }
+                    Text { text: StudioLive.motion-loading ? "Đang tải…" : StudioLive.motion-playing ? "Đang phát" : root.has-avatar ? "Sẵn sàng" : "Chưa chọn"; color: StudioLive.motion-playing ? Floword.success : Floword.muted; font-size: 12px; vertical-alignment: center; }
+                }
+                Text { text: StudioLive.lipsync-enabled ? "Khớp môi: Tự động · Đã kết nối" : StudioLive.lipsync-busy ? "Khớp môi: Đang kết nối…" : "Khớp môi: Tự động · Sẵn sàng"; color: StudioLive.lipsync-enabled ? Floword.success : Floword.muted; font-size: 12px; wrap: word-wrap; }
+                if StudioLive.lipsync-status != "": StudioStatus { label: StudioLive.lipsync-status; }
+                Rectangle {
+                    min-width: 0px; height: Math.max(280px, Math.min(480px, root.viewport-height - 280px));
+                    background: #080B12; border-radius: 8px; clip: true;
+                    if StudioLive.video-frame.width > 0: Image { width: 100%; height: 100%; source: StudioLive.video-frame; image-fit: contain; }
+                    if StudioLive.video-frame.width == 0 && root.has-avatar && root.selected-preview.width > 0: Image { width: 100%; height: 100%; source: root.selected-preview; image-fit: contain; }
+                    if StudioLive.video-frame.width == 0 && (!root.has-avatar || root.selected-preview.width == 0): VerticalLayout {
+                        padding: 24px; spacing: 16px; alignment: center;
+                        Icon { glyph: Glyph.film; size: 32px; tint: Floword.muted; horizontal-stretch: 1; }
+                        Text { text: StudioLive.motion-loading ? "Đang tải video…" : "Chọn nhân vật để xem trước"; color: Floword.muted; font-size: 13px; horizontal-alignment: center; wrap: word-wrap; }
                     }
-
-                    VerticalLayout {
-                        spacing: 5px;
-                        alignment: center;
-
-                        StudioButton {
-                            compact: true;
-                            label: I18n.t("studioLive.nextProduct");
-                            clicked => { StudioLive.next-product(); }
-                        }
-
-                        StudioButton {
-                            compact: true;
-                            label: I18n.t("studioLive.speakScript");
-                            primary: true;
-                            enabled: !StudioLive.busy && !StudioLive.is-speaking;
-                            clicked => { StudioLive.speak-pinned-product(); }
-                        }
+                    if StudioLive.displayed-subtitle != "": Rectangle {
+                        x: 12px; y: parent.height - self.height - 12px; width: Math.max(0px, parent.width - 24px); min-height: subtitle-body.preferred-height; background: #000000cc; border-radius: 8px;
+                        subtitle-body := VerticalLayout { padding: 8px; Text { text: StudioLive.displayed-subtitle; color: #ffffff; font-size: 13px; wrap: word-wrap; } }
                     }
+                }
+                if !StudioLive.motion-loading && StudioLive.motion-status != "" && !StudioLive.motion-playing: StudioStatus { label: StudioLive.motion-status; tone: 2; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    if !StudioLive.motion-playing: StudioButton {
+                        label: StudioLive.motion-loading ? "Đang tải…" : "Xem thử chuyển động"; enabled: root.has-avatar && !StudioLive.motion-loading && !StudioPromaxAvatars.busy;
+                        clicked => { if StudioLive.avatar-source == 1 { StudioPromaxAvatars.use-live(); } else { StudioLive.select-avatar-motion(StudioOpenTalking.avatar-index); } }
+                    }
+                    if StudioLive.motion-playing: StudioButton { label: "Dừng video"; clicked => { StudioLive.stop-motion(); } }
+                    StudioButton { label: "Đổi video"; enabled: !StudioLive.motion-loading; clicked => { StudioLive.choose-motion(); } }
+                }
+                if StudioLive.motion-playing: Text { text: StudioLive.lipsync-active ? "Đang phát tệp hình–tiếng đồng bộ" : "Chuyển động gốc · Không khớp môi theo lời AI"; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+            }
+            StudioCard {
+                spacing: 8px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 1; spacing: 4px;
+                        Text { text: root.has-product ? (StudioLive.pinned-title != "" ? StudioLive.pinned-title : StudioProducts.active-title) : "Sản phẩm"; color: Floword.text; font-size: 14px; font-weight: 600; wrap: word-wrap; }
+                        if root.has-product: Text { text: StudioLive.pinned-price != "" ? StudioLive.pinned-price : StudioProducts.active-price; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+                    }
+                    StudioButton { label: root.has-product ? "Đổi sản phẩm" : "Chọn sản phẩm"; compact: true; clicked => { StudioLive.show-products = true; StudioProducts.open = true; if !StudioProducts.loaded && !StudioProducts.busy { StudioProducts.load(); } } }
+                }
+                if root.has-product: FlexboxLayout {
+                    spacing: 8px;
+                    StudioButton { label: "Đọc kịch bản"; enabled: StudioLive.pinned-script != "" && StudioOpenTalking.voice-options.length > 0 && !StudioLive.busy && !StudioLive.is-speaking; clicked => { StudioLive.speak-pinned-product(); } }
+                    StudioButton { label: "Sản phẩm tiếp theo"; enabled: StudioProducts.rows.length > 1 && !StudioProducts.busy; clicked => { StudioLive.next-product(); } }
                 }
             }
         }
-
-        // ---------------------------------------------------------------------
-        // COLUMN 3: REAL-TIME COMMENTS & AI AUTO-REPLY (Width 375px)
-        // ---------------------------------------------------------------------
         StudioCard {
-            width: 375px;
-            horizontal-stretch: 0;
-            padding-v: 12px;
-            padding-h: 12px;
-            spacing: 8px;
-
-            // Header & Auto-Reply Switch
+            row: root.single ? 2 : root.wide ? 0 : 1; col: root.wide ? 2 : 0; colspan: !root.wide && !root.single ? 2 : 1;
+            min-width: 0px; preferred-width: root.wide ? 320px : 600px; max-width: root.wide ? 320px : 4096px;
+            horizontal-stretch: root.wide ? 0 : 1; spacing: 12px;
+            StudioHeading { title: "Tương tác"; glyph: Glyph.more; font-size: 15px; }
+            if root.ai-ready: StudioButton { compact: true; label: StudioLive.auto-reply ? "AI tự trả lời: Bật" : "AI tự trả lời: Tắt"; enabled: !StudioLive.busy; clicked => { StudioLive.toggle-auto-reply(); } }
+            if !root.ai-ready: StudioButton { compact: true; label: StudioAi.busy ? "Đang tải AI…" : "Thiết lập AI trả lời"; enabled: !StudioAi.busy; clicked => { root.configure-ai(); } }
+            Text { text: "Giới thiệu sản phẩm"; color: Floword.text; font-size: 13px; font-weight: 600; }
+            StudioButton { label: StudioLive.auto-product-reply ? "Theo bình luận: Bật" : "Theo bình luận: Tắt"; compact: true; enabled: root.has-product || StudioLive.auto-product-reply; clicked => { StudioLive.toggle-auto-product-reply(); } }
+            StudioButton { label: StudioLive.auto-product-rotation ? "Đọc luân phiên: Bật" : "Đọc luân phiên: Tắt"; compact: true; enabled: root.has-product || StudioLive.auto-product-rotation; clicked => { StudioLive.toggle-auto-product-rotation(); } }
             HorizontalLayout {
-                alignment: space-between;
-                spacing: 6px;
-                HorizontalLayout {
-                    spacing: 6px;
-                    alignment: start;
-                    Icon { glyph: Glyph.more; size: 15px; tint: Floword.violet; }
-                    Text {
-                        text: I18n.t("studioLive.commentsTitle");
-                        color: Floword.text;
-                        font-size: 13px;
-                        font-weight: 700;
-                        vertical-alignment: center;
-                    }
-                }
-                StudioButton {
-                    compact: true;
-                    label: StudioLive.auto-reply ? I18n.t("studioLive.autoOn") : I18n.t("studioLive.autoOff");
-                    primary: StudioLive.auto-reply;
-                    clicked => { StudioLive.toggle-auto-reply(); }
-                }
-            }
-
-            Rectangle { height: 1px; background: Floword.line; }
-
-            // Checkbox options
-            VerticalLayout {
                 spacing: 4px;
-                LiveCheckbox {
-                    text: I18n.t("studioLive.autoProductReply");
-                    checked: StudioLive.auto-product-reply;
-                    toggled => { StudioLive.toggle-auto-product-reply(); }
-                }
-                LiveCheckbox {
-                    text: I18n.t("studioLive.autoProductRotation");
-                    checked: StudioLive.auto-product-rotation;
-                    toggled => { StudioLive.toggle-auto-product-rotation(); }
-                }
+                LiveTabButton { text: "Tất cả"; active: StudioLive.active-tab == 0; clicked => { StudioLive.active-tab = 0; } }
+                LiveTabButton { text: "Bình luận"; active: StudioLive.active-tab == 1; clicked => { StudioLive.active-tab = 1; } }
+                LiveTabButton { text: "Quà"; active: StudioLive.active-tab == 2; clicked => { StudioLive.active-tab = 2; } }
+                LiveTabButton { text: "Khác"; active: StudioLive.active-tab == 3; clicked => { StudioLive.active-tab = 3; } }
             }
-
-            Rectangle { height: 1px; background: Floword.line; }
-
-            // Filter Tabs
-            HorizontalLayout {
-                spacing: 3px;
-                LiveTabButton {
-                    text: I18n.t1("studioLive.tabAll", "" + StudioLive.comments.length);
-                    active: StudioLive.active-tab == 0;
-                    clicked => { StudioLive.active-tab = 0; }
-                }
-                LiveTabButton {
-                    text: I18n.t("studioLive.tabComments");
-                    active: StudioLive.active-tab == 1;
-                    clicked => { StudioLive.active-tab = 1; }
-                }
-                LiveTabButton {
-                    text: I18n.t("studioLive.tabGifts");
-                    active: StudioLive.active-tab == 2;
-                    clicked => { StudioLive.active-tab = 2; }
-                }
-                LiveTabButton {
-                    text: I18n.t("studioLive.tabOther");
-                    active: StudioLive.active-tab == 3;
-                    clicked => { StudioLive.active-tab = 3; }
-                }
-            }
-
-            // Real-time Event Feed List
-            VerticalLayout {
-                spacing: 6px;
-                min-height: 140px;
-                vertical-stretch: 1;
-
-                if StudioLive.comments.length == 0: VerticalLayout {
-                    alignment: center;
-                    spacing: 3px;
-                    Text {
-                        text: I18n.t("studioLive.waitingEvents");
-                        color: Floword.muted;
-                        font-size: 11px;
-                        horizontal-alignment: center;
+            PaneScroll {
+                height: root.wide ? Math.max(280px, Math.min(420px, root.viewport-height - 340px)) : 280px; min-width: 0px;
+                VerticalLayout {
+                    spacing: 8px;
+                    if StudioLive.comments.length == 0: VerticalLayout {
+                        padding-top: 32px; padding-bottom: 32px;
+                        Text { text: root.connected ? "Chờ tương tác mới" : root.connecting || root.recovering ? "Đang kết nối TikTok…" : "Kết nối TikTok để nhận bình luận"; color: Floword.muted; font-size: 13px; wrap: word-wrap; horizontal-alignment: center; }
                     }
-                    Text {
-                        text: I18n.t("studioLive.waitingHint");
-                        color: Floword.muted;
-                        font-size: 10px;
-                        horizontal-alignment: center;
-                    }
-                }
-
-                for comment in StudioLive.comments: Rectangle {
-                    background: comment.kind == "gift" ? Floword.warning.with-alpha(0.08)
-                        : (comment.kind == "like" || comment.kind == "follow") ? Floword.success.with-alpha(0.08)
-                        : comment.kind == "ai" ? Floword.violet.with-alpha(0.12)
-                        : Floword.field;
-                    border-radius: 8px;
-                    border-width: 1px;
-                    border-color: comment.kind == "gift" ? Floword.warning.with-alpha(0.3)
-                        : (comment.kind == "like" || comment.kind == "follow") ? Floword.success.with-alpha(0.3)
-                        : comment.kind == "ai" ? Floword.violet.with-alpha(0.4)
-                        : Floword.line;
-
-                    HorizontalLayout {
-                        padding: 6px;
-                        spacing: 6px;
-                        alignment: space-between;
-
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            spacing: 2px;
-
+                    for comment in StudioLive.comments: Rectangle {
+                        visible: StudioLive.active-tab == 0 || (StudioLive.active-tab == 1 && (comment.kind == "chat" || comment.kind == "ai")) || (StudioLive.active-tab == 2 && comment.kind == "gift") || (StudioLive.active-tab == 3 && comment.kind != "chat" && comment.kind != "ai" && comment.kind != "gift");
+                        min-height: self.visible ? comment-body.preferred-height : 0px; max-height: self.visible ? 10000px : 0px;
+                        background: comment.kind == "ai" ? Floword.raised : Floword.field; border-radius: 8px;
+                        comment-body := VerticalLayout {
+                            padding: 8px; spacing: 4px;
                             HorizontalLayout {
-                                spacing: 5px;
-                                Text {
-                                    text: comment.username;
-                                    color: comment.kind == "gift" ? Floword.warning
-                                        : comment.kind == "ai" ? Floword.violet
-                                        : Floword.success;
-                                    font-size: 11px;
-                                    font-weight: 700;
-                                }
-                                if comment.time != "": Text {
-                                    text: comment.time;
-                                    color: Floword.muted;
-                                    font-size: 9.5px;
-                                    vertical-alignment: center;
-                                }
+                                spacing: 8px;
+                                Text { text: comment.username; color: comment.kind == "ai" ? Floword.cyan : Floword.text; font-size: 12px; font-weight: 600; wrap: word-wrap; horizontal-stretch: 1; }
+                                Text { text: comment.time; color: Floword.muted; font-size: 11px; }
                             }
-
-                            Text {
-                                text: comment.content;
-                                color: Floword.text;
-                                font-size: 11px;
-                                wrap: word-wrap;
+                            Text { text: comment.content; color: Floword.text; font-size: 13px; wrap: word-wrap; }
+                            if comment.kind != "gift" && comment.kind != "like" && comment.kind != "follow" && comment.kind != "ai": StudioButton {
+                                compact: true; label: "AI trả lời"; enabled: root.connected && root.ai-ready && !StudioLive.busy && !StudioLive.is-speaking;
+                                clicked => { StudioLive.reply-to-comment(comment.username, comment.content); }
                             }
-                        }
-
-                        if comment.kind != "gift" && comment.kind != "like" && comment.kind != "follow" && comment.kind != "ai": StudioButton {
-                            compact: true;
-                            label: I18n.t("studioLive.askAi");
-                            enabled: StudioLive.state == "connected" && !StudioLive.busy && !StudioLive.is-speaking;
-                            clicked => { StudioLive.reply-to-comment(comment.username, comment.content); }
                         }
                     }
                 }
             }
-
-            // Bottom Chat Input & Speak
+            StudioField { compact: true; label: "Nội dung"; placeholder: "Nhập câu muốn gửi hoặc đọc"; value: StudioLive.message; enabled: !StudioLive.busy; edited(text) => { StudioLive.message = text; } }
             HorizontalLayout {
-                spacing: 6px;
-                alignment: center;
-
-                Rectangle {
-                    background: Floword.field;
-                    border-radius: 8px;
-                    border-width: 1px;
-                    border-color: chat-in.has-focus ? Floword.violet : Floword.line;
-                    min-height: 30px;
-                    max-height: 30px;
-                    horizontal-stretch: 1;
-
-                    HorizontalLayout {
-                        padding-left: 8px;
-                        padding-right: 8px;
-                        alignment: center;
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            chat-in := TextInput {
-                                width: 100%;
-                                height: 100%;
-                                text: StudioLive.message;
-                                enabled: !StudioLive.busy;
-                                color: Floword.text;
-                                font-size: 11.5px;
-                                vertical-alignment: center;
-                                edited => { StudioLive.message = self.text; }
-                            }
-                            if StudioLive.message == "" && !chat-in.has-focus: Text {
-                                width: 100%;
-                                text: I18n.t("studioLive.messageHint");
-                                color: Floword.muted;
-                                font-size: 11px;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-                }
-                StudioButton {
-                    compact: true;
-                    label: I18n.t("studioLive.speakBtn");
-                    enabled: !StudioLive.busy && !StudioLive.is-speaking && StudioLive.message != "";
-                    clicked => { StudioLive.speak-text(StudioLive.message); }
-                }
-                StudioButton {
-                    compact: true;
-                    label: I18n.t("studioLive.sendBtn");
-                    primary: true;
-                    enabled: !StudioLive.busy && StudioLive.state == "connected" && StudioLive.message != "";
-                    clicked => { StudioLive.send(StudioLive.message); }
-                }
+                spacing: 8px;
+                StudioButton { compact: true; label: "AI nói"; enabled: !StudioLive.busy && !StudioLive.is-speaking && StudioLive.message != "" && (StudioOpenTalking.voice-options.length > 0 || StudioLive.voice-server-enabled); clicked => { StudioLive.speak-text(StudioLive.message); } }
+                StudioButton { compact: true; label: "Gửi"; primary: root.connected; enabled: !StudioLive.busy && root.connected && StudioLive.message != ""; clicked => { StudioLive.send(StudioLive.message); } }
             }
+            if StudioLive.is-speaking: StudioButton { label: "Ngắt lời"; compact: true; clicked => { StudioLive.interrupt-speech(); } }
         }
     }
 }

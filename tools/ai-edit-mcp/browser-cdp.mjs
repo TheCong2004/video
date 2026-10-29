@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { acquireBrowserProfile } from './browser-profile-lock.mjs';
 
 export function selectBrowser(env = process.env, available = existsSync) {
   const candidates = [
@@ -94,7 +95,20 @@ export async function showBrowser(browser) {
   await cdp.send('Page.bringToFront', {}, sessionId);
 }
 
-export async function launchBrowser(profile, { headless = false, selection = selectBrowser() } = {}) {
+export async function launchBrowser(profile, options = {}) {
+  const release = await acquireBrowserProfile(profile);
+  try {
+    const browser = await launchControlledBrowser(profile, options);
+    let closed = false;
+    return { ...browser, async close() {
+      if (closed) return;
+      closed = true;
+      try { await browser.close(); } finally { await release(); }
+    } };
+  } catch (error) { await release(); throw error; }
+}
+
+async function launchControlledBrowser(profile, { headless = false, selection = selectBrowser() } = {}) {
   const executable = selection?.executable;
   if (!executable) throw new Error('Cần Microsoft Edge hoặc Google Chrome trên máy.');
   await mkdir(profile, { recursive: true });

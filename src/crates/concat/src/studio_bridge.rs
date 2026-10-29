@@ -112,6 +112,7 @@ fn bind_workflows(app: &App) {
             return;
         }
         bridge.set_workflow_worker_busy(true);
+        let connection_generation = crate::studio_session::session_generation();
         let generation = bridge.get_workflow_generation().wrapping_add(1);
         bridge.set_workflow_generation(generation);
         bridge.set_workflows_loading(true);
@@ -119,13 +120,14 @@ fn bind_workflows(app: &App) {
         let production = app.global::<ProductionStudio>();
         production.set_workflow_ids(ModelRc::default());
         production.set_workflow_names(ModelRc::default());
+        production.set_workflow_index(-1);
         production.set_ready(false);
         let reply = app.as_weak();
         let worker = std::thread::Builder::new()
             .name("studio-workflows".into())
             .spawn(move || {
                 let result =
-                    crate::studio_session::client().and_then(|client| client.definitions());
+                    crate::studio_session::production_client().and_then(|client| client.definitions());
                 let _ = reply.upgrade_in_event_loop(move |app| {
                     let bridge = app.global::<StudioBridge>();
                     bridge.set_workflow_worker_busy(false);
@@ -133,6 +135,12 @@ fn bind_workflows(app: &App) {
                         return;
                     }
                     bridge.set_workflows_loading(false);
+                    if connection_generation != crate::studio_session::session_generation() {
+                        if crate::studio_production_pages::selected().is_some() {
+                            app.global::<ProductionStudio>().invoke_load_workflows();
+                        }
+                        return;
+                    }
                     match result {
                         Ok(definitions) => {
                             let production = app.global::<ProductionStudio>();
@@ -148,7 +156,11 @@ fn bind_workflows(app: &App) {
                                     .map(|item| item.name.clone().into())
                                     .collect::<Vec<slint::SharedString>>(),
                             )));
-                            production.set_workflow_index(0);
+                            let preferred = crate::studio_production_pages::selected()
+                                .and_then(|page| page.workflow_id().map(str::to_owned));
+                            let index = preferred.and_then(|id| definitions.iter()
+                                .position(|item| item.workflow_id == id));
+                            production.set_workflow_index(index.map_or(-1, |i| i as i32));
                             production.set_ready(false);
                             let rows: Vec<StudioWorkflowRow> = definitions
                                 .into_iter()

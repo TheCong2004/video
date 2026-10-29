@@ -1,0 +1,19 @@
+import { KediFactoryPanel, KediFactory } from "../../src/crates/concat/ui/workspace/studio-kedi-factory.slint";
+import { Theme } from "../../src/crates/concat/ui/theme/theme.slint";
+import { Floword } from "../../src/crates/concat/ui/theme/floword.slint";
+import { PaneScroll } from "../../src/crates/concat/ui/workspace/pane.slint";
+import "../../src/crates/concat-text/fonts/HankenGrotesk-Regular.ttf";
+import "../../src/crates/concat-text/fonts/HankenGrotesk-SemiBold.ttf";
+import "../../src/crates/concat-text/fonts/HankenGrotesk-Bold.ttf";
+export { Theme, KediFactory }
+export component Preview inherits Window {
+    default-font-family: Theme.font;
+    background: Floword.ground;
+    PaneScroll {
+        reset-key: KediFactory.step;
+        VerticalLayout {
+            padding: 16px;
+            KediFactoryPanel { viewport-width: parent.width; }
+        }
+    }
+}

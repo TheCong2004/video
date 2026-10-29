@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
 import { I18n } from "i18n.slint";
@@ -13,6 +13,12 @@ import { Focus } from "util.slint";
 import { NumberField } from "primitives/number-field.slint";
 import { PaneScroll } from "workspace/pane.slint";
 import { StudioPage, StudioRoute, StudioBridge } from "workspace/studio-pane.slint";
+import { ProductionStudio } from "workspace/studio-production.slint";
+import { StudioWeb, StudioWebPage } from "workspace/studio-web.slint";
+import { StudioHotclip } from "workspace/studio-hotclip.slint";
+import { LiquidBackground } from "workspace/studio-chrome.slint";
+export { LauncherUi } from "launcher-ui.slint";
+import { LauncherUi } from "launcher-ui.slint";
 
 // The launch screen: a launcher with a rail, and the window's own ground
 // under all of it — no card around the whole thing, no shadow. A setup
@@ -153,7 +159,7 @@ component FrameShape inherits Rectangle {
         border-width: 1px;
         border-color: root.tint;
 
-        animate width, height { duration: 160ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+        animate width, height { duration: Theme.motion-reduced ? 0ms : 160ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
     }
 }
 
@@ -249,7 +255,7 @@ component LinkButton inherits Rectangle {
     height: 20px;
     opacity: root.enabled ? (touch.has-hover ? 0.7 : 1.0) : 0.4;
 
-    animate opacity { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate opacity { duration: Theme.motion-reduced ? 0ms : 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     text := Text {
         x: 0;
@@ -303,7 +309,7 @@ component Chip inherits Rectangle {
     border-color: root.selected || root.lit ? Theme.line-strong : Theme.line;
     opacity: root.enabled ? 1.0 : 0.45;
 
-    animate background, border-color { duration: 140ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background, border-color { duration: Theme.motion-reduced ? 0ms : 140ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     HorizontalLayout {
         alignment: center;
@@ -329,7 +335,7 @@ component Chip inherits Rectangle {
             font-weight: Theme.weight-title;
             vertical-alignment: center;
 
-            animate color { duration: 140ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+            animate color { duration: Theme.motion-reduced ? 0ms : 140ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
         }
     }
 
@@ -562,7 +568,7 @@ component PillButton inherits Rectangle {
     border-color: root.lit ? Theme.line-strong : Theme.line;
     opacity: root.enabled ? 1.0 : 0.4;
 
-    animate background, border-color { duration: 140ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background, border-color { duration: Theme.motion-reduced ? 0ms : 140ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     HorizontalLayout {
         alignment: center;
@@ -603,16 +609,19 @@ component BarAction inherits Rectangle {
     callback clicked();
 
     property <bool> lit: touch.has-hover && root.enabled;
+    property <bool> ring;
+    accessible-role: button;
+    accessible-label: root.label;
 
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border-radius: self.width / 2;
     background: root.lit ? Theme.launch-field : Theme.launch-raised;
     border-width: 1px;
     border-color: root.lit ? Theme.line-strong : Theme.line;
     opacity: root.enabled ? 1.0 : 0.4;
 
-    animate background, border-color { duration: 140ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background, border-color { duration: Theme.motion-reduced ? 0ms : 140ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     Icon {
         x: (parent.width - self.width) / 2;
@@ -625,8 +634,20 @@ component BarAction inherits Rectangle {
     touch := TouchArea {
         enabled: root.enabled;
         mouse-cursor: pointer;
-        clicked => { root.clicked(); }
+        clicked => { action-focus.focus(); root.clicked(); }
     }
+
+    action-focus := FocusScope {
+        focus-on-click: false;
+        enabled: root.enabled;
+        focus-gained(reason) => { root.ring = reason == FocusReason.tab-navigation; }
+        focus-lost(reason) => { root.ring = false; }
+        key-pressed(event) => {
+            if event.text == Key.Return || event.text == " " { root.clicked(); return EventResult.accept; }
+            return EventResult.reject;
+        }
+    }
+    FocusRing { active: root.ring; radius: 22px; }
 
     Tip {
         text: root.label;
@@ -648,22 +669,32 @@ component RailItem inherits Rectangle {
     in property <string> badge: "";
 
     callback clicked();
+    public function take-focus() { item-focus.focus(); }
+    property <bool> keyboard-focus;
+    accessible-role: button;
+    accessible-label: root.label;
 
     property <bool> lit: touch.has-hover && root.enabled;
     property <brush> ink: root.current ? (root.studio-tone ? Floword.text : Theme.accent) : root.lit ? (root.studio-tone ? Floword.text : Theme.fg) : (root.studio-tone ? Floword.muted : Theme.fg-muted);
 
-    height: root.studio-tone ? 40px : 36px;
-    border-radius: root.studio-tone ? 10px : Theme.r;
-    background: root.current && root.studio-tone ? Floword.raised : root.lit && root.studio-tone ? Floword.raised.with-alpha(0.6) : root.current || root.lit ? Theme.launch-raised : Colors.transparent;
-    border-width: root.current && root.studio-tone ? 1px : root.lit && root.studio-tone ? 1px : 0px;
-    border-color: root.current && root.studio-tone ? Floword.line-bright : Floword.line;
+    height: 44px;
+    border-radius: 12px;
+    background: root.current && root.studio-tone
+        ? (Theme.dark ? Floword.brand-soft : Floword.accent-yellow-soft)
+        : root.lit && root.studio-tone
+        ? Floword.raised.with-alpha(0.7)
+        : root.current || root.lit ? Theme.launch-raised : Colors.transparent;
+    border-width: 1px;
+    border-color: root.current && root.studio-tone
+        ? (Theme.dark ? Floword.accent.with-alpha(0.5) : Floword.accent-yellow)
+        : root.lit && root.studio-tone ? Floword.line-bright : Colors.transparent;
     opacity: root.enabled ? 1.0 : 0.4;
 
-    animate background, border-color { duration: 160ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background, border-color { duration: Theme.motion-reduced ? 0ms : 160ms; easing: cubic-bezier(0.16, 1, 0.3, 1); }
 
     if root.current && root.studio-tone: Rectangle {
-        x: 2px; y: 7px; width: 3.5px; height: root.height - 14px;
-        background: Floword.cyan;
+        x: 3px; y: 8px; width: 3.5px; height: root.height - 16px;
+        background: Theme.dark ? Floword.accent : Floword.accent-yellow;
         border-radius: 2px;
     }
 
@@ -678,7 +709,7 @@ component RailItem inherits Rectangle {
             Icon {
                 glyph: root.glyph;
                 size: 16px;
-                tint: root.current && root.studio-tone ? Floword.cyan : (root.lit && root.studio-tone ? Floword.text : root.ink);
+                tint: root.current && root.studio-tone ? Floword.accent : (root.lit && root.studio-tone ? Floword.text : root.ink);
             }
         }
 
@@ -688,20 +719,20 @@ component RailItem inherits Rectangle {
             Text {
                 text: root.label;
                 color: root.current && root.studio-tone ? Floword.text : (root.lit && root.studio-tone ? Floword.text : root.ink);
-                font-size: root.studio-tone ? 12.5px : Theme.fs-lg;
+                font-size: root.studio-tone ? 13px : Theme.fs-lg;
                 font-weight: root.current ? 700 : Theme.weight-title;
                 overflow: elide;
             }
         }
 
         if !root.compact && root.badge != "": Rectangle {
-            background: #6366F133;
+            background: Floword.brand-soft;
             border-radius: 4px;
             HorizontalLayout {
                 padding-left: 5px; padding-right: 5px; padding-top: 1px; padding-bottom: 1px;
                 Text {
                     text: root.badge;
-                    color: #A5B4FC;
+                    color: Floword.accent;
                     font-size: 9.5px;
                     font-weight: 700;
                     vertical-alignment: center;
@@ -716,6 +747,27 @@ component RailItem inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
+    item-focus := FocusScope {
+        focus-on-click: false;
+        enabled: root.enabled;
+        focus-gained(reason) => {
+            root.keyboard-focus = true;
+            LauncherUi.sidebar-focus-count += 1;
+        }
+        focus-lost(reason) => {
+            root.keyboard-focus = false;
+            LauncherUi.sidebar-focus-count = Math.max(0, LauncherUi.sidebar-focus-count - 1);
+        }
+        key-pressed(event) => {
+            if event.text == Key.Return || event.text == " " {
+                root.clicked();
+                return EventResult.accept;
+            }
+            return EventResult.reject;
+        }
+    }
+    FocusRing { active: root.keyboard-focus; radius: 12px; }
+
     Tip {
         text: root.label;
         active: touch.has-hover && root.compact;
@@ -725,17 +777,34 @@ component RailItem inherits Rectangle {
 // The column of verbs. Its own surface, a shade above the page, with the
 // window's edge on one side and a hairline on the other.
 component Rail inherits Rectangle {
-    in property <bool> compact;
+    in-out property <bool> compact;
     in property <bool> enabled: true;
     in property <bool> studio-open;
     in property <StudioRoute> studio-route;
+    in property <int> mode;
+    out property <bool> hovered: rail-hover.has-hover;
+    out property <bool> focus-inside: LauncherUi.sidebar-focus-count > 0;
+    callback mode-picked(mode: int);
+    callback toggle-expanded();
+    callback dismissed();
 
     callback compose();
     callback open();
     callback studio-picked(route: StudioRoute);
     callback projects();
 
-    background: root.studio-open ? Floword.surface : Theme.launch-panel;
+    background: Floword.surface;
+    public function take-focus() { first-action.take-focus(); }
+
+    rail-hover := TouchArea {
+        width: 100%; height: 100%;
+        // Observe the rail without consuming clicks on its child controls.
+        FocusScope {
+            focus-on-click: false;
+            key-pressed(event) => {
+                if event.text == Key.Escape { root.dismissed(); return EventResult.accept; }
+                return EventResult.reject;
+            }
 
     Rectangle {
         x: parent.width - 1px;
@@ -751,9 +820,41 @@ component Rail inherits Rectangle {
         padding-bottom: 14px;
         spacing: 6px;
 
+        // Real controls, no decorative search or notification placeholders.
+        HorizontalLayout {
+            padding-left: root.compact ? 2px : 6px;
+            padding-right: root.compact ? 2px : 6px;
+            padding-bottom: 4px;
+            alignment: root.compact ? LayoutAlignment.center : LayoutAlignment.space-between;
+            if !root.compact: HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+                Icon { glyph: Glyph.sparkle; size: 16px; tint: Floword.accent; }
+                Text {
+                    text: "Kedi.Media";
+                    color: Floword.text;
+                    font-size: 14px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+            }
+            RailItem {
+                width: 44px; compact: true;
+                glyph: root.compact ? Glyph.chevron-right : Glyph.chevron-left;
+                label: root.compact ? "Mở menu" : "Thu gọn menu";
+                clicked => { root.toggle-expanded(); }
+            }
+        }
+
+        RailItem {
+            compact: root.compact;
+            label: root.mode == 1 ? "Bỏ ghim · tự động" : "Ghim menu luôn mở";
+            glyph: Glyph.tag; current: root.mode == 1; studio-tone: true;
+            clicked => { root.mode-picked(root.mode == 1 ? 0 : 1); }
+        }
 
         // New Project Action
-        RailItem {
+        first-action := RailItem {
             label: I18n.t("start.newProject");
             glyph: Glyph.plus;
             compact: root.compact;
@@ -772,99 +873,109 @@ component Rail inherits Rectangle {
                 spacing: 4px;
 
                 // 1. TẠO VIDEO AI
-                if !root.compact: Text {
-                    text: "TẠO VIDEO AI";
+                Text {
+                    height: 16px;
+                    text: root.compact ? "" : "TẠO VIDEO AI";
                     color: Floword.cyan;
                     font-size: 10px;
                     font-weight: 700;
                     letter-spacing: 0.8px;
                 }
                 RailItem {
-                    label: "Tổng Quan"; glyph: Glyph.sparkle; compact: root.compact; enabled: root.enabled;
-                    current: root.studio-open && root.studio-route == StudioRoute.overview; studio-tone: true;
-                    clicked => { root.studio-picked(StudioRoute.overview); }
+                    label: "Kedi Factory"; glyph: Glyph.sparkle; compact: root.compact; enabled: root.enabled;
+                    current: root.studio-open && root.studio-route == StudioRoute.kedi-factory; studio-tone: true;
+                    clicked => { root.studio-picked(StudioRoute.kedi-factory); }
                 }
                 RailItem {
-                    label: "Xưởng Phim AI"; glyph: Glyph.film; compact: root.compact; enabled: root.enabled;
+                    label: "AI Control"; glyph: Glyph.sparkle; compact: root.compact; enabled: root.enabled;
+                    current: root.studio-open && root.studio-route == StudioRoute.ai-control; studio-tone: true;
+                    clicked => {root.studio-picked(StudioRoute.ai-control);}
+                }
+                RailItem {
+                    label: "Làm phim AI"; glyph: Glyph.film; compact: root.compact; enabled: root.enabled;
+                    current: root.studio-open && root.studio-route == StudioRoute.film; studio-tone: true;
+                    clicked => { root.studio-picked(StudioRoute.film); }
+                }
+                RailItem {
+                    label: "Quy trình nâng cao"; glyph: Glyph.film; compact: root.compact; enabled: root.enabled;
                     current: root.studio-open && root.studio-route == StudioRoute.production; studio-tone: true;
                     clicked => { root.studio-picked(StudioRoute.production); }
                 }
                 RailItem {
-                    label: "Auto Shorts"; glyph: Glyph.film; compact: root.compact; enabled: root.enabled;
-                    current: root.studio-open && root.studio-route == StudioRoute.auto-shorts; studio-tone: true;
-                    clicked => { root.studio-picked(StudioRoute.auto-shorts); }
-                }
-                RailItem {
-                    label: "Tạo Video MC (OpenTalking)"; glyph: Glyph.film; compact: root.compact; enabled: root.enabled;
+                    label: "Video nhân vật"; glyph: Glyph.film; compact: root.compact; enabled: root.enabled;
                     current: root.studio-open && root.studio-route == StudioRoute.opentalking; studio-tone: true;
                     clicked => { root.studio-picked(StudioRoute.opentalking); }
                 }
 
                 // 2. LIVESTREAM TIKTOK
-                if !root.compact: Text {
-                    text: "LIVESTREAM AI";
-                    color: #ec4899;
+                Text {
+                    height: 16px;
+                    text: root.compact ? "" : "LIVESTREAM AI";
+                    color: Floword.violet;
                     font-size: 10px;
                     font-weight: 700;
                     letter-spacing: 0.8px;
                 }
                 RailItem {
-                    label: "Live TikTok Stream"; glyph: Glyph.volume; badge: "LIVE"; compact: root.compact; enabled: root.enabled;
+                    label: "TikTok LIVE"; glyph: Glyph.volume; compact: root.compact; enabled: root.enabled;
                     current: root.studio-open && root.studio-route == StudioRoute.live; studio-tone: true;
                     clicked => { root.studio-picked(StudioRoute.live); }
                 }
 
+                Text {
+                    height: 16px;
+                    text: root.compact ? "" : "NEXPULSE"; color: Floword.cyan; font-size: 10px;
+                    font-weight: 700; letter-spacing: 0.8px;
+                }
+                RailItem {
+                    label: "NexPulse"; glyph: Glyph.curves; compact: root.compact; enabled: root.enabled;
+                    current: root.studio-open && root.studio-route == StudioRoute.web; studio-tone: true;
+                    clicked => { root.studio-picked(StudioRoute.web); }
+                }
+
                 // 3. VẬN HÀNH & KÊNH
-                if !root.compact: Text {
-                    text: "VẬN HÀNH & KÊNH";
+                Text {
+                    height: 16px;
+                    text: root.compact ? "" : "VẬN HÀNH & KÊNH";
                     color: Floword.muted;
                     font-size: 10px;
                     font-weight: 700;
                     letter-spacing: 0.8px;
                 }
                 RailItem {
-                    label: "Nhập Hàng Loạt"; glyph: Glyph.import; compact: root.compact; enabled: root.enabled;
+                    label: "Danh sách video"; glyph: Glyph.import; compact: root.compact; enabled: root.enabled;
                     current: root.studio-open && root.studio-route == StudioRoute.bulk; studio-tone: true;
                     clicked => { root.studio-picked(StudioRoute.bulk); }
                 }
                 RailItem {
-                    label: "Quản Lý Page / Kênh"; glyph: Glyph.curves; compact: root.compact; enabled: root.enabled;
+                    label: "Kênh của bạn"; glyph: Glyph.curves; compact: root.compact; enabled: root.enabled;
                     current: root.studio-open && root.studio-route == StudioRoute.channels; studio-tone: true;
                     clicked => { root.studio-picked(StudioRoute.channels); }
                 }
                 RailItem {
-                    label: "Hàng Đợi Đăng Bài"; glyph: Glyph.import; compact: root.compact; enabled: root.enabled;
+                    label: "Video đã xuất"; glyph: Glyph.import; compact: root.compact; enabled: root.enabled;
                     current: root.studio-open && root.studio-route == StudioRoute.publish; studio-tone: true;
                     clicked => { root.studio-picked(StudioRoute.publish); }
                 }
                 RailItem {
-                    label: "Lịch Sử Hoạt Động"; glyph: Glyph.clock; compact: root.compact; enabled: root.enabled;
+                    label: "Lịch sử hoạt động"; glyph: Glyph.clock; compact: root.compact; enabled: root.enabled;
                     current: root.studio-open && root.studio-route == StudioRoute.history; studio-tone: true;
                     clicked => { root.studio-picked(StudioRoute.history); }
                 }
 
                 // 3. AI ROUTING & HỆ THỐNG
-                if !root.compact: Text {
-                    text: "AI ROUTING & HỆ THỐNG";
+                Text {
+                    height: 16px;
+                    text: root.compact ? "" : "KẾT NỐI & CÀI ĐẶT";
                     color: Floword.muted;
                     font-size: 10px;
                     font-weight: 700;
                     letter-spacing: 0.8px;
                 }
                 RailItem {
-                    label: "AI Keys (OmniRoute)"; glyph: Glyph.sparkle; badge: "290+"; compact: root.compact; enabled: root.enabled;
+                    label: "Kết nối AI"; glyph: Glyph.sparkle; compact: root.compact; enabled: root.enabled;
                     current: root.studio-open && root.studio-route == StudioRoute.keys; studio-tone: true;
                     clicked => { root.studio-picked(StudioRoute.keys); }
-                }
-                RailItem {
-                    label: "Cài đặt Studio";
-                    glyph: Glyph.settings;
-                    badge: "LOCAL";
-                    compact: root.compact;
-                    enabled: root.enabled;
-                    current: root.studio-open && root.studio-route == StudioRoute.settings;
-                    studio-tone: true;
-                    clicked => { root.studio-picked(StudioRoute.settings); }
                 }
                 RailItem {
                     label: "CapCut Studio"; glyph: Glyph.film; compact: root.compact; enabled: root.enabled;
@@ -890,6 +1001,8 @@ component Rail inherits Rectangle {
             enabled: root.enabled;
             clicked => { root.open(); }
         }
+    }
+    }
     }
 }
 
@@ -922,7 +1035,7 @@ component NewProjectCard inherits Rectangle {
     border-color: root.lit ? Theme.line-strong : Theme.line;
     opacity: root.enabled ? 1.0 : 0.4;
 
-    animate background, border-color { duration: 120ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background, border-color { duration: Theme.motion-reduced ? 0ms : 120ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     if !root.banner: VerticalLayout {
         alignment: center;
@@ -997,7 +1110,7 @@ component PosterCard inherits Rectangle {
     border-color: root.lit ? Theme.line-strong : Theme.line;
     clip: true;
 
-    animate background, border-color { duration: 120ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+    animate background, border-color { duration: Theme.motion-reduced ? 0ms : 120ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
     touch := TouchArea {
         mouse-cursor: root.enabled ? pointer : default;
@@ -1163,11 +1276,49 @@ component ProjectsGrid inherits Rectangle {
 // ── the screen ───────────────────────────────────────────────────────────
 
 export component StartScreen inherits Rectangle {
+    out property <bool> sidebar-expanded: !root.compact-rail && (!root.narrow || root.drawer-open);
+    out property <length> sidebar-reserved-width: root.rail-w;
+    out property <bool> sidebar-drawer-open: root.drawer-open;
     in property <[RecentProjectData]> recents;
     /// A project is being made: every verb on the page waits for it.
     in property <bool> busy;
     property <bool> studio-open;
-    property <StudioRoute> studio-route: StudioRoute.overview;
+    property <StudioRoute> studio-route: StudioRoute.live;
+    property <int> studio-scroll-epoch;
+    property <int> production-phase: ProductionStudio.current-phase;
+    changed production-phase => { root.studio-scroll-epoch += 1; }
+    property <bool> web-selected: root.studio-open && root.studio-route == StudioRoute.web;
+    // A native child cannot be covered by a Slint drawer/backdrop. Suspend
+    // only its visibility while the navigation overlay is open.
+    property <bool> web-host-visible: root.web-selected && !root.rail-overlay;
+    property <bool> hotclip-selected: root.studio-open && root.studio-route == StudioRoute.hotclip;
+    property <int> hotclip-open-request: StudioHotclip.open-request;
+    changed hotclip-open-request => {
+        // Hotclip now belongs to an open edit. A stale launcher request
+        // returns to project selection without creating or opening a project.
+        if root.hotclip-open-request > 0 { root.studio-open = false; }
+    }
+    changed hotclip-selected => {
+        // Normal navigation is Slint-native. Electron remains a legacy QA host.
+        StudioHotclip.active = false;
+        StudioHotclip.hide-native();
+    }
+    property <int> web-open-request: StudioWeb.open-request;
+    changed web-open-request => {
+        if root.web-open-request > 0 {
+            root.studio-route = StudioRoute.web;
+            root.studio-open = true;
+        }
+    }
+    init => {
+        LauncherUi.sidebar-focus-count = 0;
+        StudioWeb.active = root.web-host-visible;
+        StudioHotclip.active = false;
+    }
+    changed web-host-visible => {
+        StudioWeb.active = root.web-host-visible;
+        if !root.web-host-visible { StudioWeb.hide-native(); }
+    }
 
     /// Put up the sheet a new project is described on.
     callback compose();
@@ -1185,8 +1336,25 @@ export component StartScreen inherits Rectangle {
     /// https://github.com/jub0t/Concat/issues/222
     in property <bool> phone;
     property <bool> narrow: root.width < 680px;
-    /// Under this the rail keeps its verbs but loses its words.
-    property <bool> compact-rail: root.width < 940px;
+    property <bool> medium: root.width < 1100px;
+    property <bool> drawer-open;
+    property <bool> temporary-open;
+    property <bool> hover-open;
+    property <bool> sidebar-hovered: sidebar.hovered;
+    changed sidebar-hovered => {
+        if root.sidebar-hovered && !root.narrow && !root.phone && LauncherUi.sidebar-mode != 1 {
+            root.hover-open = true;
+        }
+    }
+    Timer {
+        interval: 420ms;
+        running: root.hover-open && !root.sidebar-hovered && !sidebar.focus-inside;
+        triggered => { root.hover-open = false; }
+    }
+    /// Only wide Auto/Pinned reserves full width. Hover never pushes a form.
+    property <bool> reserved-expanded: !root.narrow && (LauncherUi.sidebar-mode == 1 || (!root.medium && LauncherUi.sidebar-mode != 2));
+    property <bool> compact-rail: !(root.reserved-expanded || (!root.narrow && LauncherUi.sidebar-mode == 1) || root.drawer-open || root.temporary-open || root.hover-open || sidebar.focus-inside);
+    property <length> topbar-h: 56px;
     /// The margin the content keeps from the page's edges: between the
     /// phone's 20px and the desktop's 56px.
     property <length> pad: Math.max(20px, Math.min(56px, root.width / 14));
@@ -1199,7 +1367,28 @@ export component StartScreen inherits Rectangle {
     property <length> content-w: 1120px;
     /// The rail's width, and the page's left edge. Zero is a phone, which
     /// has the rail's verbs on the heading's row instead.
-    property <length> rail-w: root.narrow && root.phone ? 0px : (root.compact-rail ? 62px : 236px);
+    property <length> rail-w: root.narrow ? 0px : (root.reserved-expanded ? 252px : 68px);
+    property <length> visible-rail-w: root.narrow ? (root.drawer-open ? Math.min(280px, root.width - 28px) : 0px) : (root.compact-rail ? 68px : 252px);
+    property <bool> rail-overlay: root.drawer-open || (!root.reserved-expanded && !root.compact-rail);
+    function close-menu() {
+        root.drawer-open = false;
+        root.temporary-open = false;
+        root.hover-open = false;
+        Focus.release();
+        LauncherUi.sidebar-focus-count = 0;
+    }
+    function set-mode(mode: int) {
+        LauncherUi.sidebar-mode = mode;
+        LauncherUi.sidebar-mode-changed(mode);
+        root.temporary-open = false;
+        root.hover-open = false;
+    }
+    changed narrow => { root.close-menu(); }
+    changed studio-route => {
+        root.studio-scroll-epoch += 1;
+        if root.studio-route == StudioRoute.hotclip { root.studio-open = false; }
+        root.close-menu();
+    }
 
     background: Theme.launch-page;
     clip: true;
@@ -1209,43 +1398,37 @@ export component StartScreen inherits Rectangle {
     // which decides whether there is a rail at all — is read from the width
     // that minimum helps decide. Slint calls that a binding loop and is
     // right to. Two absolute boxes have no such opinion.
-    if !root.narrow || !root.phone: Rail {
-        x: 0;
-        y: 0;
-        width: root.rail-w;
-        height: root.height;
-
-        compact: root.compact-rail;
-        enabled: !root.busy;
-        studio-open: root.studio-open;
-        studio-route: root.studio-route;
-        studio-picked(route) => { root.studio-route = route; root.studio-open = true; }
-        projects => { root.studio-open = false; }
-        compose => { root.studio-open = false; root.compose(); }
-        open => { root.open(); }
-    }
-
     if root.studio-open: Rectangle {
         x: root.rail-w;
-        y: 0;
-        width: root.width - root.rail-w;
-        height: root.height;
+        y: root.topbar-h;
+        width: Math.max(0px, root.width - root.rail-w);
+        height: root.height - root.topbar-h;
         background: Floword.ground;
         clip: true;
+
+        LiquidBackground {
+            active: root.studio-route != StudioRoute.production;
+            width: 100%;
+            height: 100%;
+        }
 
         Image {
             source: @image-url("assets/neon-grid-bg.svg");
             width: 100%;
             height: 100%;
             image-fit: cover;
+            opacity: Theme.dark ? 0.6 : 0.08;
         }
 
-        PaneScroll {
+        if root.studio-route == StudioRoute.web: StudioWebPage { width: 100%; height: 100%; }
+        if root.studio-route != StudioRoute.web && root.studio-route != StudioRoute.hotclip: PaneScroll {
+            reset-key: root.studio-scroll-epoch;
             width: 100%;
             height: 100%;
             background: transparent;
             StudioPage {
-                viewport-height: root.height;
+                viewport-width: Math.max(0px, root.width - root.rail-w - 12px);
+                viewport-height: root.height - root.topbar-h;
                 route: root.studio-route;
                 choose-project => { root.studio-open = false; }
                 back => { root.studio-open = false; }
@@ -1256,9 +1439,16 @@ export component StartScreen inherits Rectangle {
 
     if !root.studio-open: Rectangle {
         x: root.rail-w;
-        y: 0;
-        width: root.width - root.rail-w;
-        height: root.height;
+        y: root.topbar-h;
+        width: Math.max(0px, root.width - root.rail-w);
+        height: root.height - root.topbar-h;
+        background: Theme.launch-page;
+        clip: true;
+
+        LiquidBackground {
+            width: 100%;
+            height: 100%;
+        }
 
         // The page scrolls when it does not fit: a wheel, a trackpad or
         // a finger, which a Flickable takes all of. It clamps its own
@@ -1360,6 +1550,65 @@ export component StartScreen inherits Rectangle {
             offset: -flick.content-y;
             scrolled(to) => { flick.content-y = -to; }
         }
+    }
+
+    // Shared app shell. Navigation overlays content only when explicitly
+    // revealed; reserved width never depends on hover or keyboard focus.
+    Rectangle {
+        x: root.rail-w; y: 0;
+        width: root.width - root.rail-w; height: root.topbar-h;
+        background: Floword.surface;
+        Rectangle { y: parent.height - 1px; height: 1px; width: 100%; background: Floword.line; }
+        HorizontalLayout {
+            padding-left: 12px; padding-right: 12px; spacing: 10px;
+            if root.narrow: BarAction {
+                glyph: Glyph.rows; label: "Mở menu điều hướng";
+                clicked => {
+                    root.drawer-open = !root.drawer-open;
+                    if root.drawer-open { sidebar.take-focus(); }
+                }
+            }
+            Text {
+                text: root.studio-open ? "Kedi.Media · Studio" : "Kedi.Media · Dự án";
+                color: Floword.text; font-size: 14px; font-weight: 700;
+                vertical-alignment: center; horizontal-stretch: 1; min-width: 0px; overflow: elide;
+            }
+            BarAction {
+                glyph: Theme.dark ? Glyph.sun : Glyph.moon;
+                label: Theme.dark ? "Chuyển giao diện sáng" : "Chuyển giao diện tối";
+                clicked => { LauncherUi.theme-changed(!Theme.dark); }
+            }
+        }
+    }
+
+    if root.drawer-open || (root.rail-overlay && LauncherUi.sidebar-mode != 1): Rectangle {
+        x: root.narrow ? 0px : root.rail-w; y: 0;
+        width: root.width - self.x; height: root.height;
+        background: Theme.overlay;
+        TouchArea { clicked => { root.close-menu(); } }
+    }
+
+    sidebar := Rail {
+        x: 0; y: 0; width: root.visible-rail-w; height: root.height;
+        visible: !root.narrow || root.drawer-open;
+        clip: true;
+        compact: root.narrow ? false : root.compact-rail;
+        mode: LauncherUi.sidebar-mode;
+        enabled: !root.busy;
+        studio-open: root.studio-open;
+        studio-route: root.studio-route;
+        animate width { duration: Theme.motion-reduced ? 0ms : 240ms; easing: cubic-bezier(0.16, 1, 0.3, 1); }
+        mode-picked(mode) => { root.set-mode(mode); }
+        dismissed => { root.close-menu(); }
+        toggle-expanded => {
+            if root.narrow { root.close-menu(); }
+            else if root.compact-rail { root.temporary-open = true; }
+            else { root.set-mode(2); root.close-menu(); }
+        }
+        studio-picked(route) => { root.studio-route = route; root.studio-open = true; root.close-menu(); }
+        projects => { root.studio-open = false; root.close-menu(); }
+        compose => { root.studio-open = false; root.close-menu(); root.compose(); }
+        open => { root.close-menu(); root.open(); }
     }
 }
 
@@ -1785,3 +2034,4 @@ export component NewProjectDialog inherits Modal {
         }
     }
 }
+

@@ -1,26 +1,35 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { I18n } from "../i18n.slint";
-import { Theme, Button } from "../primitives/primitives.slint";
+import { Theme, Button, Select } from "../primitives/primitives.slint";
 import { StudioAiPage } from "studio-ai.slint";
-import { StudioBrowser, StudioBrowserPanel } from "studio-browser.slint";
+import { StudioBrowser } from "studio-browser.slint";
 import { StudioPagesPanel } from "studio-pages.slint";
-import { StudioOpenTalkingPage } from "studio-opentalking.slint";
-import { StudioLivePage } from "studio-live.slint";
+import { StudioOpenTalking, StudioOpenTalkingPage } from "studio-opentalking.slint";
+import { StudioLivePage, StudioLive } from "studio-live.slint";
 import { StudioBulkPanel } from "studio-bulk.slint";
 import { StudioPublishPanel } from "studio-publish.slint";
 import { StudioScripts, ScriptLibrary } from "studio-scripts.slint";
 import { ProductionStudio, StudioProduction, StudioRunList } from "studio-production.slint";
 import { Floword } from "../theme/floword.slint";
 import { Glyph, Icon } from "../icons.slint";
-import { StudioCard, StudioHeading, StudioButton, StudioField, StudioMetric } from "studio-chrome.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField, StudioMetric, LiquidBackground } from "studio-chrome.slint";
 import { StudioChannels } from "studio-pages.slint";
 import { AutoShortsPage } from "auto-shorts.slint";
+import { StudioFilmPage, FilmStudio } from "studio-film.slint";
+export { FilmStudio } from "studio-film.slint";
+import { LauncherUi } from "../launcher-ui.slint";
+import { KediFactoryPanel, KediProviderPanel, KediFactory } from "studio-kedi-factory.slint";
+import { AiControlPage, AiControl } from "studio-ai-control.slint";
+export { AiControl, ControlStepRow } from "studio-ai-control.slint";
+export { KediFactory } from "studio-kedi-factory.slint";
 
 // Launcher tools: available before a project exists; not part of MediaFilter.
 export enum StudioRoute {
-    overview, production, opentalking, live, workflows, scripts, bulk,
+    production, film, opentalking, live, workflows, scripts, bulk,
     jobs, channels, publish, history, settings, keys, auto-shorts,
+    web, hotclip,
+    kedi-factory, kedi-providers, ai-control,
 }
 
 export struct StudioWorkflowRow {
@@ -70,14 +79,17 @@ export global StudioBridge {
     }
 
     public pure function title(route: StudioRoute) -> string {
-        return route == StudioRoute.overview ? I18n.t("productionStudio.overview")
-            : route == StudioRoute.auto-shorts ? "Auto Shorts"
+        return route == StudioRoute.ai-control ? "AI Control" : route == StudioRoute.film ? "Làm phim từ ý tưởng" : route == StudioRoute.auto-shorts ? "Video dài → clip ngắn"
+            : route == StudioRoute.web ? "NexPulse"
+            : route == StudioRoute.hotclip ? "Hotclip"
+            : route == StudioRoute.kedi-factory ? "Kedi Factory"
+            : route == StudioRoute.kedi-providers ? "Nguồn & Provider"
             : route == StudioRoute.production ? I18n.t("productionStudio.production")
             : route == StudioRoute.opentalking ? I18n.t("studioOpenTalking.nav")
             : route == StudioRoute.live ? I18n.t("studioLive.nav")
             : route == StudioRoute.workflows ? I18n.t("productionStudio.workflows")
             : route == StudioRoute.scripts ? I18n.t("productionStudio.scripts")
-            : route == StudioRoute.bulk ? I18n.t("productionStudio.bulk")
+            : route == StudioRoute.bulk ? "Danh sách video"
             : route == StudioRoute.jobs ? I18n.t("productionStudio.jobs")
             : route == StudioRoute.channels ? I18n.t("productionStudio.channels")
             : route == StudioRoute.publish ? I18n.t("productionStudio.publish")
@@ -88,872 +100,142 @@ export global StudioBridge {
 
 export component StudioPage inherits VerticalLayout {
     min-width: 0px;
+    in property <length> viewport-width: 1080px;
     in property <length> viewport-height: 720px;
     in property <StudioRoute> route;
     callback choose-project();
     callback back();
     callback navigate(route: StudioRoute);
-    padding-left: 20px;
-    padding-right: 20px;
-    padding-top: 12px;
-    padding-bottom: 14px;
-    spacing: 12px;
+    padding: 16px;
+    spacing: 16px;
     alignment: start;
-
-    if root.route != StudioRoute.auto-shorts: Rectangle {
-      min-width: 0px;
-      min-height: project-header.preferred-height;
-      project-header := FlexboxLayout {
-        spacing: 12px;
-        alignment: start;
-
-        FlexboxLayout {
-            spacing: 10px;
-            alignment: start;
-            min-width: 0px;
-            preferred-width: 560px;
-            horizontal-stretch: 1;
-
-            Text { text: "Studio project"; color: Floword.muted; font-size: 12px; font-weight: 600; vertical-alignment: center; }
-
-            Rectangle {
-                background: Floword.field;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: Floword.line-bright;
-                height: 32px;
-                HorizontalLayout {
-                    padding-left: 10px; padding-right: 10px;
-                    spacing: 8px;
-                    alignment: center;
-                    Text { text: "Không gắn với project"; color: Floword.text; font-size: 11.5px; vertical-alignment: center; }
-                    Text { text: "▼"; color: Floword.muted; font-size: 9px; vertical-alignment: center; }
-                }
-            }
-
-            Rectangle {
-                background: Floword.field;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: Floword.line;
-                height: 32px;
-                min-width: 130px;
-                HorizontalLayout {
-                    padding-left: 10px; padding-right: 10px;
-                    alignment: start;
-                    Text { text: "Tên project mới"; color: Floword.muted; font-size: 11.5px; vertical-alignment: center; }
-                }
-            }
-
-            StudioButton { label: "Tạo project"; compact: true; primary: true; clicked => { root.choose-project(); } }
-            StudioButton { label: "Tải lại"; compact: true; clicked => { StudioBridge.check-services(); } }
-        }
-
-        FlexboxLayout {
-            spacing: 10px;
-            alignment: start;
-
-            FlexboxLayout {
-                spacing: 6px;
-                alignment: start;
-                Text { text: "📑 Page"; color: Floword.text; font-size: 11.5px; font-weight: 600; vertical-alignment: center; }
-                Text { text: "No pages created"; color: #F59E0B; font-size: 11.5px; vertical-alignment: center; }
-                Text { text: "/"; color: Floword.muted; font-size: 11.5px; vertical-alignment: center; }
-                Text { text: "+ Thêm Page"; color: Floword.cyan; font-size: 11.5px; font-weight: 600; vertical-alignment: center; }
-            }
-
-            StudioButton { label: "⚙️ Cấu Hình"; compact: true; clicked => { root.navigate(StudioRoute.settings); } }
-            StudioButton { label: "💾 Lưu"; compact: true; primary: true; }
-            StudioButton { label: "← " + I18n.t("start.projects"); compact: true; clicked => { root.back(); } }
-        }
+    if root.route != StudioRoute.auto-shorts: FlexboxLayout {
+        min-width: 0px; spacing: 8px;
+        if root.route != StudioRoute.live: Text { text: StudioBridge.title(root.route); color: Floword.text; font-size: 20px; font-weight: 700; wrap: word-wrap; horizontal-stretch: 1; min-width: 0px; vertical-alignment: center; }
+        if root.route != StudioRoute.ai-control && root.route != StudioRoute.film && root.route != StudioRoute.production && root.route != StudioRoute.kedi-factory && root.route != StudioRoute.kedi-providers: StudioButton { label: "← Xưởng phim AI"; compact: true; clicked => { root.navigate(StudioRoute.production); } }
+        if root.route == StudioRoute.production: StudioButton { label: "Mẫu kịch bản"; compact: true; clicked => { root.navigate(StudioRoute.scripts); } }
+        if root.route == StudioRoute.production: StudioButton { label: "Quy trình"; compact: true; clicked => { root.navigate(StudioRoute.workflows); } }
+        if root.route == StudioRoute.production: StudioButton { label: "Tác vụ"; compact: true; clicked => { root.navigate(StudioRoute.jobs); } }
+        if root.route == StudioRoute.production: StudioButton { label: "Kedi Factory"; compact: true; clicked => { root.navigate(StudioRoute.kedi-factory); } }
+        if root.route == StudioRoute.kedi-factory: StudioButton { label: "Công cụ và nguồn"; compact: true; clicked => { root.navigate(StudioRoute.kedi-providers); } }
+        if root.route == StudioRoute.kedi-providers: StudioButton { label: "Về Kedi Factory"; compact: true; clicked => { root.navigate(StudioRoute.kedi-factory); } }
     }
+    if root.route == StudioRoute.ai-control: StudioCard {
+        init => {AiControl.workspace-open=true;}
+        StudioHeading { title:"Phòng điều hành AI"; }
+        Text { text:"Quản lý yêu cầu, kế hoạch và các bước AI đang thực hiện trong không gian riêng."; color:Floword.muted; wrap:word-wrap; min-width:0px; }
+        StudioButton { label:"Mở phòng điều hành AI"; primary:true; clicked=>{AiControl.workspace-open=true;} }
+    }
+    if root.route == StudioRoute.production: StudioCard {
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: space-between;
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+                Rectangle { width: 22px; height: 22px; border-radius: 11px; background: Floword.accent; Text { text: "1"; color: Floword.on-accent; font-weight: 700; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; } }
+                Text { text: "1. Tạo kịch bản"; color: Floword.text; font-weight: 600; font-size: 13px; vertical-alignment: center; }
+            }
+            Text { text: "→"; color: Floword.muted; font-size: 14px; vertical-alignment: center; }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+                Rectangle { width: 22px; height: 22px; border-radius: 11px; background: Floword.field; border-width: 1px; border-color: Floword.line; Text { text: "2"; color: Floword.text; font-weight: 700; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; } }
+                Text { text: "2. Tạo tư liệu media"; color: Floword.muted; font-size: 13px; vertical-alignment: center; }
+            }
+            Text { text: "→"; color: Floword.muted; font-size: 14px; vertical-alignment: center; }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+                Rectangle { width: 22px; height: 22px; border-radius: 11px; background: Floword.field; border-width: 1px; border-color: Floword.line; Text { text: "3"; color: Floword.text; font-weight: 700; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; } }
+                Text { text: "3. Dựng & Xuất video"; color: Floword.muted; font-size: 13px; vertical-alignment: center; }
+            }
+        }
     }
     if root.route == StudioRoute.auto-shorts: AutoShortsPage { }
-    if root.route == StudioRoute.overview: VerticalLayout {
-        spacing: 20px;
-
-        // HERO BANNER
-        Rectangle {
-            background: Floword.surface;
-            border-radius: 18px;
-            border-width: 1px;
-            border-color: Floword.line-bright;
-            clip: true;
-
-            HorizontalLayout {
-                padding: 22px;
-                spacing: 22px;
-                alignment: space-between;
-
-                VerticalLayout {
-                    horizontal-stretch: 1;
-                    spacing: 12px;
-                    alignment: center;
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Rectangle {
-                            background: Floword.cyan.with-alpha(0.18);
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: Floword.cyan.with-alpha(0.35);
-                            HorizontalLayout {
-                                padding-left: 8px; padding-right: 8px; padding-top: 3px; padding-bottom: 3px;
-                                Text {
-                                    text: "XƯỞNG SẢN XUẤT VIDEO AI · OBSIDIAN V2";
-                                    color: Floword.cyan;
-                                    font-size: 11px;
-                                    font-weight: 700;
-                                    letter-spacing: 0.6px;
-                                }
-                            }
-                        }
-                    }
-
-                    Text {
-                        text: "Tạo video đầu tiên chỉ với 3 bước đơn giản";
-                        color: Floword.text;
-                        font-size: 23px;
-                        font-weight: 700;
-                        wrap: word-wrap;
-                    }
-
-                    Text {
-                        text: "Từ ý tưởng câu chuyện thành phim hoàn chỉnh: viết kịch bản, AI tự động sinh hình ảnh nhân vật & lồng tiếng, ghép cảnh và xuất bản đa nền tảng.";
-                        color: Floword.muted;
-                        font-size: 13px;
-                        wrap: word-wrap;
-                    }
-
-                    HorizontalLayout {
-                        spacing: 12px;
-                        padding-top: 4px;
-                        StudioButton {
-                            label: "Tạo video đầu tiên";
-                            primary: true;
-                            clicked => { root.navigate(StudioRoute.production); }
-                        }
-                        StudioButton {
-                            label: "Xem mẫu kịch bản";
-                            clicked => { root.navigate(StudioRoute.scripts); }
-                        }
-                        Rectangle { horizontal-stretch: 1; }
-                    }
-                }
-
-                // Hero Illustration Image
-                Rectangle {
-                    width: 320px;
-                    height: 180px;
-                    border-radius: 14px;
-                    border-width: 1px;
-                    border-color: Floword.line-bright;
-                    clip: true;
-                    Image {
-                        source: @image-url("../assets/studio-hero.jpg");
-                        width: 100%;
-                        height: 100%;
-                        image-fit: cover;
-                    }
-                }
-            }
-        }
-
-        // Metric Counters Row
-        HorizontalLayout {
-            spacing: 16px;
-            StudioMetric { label: I18n.t("nativeStudio.jobs"); value: ProductionStudio.runs-loaded ? "\{ProductionStudio.runs.length}" : "—"; }
-            StudioMetric { label: I18n.t("nativeStudio.workflow"); value: StudioBridge.workflows-state == 1 && !StudioBridge.workflows-loading ? "\{StudioBridge.workflows.length}" : "—"; }
-            StudioMetric { label: I18n.t("productionStudio.scripts"); value: ScriptLibrary.loaded ? "\{ScriptLibrary.rows.length}" : "4 Mẫu"; }
-            StudioMetric { label: "Kênh Hoạt Động"; value: "\{StudioChannels.rows.length}"; }
-        }
-
-        // Module Pipeline DAG (6 Node Stages)
-        Rectangle {
-            background: Floword.surface;
-            border-radius: 16px;
-            border-width: 1px;
-            border-color: Floword.line-bright;
-            clip: true;
-
-            VerticalLayout {
-                padding: 18px;
-                spacing: 12px;
-
-                HorizontalLayout {
-                    spacing: 10px;
-                    alignment: space-between;
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Rectangle {
-                            width: 8px; height: 8px; border-radius: 4px; background: Floword.warning;
-                            y: (parent.height - self.height) / 2;
-                        }
-                        Text { text: "SƠ ĐỒ QUY TRÌNH SẢN XUẤT 6 CHẶNG (MODULE PIPELINE DAG)"; color: Floword.warning; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; }
-                    }
-
-                    Text { text: "Bấm vào từng chặng để chuyển thẳng đến màn hình cấu hình"; color: Floword.muted; font-size: 12px; }
-                }
-
-                // Grid 6 Chặng Node Stages
-                HorizontalLayout {
-                    spacing: 12px;
-
-                    // Node 1: Ý tưởng & Kịch bản
-                    Rectangle {
-                        background: Floword.field;
-                        border-radius: 12px;
-                        border-width: 1px;
-                        border-color: Floword.cyan;
-                        padding: 12px;
-                        horizontal-stretch: 1;
-
-                        VerticalLayout {
-                            spacing: 6px;
-                            HorizontalLayout {
-                                Text { text: "STAGE 01"; color: Floword.cyan; font-size: 10px; font-weight: 700; }
-                                Rectangle { horizontal-stretch: 1; }
-                                Text { text: "● Xong"; color: Floword.success; font-size: 10px; font-weight: 600; }
-                            }
-                            Text { text: "Ý Tưởng & Kịch Bản"; color: Floword.text; font-size: 13px; font-weight: 700; }
-                            Text { text: "Nhập đề tài, AI mở rộng phân cảnh kịch bản."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
-                            Rectangle { vertical-stretch: 1; }
-                            StudioButton { label: "Mở Kịch Bản"; clicked => { root.navigate(StudioRoute.scripts); } }
-                        }
-                    }
-
-                    // Node 2: OmniRoute AI Gateway
-                    Rectangle {
-                        background: Floword.field;
-                        border-radius: 12px;
-                        border-width: 1px;
-                        border-color: Floword.warning;
-                        padding: 12px;
-                        horizontal-stretch: 1;
-
-                        VerticalLayout {
-                            spacing: 6px;
-                            HorizontalLayout {
-                                Text { text: "STAGE 02"; color: Floword.warning; font-size: 10px; font-weight: 700; }
-                                Rectangle { horizontal-stretch: 1; }
-                                Text { text: "● Sẵn sàng"; color: Floword.success; font-size: 10px; font-weight: 600; }
-                            }
-                            Text { text: "OmniRoute Gateway"; color: Floword.text; font-size: 13px; font-weight: 700; }
-                            Text { text: "Định tuyến 160+ LLMs, Circuit Breaker tự động."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
-                            Rectangle { vertical-stretch: 1; }
-                            StudioButton { label: "Cấu hình Keys"; clicked => { root.navigate(StudioRoute.keys); } }
-                        }
-                    }
-
-                    // Node 3: Giọng đọc & Avatar
-                    Rectangle {
-                        background: Floword.field;
-                        border-radius: 12px;
-                        border-width: 1px;
-                        border-color: Floword.violet;
-                        padding: 12px;
-                        horizontal-stretch: 1;
-
-                        VerticalLayout {
-                            spacing: 6px;
-                            HorizontalLayout {
-                                Text { text: "STAGE 03"; color: Floword.violet; font-size: 10px; font-weight: 700; }
-                                Rectangle { horizontal-stretch: 1; }
-                                Text { text: "● Chạy"; color: Floword.cyan; font-size: 10px; font-weight: 600; }
-                            }
-                            Text { text: "Giọng Đọc & Avatar"; color: Floword.text; font-size: 13px; font-weight: 700; }
-                            Text { text: "TTS Sherpa AI, tạo MC ảo Lip-sync đồng bộ."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
-                            Rectangle { vertical-stretch: 1; }
-                            StudioButton { label: "Mở OpenTalking"; clicked => { root.navigate(StudioRoute.opentalking); } }
-                        }
-                    }
-
-                    // Node 4: Dựng Timeline
-                    Rectangle {
-                        background: Floword.field;
-                        border-radius: 12px;
-                        border-width: 1px;
-                        border-color: Floword.line-bright;
-                        padding: 12px;
-                        horizontal-stretch: 1;
-
-                        VerticalLayout {
-                            spacing: 6px;
-                            HorizontalLayout {
-                                Text { text: "STAGE 04"; color: Floword.muted; font-size: 10px; font-weight: 700; }
-                                Rectangle { horizontal-stretch: 1; }
-                                Text { text: "○ Chờ"; color: Floword.muted; font-size: 10px; }
-                            }
-                            Text { text: "Dựng Timeline"; color: Floword.text; font-size: 13px; font-weight: 700; }
-                            Text { text: "Tự động xóa khoảng lặng, cắt ghép bắt nhịp nhạc."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
-                            Rectangle { vertical-stretch: 1; }
-                            StudioButton { label: "Vào Timeline"; clicked => { root.back(); } }
-                        }
-                    }
-
-                    // Node 5: Hiệu ứng GPU & Phụ đề
-                    Rectangle {
-                        background: Floword.field;
-                        border-radius: 12px;
-                        border-width: 1px;
-                        border-color: Floword.line-bright;
-                        padding: 12px;
-                        horizontal-stretch: 1;
-
-                        VerticalLayout {
-                            spacing: 6px;
-                            HorizontalLayout {
-                                Text { text: "STAGE 05"; color: Floword.muted; font-size: 10px; font-weight: 700; }
-                                Rectangle { horizontal-stretch: 1; }
-                                Text { text: "○ Chờ"; color: Floword.muted; font-size: 10px; }
-                            }
-                            Text { text: "Hiệu Ứng & Phụ Đề"; color: Floword.text; font-size: 13px; font-weight: 700; }
-                            Text { text: "123+ GPU Shaders, Whisper Auto Captions."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
-                            Rectangle { vertical-stretch: 1; }
-                            StudioButton { label: "Xưởng Phim"; clicked => { root.navigate(StudioRoute.production); } }
-                        }
-                    }
-
-                    // Node 6: Render 4K & Nexora
-                    Rectangle {
-                        background: Floword.field;
-                        border-radius: 12px;
-                        border-width: 1px;
-                        border-color: Floword.line-bright;
-                        padding: 12px;
-                        horizontal-stretch: 1;
-
-                        VerticalLayout {
-                            spacing: 6px;
-                            HorizontalLayout {
-                                Text { text: "STAGE 06"; color: Floword.muted; font-size: 10px; font-weight: 700; }
-                                Rectangle { horizontal-stretch: 1; }
-                                Text { text: "○ Chờ"; color: Floword.muted; font-size: 10px; }
-                            }
-                            Text { text: "Render 4K & Đăng Bài"; color: Floword.text; font-size: 13px; font-weight: 700; }
-                            Text { text: "FFmpeg native GPU, Nexora tự động đăng tải."; color: Floword.muted; font-size: 11px; wrap: word-wrap; }
-                            Rectangle { vertical-stretch: 1; }
-                            StudioButton { label: "Xuất Bản"; clicked => { root.navigate(StudioRoute.publish); } }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Quick Launch Console Cards Grid
-        HorizontalLayout {
-            spacing: 16px;
-            // Card 1: Xưởng Phim AI
-            Rectangle {
-                background: Floword.surface;
-                border-radius: 16px;
-                border-width: 1px;
-                border-color: Floword.line;
-                horizontal-stretch: 1;
-                clip: true;
-                VerticalLayout {
-                    Rectangle {
-                        height: 110px;
-                        clip: true;
-                        Image {
-                            source: @image-url("../assets/studio-production.jpg");
-                            width: 100%;
-                            height: 100%;
-                            image-fit: cover;
-                        }
-                    }
-                    VerticalLayout {
-                        padding: 16px;
-                        spacing: 8px;
-                        HorizontalLayout {
-                            spacing: 8px;
-                            Icon { glyph: Glyph.film; size: 18px; tint: Floword.cyan; }
-                            Text { text: "Xưởng Phim AI"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
-                        }
-                        Text { text: "Từ ý tưởng đến video hoàn chỉnh theo quy trình 7 bước tự động."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
-                        HorizontalLayout {
-                            Rectangle { horizontal-stretch: 1; }
-                            StudioButton {
-                                label: "Mở Xưởng phim";
-                                primary: true;
-                                clicked => { root.navigate(StudioRoute.production); }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Card 2: Chợ Kịch Bản
-            Rectangle {
-                background: Floword.surface;
-                border-radius: 16px;
-                border-width: 1px;
-                border-color: Floword.line;
-                horizontal-stretch: 1;
-                clip: true;
-                VerticalLayout {
-                    Rectangle {
-                        height: 110px;
-                        clip: true;
-                        Image {
-                            source: @image-url("../assets/studio-scripts.jpg");
-                            width: 100%;
-                            height: 100%;
-                            image-fit: cover;
-                        }
-                    }
-                    VerticalLayout {
-                        padding: 16px;
-                        spacing: 8px;
-                        HorizontalLayout {
-                            spacing: 8px;
-                            Icon { glyph: Glyph.text-mark; size: 18px; tint: Floword.violet; }
-                            Text { text: "Chợ Kịch Bản"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
-                        }
-                        Text { text: "Kho kịch bản điện ảnh triệu view và câu chuyện xúc động từ ArtCraft."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
-                        HorizontalLayout {
-                            Rectangle { horizontal-stretch: 1; }
-                            StudioButton {
-                                label: "Xem kịch bản";
-                                clicked => { root.navigate(StudioRoute.scripts); }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        HorizontalLayout {
-            spacing: 16px;
-            // Card 3: TikTok LIVE Studio
-            Rectangle {
-                background: Floword.surface;
-                border-radius: 16px;
-                border-width: 1px;
-                border-color: Floword.line;
-                horizontal-stretch: 1;
-                VerticalLayout {
-                    padding: 18px;
-                    spacing: 10px;
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Icon { glyph: Glyph.volume; size: 20px; tint: Floword.success; }
-                        Text { text: "TikTok LIVE Studio"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
-                    }
-                    Text { text: "Phát sóng avatar ảo tương tác trực tiếp và trả lời bình luận theo thời gian thực."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
-                    HorizontalLayout {
-                        Rectangle { horizontal-stretch: 1; }
-                        StudioButton {
-                            label: "Vào phòng Live";
-                            clicked => { root.navigate(StudioRoute.live); }
-                        }
-                    }
-                }
-            }
-
-            // Card 4: Workflow Promax
-            Rectangle {
-                background: Floword.surface;
-                border-radius: 16px;
-                border-width: 1px;
-                border-color: Floword.line;
-                horizontal-stretch: 1;
-                VerticalLayout {
-                    padding: 18px;
-                    spacing: 10px;
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Icon { glyph: Glyph.curves; size: 20px; tint: Floword.cyan; }
-                        Text { text: "Workflow Promax"; color: Floword.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
-                    }
-                    Text { text: "Quy trình tự động hóa các nút AI, kiểm tra preflight và điều phối worker."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
-                    HorizontalLayout {
-                        Rectangle { horizontal-stretch: 1; }
-                        StudioButton {
-                            label: "Khám phá workflow";
-                            clicked => { root.navigate(StudioRoute.workflows); }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Service Connectivity Ribbon
-        Rectangle {
-            background: Floword.surface;
-            border-radius: 14px;
-            border-width: 1px;
-            border-color: Floword.line;
-            HorizontalLayout {
-                padding: 14px;
-                spacing: 20px;
-                alignment: space-between;
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: center;
-                    Text { text: "Promax Engine (43100):"; color: Floword.muted; font-size: 12px; }
-                    Text {
-                        text: StudioBridge.promax-state == 1 ? "Sẵn sàng" : "Chưa kết nối";
-                        color: StudioBridge.promax-state == 1 ? Floword.success : Floword.warning;
-                        font-size: 12px; font-weight: 600;
-                    }
-                }
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: center;
-                    Text { text: "OmniRoute AI (20128):"; color: Floword.muted; font-size: 12px; }
-                    Text {
-                        text: StudioBridge.artcraft-state == 1 ? "Sẵn sàng" : "Chưa kết nối";
-                        color: StudioBridge.artcraft-state == 1 ? Floword.success : Floword.warning;
-                        font-size: 12px; font-weight: 600;
-                    }
-                }
-                StudioButton {
-                    label: StudioBridge.checking ? "Đang kiểm tra..." : "Kiểm tra kết nối dịch vụ";
-                    enabled: !StudioBridge.checking;
-                    clicked => { StudioBridge.check-services(); }
-                }
-            }
-        }
-
-        // Job Run List
-        StudioRunList { }
-    }
-    if root.route == StudioRoute.production: VerticalLayout {
-        spacing: 16px;
-        HorizontalLayout {
-            StudioButton {
-                label: I18n.t("nativeStudio.loadWorkflows"); enabled: !StudioBridge.workflow-worker-busy && !ProductionStudio.busy;
-                clicked => { StudioBridge.refresh-workflows(); }
-            }
-            Rectangle { horizontal-stretch: 1; }
-        }
-        Text { text: StudioBridge.workflow-status(StudioBridge.workflows-state); color: Floword.muted; wrap: word-wrap; }
-        StudioProduction { }
-    }
+    if root.route == StudioRoute.production: StudioProduction { }
+    if root.route == StudioRoute.film: StudioFilmPage { viewport-width: root.viewport-width; }
     if root.route == StudioRoute.opentalking: StudioOpenTalkingPage {
+        viewport-width: Math.max(0px, root.viewport-width - 32px);
         viewport-height: root.viewport-height;
+        motion-clips: StudioLive.director-clips;
+        motion-enabled: StudioLive.director-enabled;
+        motion-busy: StudioLive.director-busy || StudioLive.is-speaking;
+        motion-status: StudioLive.director-status;
+        choose-motion-clip(index) => { StudioLive.choose-director-clip(index); }
+        clear-motion-clip(index) => { StudioLive.clear-director-clip(index); }
+        toggle-motion-clips => { StudioLive.toggle-director(); }
         navigate-to-live => { root.navigate(StudioRoute.live); }
     }
-    if root.route == StudioRoute.live: StudioLivePage { }
-    if root.route == StudioRoute.scripts: StudioCard {
-        StudioScripts {
-            apply-template(brief, scenes, duration) => {
-                ProductionStudio.brief = brief;
-                ProductionStudio.scenes = scenes;
-                ProductionStudio.duration = duration;
-                ProductionStudio.invalidate();
-                root.navigate(StudioRoute.production);
-            }
+    if root.route == StudioRoute.live: StudioLivePage {
+        viewport-width: Math.max(0px, root.viewport-width - 32px);
+        viewport-height: root.viewport-height;
+        configure-ai => { root.navigate(StudioRoute.keys); }
+        configure-services => { }
+        manage-avatars => { StudioOpenTalking.active-tab = 1; root.navigate(StudioRoute.opentalking); }
+    }
+    if root.route == StudioRoute.scripts: StudioScripts {
+        apply-template(brief, scenes, duration) => {
+            ProductionStudio.brief = brief; ProductionStudio.scenes = scenes;
+            ProductionStudio.duration = duration; ProductionStudio.invalidate();
+            root.navigate(StudioRoute.production);
         }
     }
     if root.route == StudioRoute.jobs || root.route == StudioRoute.history: VerticalLayout {
-        spacing: 14px;
+        spacing: 16px;
         Text { text: ProductionStudio.status; color: Floword.muted; wrap: word-wrap; }
         StudioRunList { history-only: root.route == StudioRoute.history; }
     }
-    if root.route == StudioRoute.workflows: VerticalLayout {
-        spacing: 16px;
-
-        // Workflow Banner
-        Rectangle {
-            height: 140px;
-            border-radius: 16px;
-            clip: true;
-            background: Floword.surface;
-            border-width: 1px;
-            border-color: Floword.line-bright;
-
-            Image {
-                width: 100%;
-                height: 100%;
-                source: @image-url("../assets/studio-workflow.jpg");
-                image-fit: cover;
-            }
-
-            Rectangle {
-                width: 100%;
-                height: 100%;
-                background: @linear-gradient(90deg, #080D1BEE 0%, #080D1BDD 45%, #080D1B77 75%, #080D1B22 100%);
-            }
-
-            HorizontalLayout {
-                padding-left: 28px;
-                padding-right: 28px;
-                padding-top: 20px;
-                padding-bottom: 20px;
-                alignment: space-between;
-
-                VerticalLayout {
-                    spacing: 8px;
-                    alignment: center;
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Rectangle {
-                            background: Floword.violet.with-alpha(0.25);
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: Floword.violet;
-                            HorizontalLayout {
-                                padding-left: 8px;
-                                padding-right: 8px;
-                                padding-top: 3px;
-                                padding-bottom: 3px;
-                                spacing: 6px;
-                                Icon { glyph: Glyph.curves; size: 12px; tint: Floword.cyan; }
-                                Text { text: "PROMAX PIPELINE · AUTONOMOUS WORKFLOW"; color: Floword.cyan; font-size: 11px; font-weight: 700; }
-                            }
-                        }
-                    }
-
-                    Text {
-                        text: "Trung tâm điều phối quy trình tự động hóa Promax";
-                        color: Floword.text;
-                        font-size: 20px;
-                        font-weight: 700;
-                    }
-
-                    Text {
-                        text: "Tự động phân phối các capability xử lý video đến worker tối ưu.";
-                        color: Floword.muted;
-                        font-size: 13px;
-                    }
-                }
-            }
-        }
-
-        HorizontalLayout {
-            spacing: 16px;
-
-            // Left Column: Promax Workflow Catalog
-            StudioCard {
-            horizontal-stretch: 1;
-            min-width: 360px;
-            spacing: 14px;
-
-            StudioHeading { title: "DANH MỤC WORKFLOW PROMAX"; glyph: Glyph.curves; }
-            Text {
-                text: "Workflow được quản lý và lập lịch bởi Promax Authority. ArtCraft và Concat thực thi capability khi Promax xác nhận worker phù hợp.";
-                color: Floword.muted;
-                font-size: 13px;
-                wrap: word-wrap;
-            }
-
-            HorizontalLayout {
-                spacing: 10px;
-                StudioButton {
-                    label: StudioBridge.workflows-loading ? "Đang tải workflow…" : "Tải lại danh sách Workflow";
-                    primary: true;
-                    enabled: !StudioBridge.workflow-worker-busy;
-                    clicked => { StudioBridge.refresh-workflows(); }
-                }
-                if StudioBridge.workflows-loading: StudioButton {
-                    label: "Hủy tải";
-                    clicked => { StudioBridge.cancel-workflows(); }
-                }
-                Rectangle { horizontal-stretch: 1; }
-            }
-
-            Text {
-                text: StudioBridge.workflow-status(StudioBridge.workflows-state);
-                color: Floword.warning;
-                font-size: 12px;
-                wrap: word-wrap;
-            }
-
-            Rectangle { height: 1px; background: Floword.line; }
-
-            // Empty state when no workflows are present
-            if StudioBridge.workflows.length == 0: Rectangle {
-                background: Floword.field;
-                border-radius: 12px;
-                border-width: 1px;
-                border-color: Floword.line;
-                min-height: 180px;
-                VerticalLayout {
-                    alignment: center;
-                    spacing: 10px;
-                    padding: 20px;
-                    HorizontalLayout {
-                        alignment: center;
-                        Icon { glyph: Glyph.curves; size: 28px; tint: Floword.violet; }
-                    }
-                    Text {
-                        text: StudioBridge.workflows-loading ? "Đang đồng bộ danh sách workflow từ Promax..." : "Chưa có workflow nào được nạp.";
-                        color: Floword.text;
-                        font-size: 14px;
-                        font-weight: 600;
-                        horizontal-alignment: center;
-                    }
-                    Text {
-                        text: "Bấm 'Tải lại danh sách' để nạp danh sách workflow được cấu hình trên máy chủ Promax Authority.";
-                        color: Floword.muted;
-                        font-size: 12px;
-                        horizontal-alignment: center;
-                        wrap: word-wrap;
-                    }
-                }
-            }
-
-            // List of workflows
-            for workflow in StudioBridge.workflows: Rectangle {
-                background: Floword.field;
-                border-radius: 12px;
-                border-width: 1px;
-                border-color: Floword.line;
-                VerticalLayout {
-                    padding: 14px;
-                    spacing: 8px;
-                    HorizontalLayout {
-                        alignment: space-between;
-                        Text { text: workflow.name; color: Floword.text; font-size: 15px; font-weight: 700; wrap: word-wrap; horizontal-stretch: 1; }
-                        Rectangle {
-                            background: Floword.violet.with-alpha(0.18);
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: Floword.violet.with-alpha(0.3);
-                            HorizontalLayout {
-                                padding-left: 6px; padding-right: 6px; padding-top: 2px; padding-bottom: 2px;
-                                Text { text: "v" + workflow.version; color: Floword.violet; font-size: 11px; font-weight: 600; }
-                            }
-                        }
-                    }
-                    Text { text: workflow.id; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
-                    HorizontalLayout {
-                        spacing: 10px;
-                        Text { text: workflow.nodes + " nodes · " + workflow.edges + " edges"; color: Floword.muted; font-size: 12px; vertical-alignment: center; }
-                        Rectangle { horizontal-stretch: 1; }
-                        StudioButton {
-                            label: "Chọn chạy";
-                            clicked => {
-                                ProductionStudio.brief = "Chạy workflow: " + workflow.name;
-                                ProductionStudio.invalidate();
-                                root.navigate(StudioRoute.production);
-                            }
-                        }
-                    }
-                    if workflow.description != "": Text {
-                        text: workflow.description;
-                        color: Floword.muted;
-                        font-size: 12px;
-                        wrap: word-wrap;
-                    }
-                }
-            }
-        }
-
-        // Right Column: Preflight & Parameters Console
-        StudioCard {
-            horizontal-stretch: 1;
-            min-width: 360px;
-            spacing: 14px;
-
-            StudioHeading { title: "THAM SỐ & PREFLIGHT"; glyph: Glyph.sparkle; }
-            Text {
-                text: "Cấu hình JSON parameters và kiểm tra tính tương thích trước khi khởi chạy.";
-                color: Floword.muted;
-                font-size: 13px;
-                wrap: word-wrap;
-            }
-
-            StudioField {
-                label: "Tham số đầu vào (Inputs JSON Object):";
-                value: "{}";
-                multiline: true;
-                placeholder: "{\"prompt\": \"...\", \"ratio\": \"9:16\"}";
-            }
-
+    if root.route == StudioRoute.workflows: StudioCard {
+        StudioHeading { title: "Danh mục quy trình"; }
+        Text { text: "Dịch vụ thực thi chưa được cấu hình. Chưa thể chạy quy trình."; color: Floword.warning; wrap: word-wrap; }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
             StudioButton {
-                label: "Kiểm tra Preflight";
+                label: StudioBridge.workflows-loading ? "Đang tải…" : "Tải danh mục";
+                enabled: !StudioBridge.workflow-worker-busy;
                 clicked => { StudioBridge.refresh-workflows(); }
             }
-
-            Rectangle {
-                background: Floword.field;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: Floword.line;
-                HorizontalLayout {
-                    padding: 10px;
-                    spacing: 8px;
-                    Icon { glyph: Glyph.check; size: 16px; tint: Floword.success; }
-                    Text {
-                        text: "Preflight sẵn sàng · Promax Scheduler Authority";
-                        color: Floword.success;
-                        font-size: 12px;
-                        font-weight: 600;
-                        wrap: word-wrap;
-                        horizontal-stretch: 1;
-                    }
-                }
-            }
-
+            if StudioBridge.workflows-loading: StudioButton { label: "Hủy tải"; clicked => { StudioBridge.cancel-workflows(); } }
+        }
+        if StudioBridge.workflows-state != 0: Text { text: StudioBridge.workflow-status(StudioBridge.workflows-state); color: Floword.warning; wrap: word-wrap; }
+        if !StudioBridge.workflows-loading && StudioBridge.workflows.length == 0: Text { text: "Chưa có quy trình."; color: Floword.muted; wrap: word-wrap; }
+        for workflow in StudioBridge.workflows: VerticalLayout {
+            spacing: 8px;
+            Rectangle { height: 1px; background: Floword.line; }
+            Text { text: workflow.name; color: Floword.text; font-size: 16px; font-weight: 600; wrap: word-wrap; }
+            if workflow.description != "": Text { text: workflow.description; color: Floword.muted; wrap: word-wrap; }
             StudioButton {
-                label: "Chuyển sang Xưởng phim để dựng";
-                primary: true;
-                clicked => { root.navigate(StudioRoute.production); }
+                label: "Dùng tên làm ý tưởng";
+                clicked => {
+                    ProductionStudio.brief = "Chạy workflow: " + workflow.name;
+                    ProductionStudio.invalidate(); root.navigate(StudioRoute.production);
+                }
             }
         }
     }
-    }
-    if root.route == StudioRoute.settings: StudioBrowserPanel { }
-    if root.route == StudioRoute.channels: StudioPagesPanel { }
     if root.route == StudioRoute.settings: StudioCard {
-        StudioHeading { title: "Kết Nối Hệ Sinh Thái Dịch Vụ Local"; glyph: Glyph.settings; }
-        Text {
-            text: "Quản lý trạng thái kết nối trực tiếp đến 3 dịch vụ nền tảng: Promax Backend, OmniRoute Gateway và Nexora Browser.";
-            color: Floword.muted;
-            wrap: word-wrap;
+        StudioHeading { title: "Giao diện và chuyển động"; }
+        Text { text: "Chọn cách hiển thị phù hợp với bạn. Các lựa chọn được lưu trên máy."; color: Floword.muted; wrap: word-wrap; }
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioButton { label: Theme.dark ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"; clicked => { LauncherUi.theme-changed(!Theme.dark); } }
+            StudioButton { label: Theme.system-reduced-motion ? "Giảm chuyển động theo hệ điều hành" : Theme.reduced-motion ? "Chuyển động: Đã giảm" : "Chuyển động: Đầy đủ"; enabled: !Theme.system-reduced-motion; clicked => { LauncherUi.reduced-motion-changed(!Theme.reduced-motion); } }
         }
-        HorizontalLayout {
-            spacing: 24px;
-            HorizontalLayout {
-                spacing: 8px;
-                Text { text: "Promax Backend:"; color: Floword.muted; font-size: 13px; }
-                Text {
-                    text: StudioBridge.status-label(StudioBridge.promax-state);
-                    color: StudioBridge.promax-state == 1 ? Floword.success : Floword.warning;
-                    font-size: 13px; font-weight: 600;
-                }
-            }
-            HorizontalLayout {
-                spacing: 8px;
-                Text { text: "OmniRoute local:"; color: Floword.muted; font-size: 13px; }
-                Text {
-                    text: StudioBridge.status-label(StudioBridge.artcraft-state);
-                    color: StudioBridge.artcraft-state == 1 ? Floword.success : Floword.warning;
-                    font-size: 13px; font-weight: 600;
-                }
-            }
-            HorizontalLayout {
-                spacing: 8px;
-                Text { text: "Nexora Local API:"; color: Floword.muted; font-size: 13px; }
-                Text {
-                    text: StudioBridge.status-label(StudioBridge.nexora-state);
-                    color: StudioBridge.nexora-state == 1 ? Floword.success : Floword.warning;
-                    font-size: 13px; font-weight: 600;
-                }
-            }
-        }
-        HorizontalLayout {
-            spacing: 12px;
-            StudioButton {
-                label: StudioBridge.checking ? "Đang kiểm tra..." : "Kiểm tra kết nối dịch vụ";
-                enabled: !StudioBridge.checking;
-                primary: true;
-                clicked => { StudioBridge.check-services(); }
-            }
-            StudioButton {
-                label: "Khởi động / Kết nối Nexora";
-                enabled: !StudioBrowser.busy;
-                clicked => { StudioBridge.start-nexora(); }
-            }
-            Rectangle { horizontal-stretch: 1; }
+        Select {
+            options: ["Thanh bên tự động", "Ghim thanh bên mở", "Thu gọn thanh bên"];
+            current: LauncherUi.sidebar-mode;
+            changed(index) => { LauncherUi.sidebar-mode-changed(index); }
         }
     }
-    if root.route == StudioRoute.keys: StudioAiPage { account => { root.navigate(StudioRoute.settings); } }
+    if root.route == StudioRoute.channels: StudioPagesPanel { }
+    if root.route == StudioRoute.keys: StudioAiPage { account => { root.navigate(StudioRoute.live); } }
     if root.route == StudioRoute.bulk: StudioBulkPanel { }
     if root.route == StudioRoute.publish: StudioPublishPanel { }
+    if root.route == StudioRoute.kedi-factory: KediFactoryPanel { viewport-width: root.viewport-width; }
+    if root.route == StudioRoute.kedi-providers: KediProviderPanel { }
 }
+
+
+
+

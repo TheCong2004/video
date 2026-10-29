@@ -3,6 +3,7 @@
 //! Structured plans are untrusted data, not executable code or permissions.
 //! Compilation uses the existing native editor, never another timeline engine.
 pub mod highlight;
+pub mod transcript;
 mod plan;
 pub mod shorts_plan;
 pub use plan::{CompiledPlan, EditPlan, PlanError};

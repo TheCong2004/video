@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Accordion presentation adapted from CozyCat UI (MIT), copyright 2025 Kool-Cool.
+// Reference: abf3a55cdf915fcb6f0238f3c142b45e5bcc3a54. See THIRD_PARTY_NOTICES.md.
+import { Theme } from "../theme/theme.slint";
+import { Floword } from "../theme/floword.slint";
+import { Glyph, Icon } from "../icons.slint";
+import { StudioCard, StudioButton } from "studio-chrome.slint";
+
+export global ControlTheme {
+    out property <color> ground: Theme.dark ? #1c2025 : #f7f5f1;
+    out property <color> surface: Theme.dark ? #252a31 : #ffffff;
+    out property <color> soft: Theme.dark ? #302c28 : #fff3e0;
+    out property <color> line: Theme.dark ? #4b443d : #e6d9c9;
+    out property <color> accent: Theme.dark ? #f1b67a : #8a471f;
+    out property <duration> motion: Theme.motion-reduced ? 0ms : 220ms;
+}
+
+export component ControlCard inherits StudioCard {
+    padding-h:20px; padding-v:20px; spacing:14px;
+    background:ControlTheme.surface;
+    border-color:ControlTheme.line;
+    border-radius:16px;
+}
+
+export component ControlAction inherits StudioButton {
+    compact:true;
+    max-width:260px;
+    horizontal-stretch:0;
+    border-radius:10px;
+}
+
+// A native accordion, rather than embedding the upstream React runtime.
+// Height follows content; there is no 384/600px ceiling that clips long text.
+export component ControlFoldout inherits Rectangle {
+    in property <string> title;
+    in property <string> summary;
+    in-out property <bool> expanded;
+    in property <bool> enabled:true;
+    min-width:0px;
+    min-height:54px + reveal.height;
+    max-height:self.min-height;
+    preferred-height:self.min-height;
+    vertical-stretch:0;
+    border-radius:12px;
+    border-width:1px;
+    border-color:focus.has-focus ? Floword.accent : ControlTheme.line;
+    background:ControlTheme.surface;
+    clip:true;
+    forward-focus:focus;
+    accessible-role:button;
+    accessible-label:root.title + (root.expanded ? " · đang mở" : " · đang thu gọn");
+    accessible-enabled:root.enabled;
+    callback toggled();
+    function toggle() { if root.enabled {root.expanded=!root.expanded;root.toggled();} }
+    // Focus handling must precede the clickable header in paint/input order.
+    // An empty full-size FocusScope above it intercepts pointer presses.
+    focus := FocusScope {
+        enabled:root.enabled;
+        key-pressed(event)=>{
+            if event.text==Key.Return || event.text==" " {root.toggle();return accept;}
+            return reject;
+        }
+    }
+    Rectangle {
+        x:0px;y:0px;
+        height:54px; width:parent.width;
+        background:header.has-hover ? ControlTheme.soft : ControlTheme.surface;
+        animate background {duration:ControlTheme.motion;easing:ease-out;}
+        HorizontalLayout {
+            padding-left:14px;padding-right:14px;spacing:10px;
+            VerticalLayout {
+                alignment:center; spacing:3px;
+                Text {text:root.title;color:Floword.text;font-size:13px;font-weight:600;overflow:elide;min-width:0px;}
+                if root.summary!="": Text {text:root.summary;color:Floword.muted;font-size:11px;overflow:elide;min-width:0px;}
+            }
+            Icon {glyph:root.expanded ? Glyph.chevron-up : Glyph.chevron-down;size:14px;tint:ControlTheme.accent;}
+        }
+        header := TouchArea {enabled:root.enabled;mouse-cursor:pointer;clicked=>{focus.focus();root.toggle();}}
+    }
+    reveal := Rectangle {
+        y:54px; width:parent.width;
+        height:root.expanded ? content.preferred-height : 0px;
+        clip:true;
+        animate height {duration:ControlTheme.motion;easing:ease-in-out;}
+        content := VerticalLayout {
+            width:parent.width;
+            visible:root.expanded;
+            padding:14px; spacing:12px; alignment:start;
+            @children
+        }
+    }
+}

@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.kedi.local/product-snapshot.v1.schema.json",
+  "title": "ProductSnapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tenant_id",
+    "store_id",
+    "sku",
+    "revision",
+    "title",
+    "currency",
+    "price_vnd",
+    "stock_state",
+    "observed_at",
+    "valid_until",
+    "verification_source"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "store_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sku": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "currency": {
+      "const": "VND"
+    },
+    "price_vnd": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "stock_state": {
+      "enum": [
+        "available",
+        "low",
+        "out_of_stock",
+        "unknown"
+      ]
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "valid_until": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "verification_source": {
+      "type": "string",
+      "enum": [
+        "fufuni",
+        "pancake_gateway",
+        "mock"
+      ]
+    },
+    "pos_product_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "platform_product_ids": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "media_asset_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "policy_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "shipping_quote": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "quote_id",
+            "customer_fee_vnd",
+            "expires_at",
+            "service"
+          ],
+          "properties": {
+            "quote_id": {
+              "type": "string"
+            },
+            "customer_fee_vnd": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "shop_subsidy_vnd": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "service": {
+              "type": "string"
+            },
+            "destination_scope": {
+              "type": "string"
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

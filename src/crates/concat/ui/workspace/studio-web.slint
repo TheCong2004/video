@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Floword } from "../theme/floword.slint";
+import { StudioButton } from "studio-chrome.slint";
+
+export global StudioWeb {
+    in-out property <bool> active;
+    in-out property <int> open-request;
+    in-out property <bool> loaded;
+    in-out property <bool> failed;
+    in-out property <string> status: "Đang mở NexPulse…";
+    in-out property <string> page-title;
+    in-out property <length> frame-x;
+    in-out property <length> frame-y;
+    in-out property <length> frame-width;
+    in-out property <length> frame-height;
+    callback reload();
+    callback home();
+    callback hide-native();
+}
+
+// No scrolling parent: the native child occupies this bounded viewport only.
+export component StudioWebPage inherits Rectangle {
+    background: Floword.ground;
+    VerticalLayout {
+        padding: 12px; spacing: 8px;
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "NexPulse"; color: Floword.text; font-size: 20px; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1; min-width: 0px; }
+            StudioButton { label: "Trang chính"; compact: true; clicked => { StudioWeb.home(); } }
+            StudioButton { label: StudioWeb.failed ? "Thử lại" : "Tải lại"; compact: true; clicked => { StudioWeb.reload(); } }
+        }
+        Text { text: StudioWeb.status; color: Floword.muted; font-size: 12px; wrap: word-wrap; min-width: 0px; }
+        native-frame := Rectangle {
+            min-width: 0px; min-height: 0px; vertical-stretch: 1;
+            background: #ffffff;
+            if !StudioWeb.loaded: Text {
+                width: Math.max(0px, parent.width - 32px); x: 16px;
+                y: Math.max(0px, (parent.height - self.height) / 2);
+                text: StudioWeb.failed ? "Chưa mở được trang. Bấm Thử lại ở phía trên." : "Đang tải trang web…";
+                color: #475569; wrap: word-wrap; horizontal-alignment: center;
+            }
+        }
+    }
+    Timer {
+        interval: 50ms;
+        running: StudioWeb.active;
+        triggered => {
+            StudioWeb.frame-x = native-frame.absolute-position.x;
+            StudioWeb.frame-y = native-frame.absolute-position.y;
+            StudioWeb.frame-width = native-frame.width;
+            StudioWeb.frame-height = native-frame.height;
+        }
+    }
+}

@@ -1,0 +1,11 @@
+import { AiControlPage } from "../../src/crates/concat/ui/workspace/studio-ai-control.slint";
+// Check the actual public root exports, not only direct page imports.
+import { AiControl, ControlStepRow, StudioAi, AiEditing } from "../../src/crates/concat/ui/app.slint";
+export {AiControl, ControlStepRow, StudioAi, AiEditing}
+export component App inherits Window {
+    in property <bool> on-start;
+    callback start-open();
+    property <bool> editor-policy: AiEditing.auto-apply;
+    property <int> model-index: StudioAi.model-index;
+    AiControlPage {}
+}

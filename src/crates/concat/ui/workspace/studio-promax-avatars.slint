@@ -1,0 +1,153 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Floword } from "../theme/floword.slint";
+import { Select } from "../primitives/primitives.slint";
+import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+
+export struct PromaxAvatarRow { id: string, name: string, state: string, details: string, deletable: bool }
+export global StudioPromaxAvatars {
+    in-out property <string> endpoint;
+    in-out property <string> name;
+    in-out property <string> file-label;
+    in-out property <bool> busy;
+    in-out property <bool> loaded;
+    in-out property <bool> ready;
+    in-out property <bool> scanning;
+    in-out property <bool> error;
+    in-out property <string> status: "";
+    in-out property <[PromaxAvatarRow]> jobs;
+    in-out property <[string]> ready-options;
+    in-out property <[string]> ready-ids;
+    in-out property <int> selected-index;
+    in-out property <string> last-import-id;
+    in-out property <string> live-active-id;
+    in-out property <string> delete-id;
+    in-out property <image> preview;
+    callback refresh();
+    callback poll();
+    callback choose-video();
+    callback import-video();
+    callback select-avatar(int);
+    callback use-live();
+    callback delete-avatar(string);
+}
+
+export component PromaxAvatarPicker inherits VerticalLayout {
+    in property <bool> compact;
+    callback live-requested();
+    callback import-requested();
+    spacing: 8px;
+    min-width: 0px;
+    Text { text: "Nhân vật của bạn"; color: Floword.text; font-size: root.compact ? 11.5px : 14px; font-weight: 700; wrap: word-wrap; }
+    if StudioPromaxAvatars.ready-options.length > 0: Select {
+        options: StudioPromaxAvatars.ready-options;
+        current <=> StudioPromaxAvatars.selected-index;
+        enabled: !StudioPromaxAvatars.busy;
+        changed(index) => { StudioPromaxAvatars.select-avatar(index); }
+    }
+    if StudioPromaxAvatars.ready-options.length == 0: Text {
+        text: StudioPromaxAvatars.loaded ? "Chưa có nhân vật sẵn sàng. Thêm video trong mục Nhân vật." : "Chưa tải nhân vật.";
+        color: Floword.muted; font-size: 12px; wrap: word-wrap;
+    }
+    StudioButton {
+        compact: root.compact;
+        label: StudioPromaxAvatars.ready-options.length > 0 ? "Dùng cho LIVE" : StudioPromaxAvatars.ready ? "Thêm video" : "Thử tải lại";
+        primary: true;
+        enabled: !StudioPromaxAvatars.busy;
+        clicked => {
+            if StudioPromaxAvatars.ready-options.length > 0 { StudioPromaxAvatars.use-live(); root.live-requested(); }
+            else if StudioPromaxAvatars.ready { StudioPromaxAvatars.choose-video(); root.import-requested(); }
+            else { StudioPromaxAvatars.refresh(); }
+        }
+    }
+    if root.compact && (StudioPromaxAvatars.error || StudioPromaxAvatars.busy): Text {
+        text: StudioPromaxAvatars.status;
+        color: StudioPromaxAvatars.error ? Floword.danger : Floword.muted;
+        font-size: 11px; wrap: word-wrap;
+    }
+}
+
+export component PromaxAvatarPanel inherits VerticalLayout {
+    callback navigate-to-live();
+    private property <bool> details-open;
+    spacing: 16px;
+    min-width: 0px;
+    init => { if !StudioPromaxAvatars.loaded && !StudioPromaxAvatars.busy { StudioPromaxAvatars.refresh(); } }
+    StudioCard {
+        StudioHeading { title: "Thêm nhân vật từ video"; }
+        Text {
+            text: "Video một người, mặt rõ · MP4/WebM · 1–30 giây · tối đa 25 MB";
+            color: Floword.muted; font-size: 13px; wrap: word-wrap;
+        }
+        if StudioPromaxAvatars.error || StudioPromaxAvatars.busy || StudioPromaxAvatars.scanning: Text {
+            text: StudioPromaxAvatars.status;
+            color: StudioPromaxAvatars.error ? Floword.danger : StudioPromaxAvatars.ready ? Floword.success : Floword.warning;
+            font-size: 13px; wrap: word-wrap;
+        }
+        StudioButton {
+            label: StudioPromaxAvatars.file-label == "" ? "Chọn video" : "Đổi video";
+            primary: StudioPromaxAvatars.file-label == "";
+            enabled: !StudioPromaxAvatars.busy;
+            clicked => { StudioPromaxAvatars.choose-video(); }
+        }
+        if StudioPromaxAvatars.file-label != "": StudioField {
+            label: "Tên nhân vật"; value: StudioPromaxAvatars.name;
+            placeholder: "Ví dụ: MC của tôi"; enabled: !StudioPromaxAvatars.busy;
+            edited(text) => { StudioPromaxAvatars.name = text; }
+        }
+        if StudioPromaxAvatars.file-label != "": Text {
+            text: "Đã chọn: " + StudioPromaxAvatars.file-label;
+            color: Floword.text; font-size: 12px; wrap: word-wrap;
+        }
+        if StudioPromaxAvatars.file-label != "": Text {
+            text: "Chỉ dùng video bạn có quyền sử dụng. Xử lý trên máy, không tải lên cloud; có thể mất vài phút.";
+            color: Floword.muted; font-size: 12px; wrap: word-wrap;
+        }
+        if StudioPromaxAvatars.file-label != "": StudioButton {
+            label: StudioPromaxAvatars.scanning ? "Đang tạo nhân vật…" : StudioPromaxAvatars.name == "" ? "Nhập tên nhân vật để tiếp tục" : "Tạo nhân vật";
+            primary: true;
+            enabled: StudioPromaxAvatars.ready && !StudioPromaxAvatars.busy && !StudioPromaxAvatars.scanning && StudioPromaxAvatars.name != "" && StudioPromaxAvatars.file-label != "";
+            clicked => { StudioPromaxAvatars.import-video(); }
+        }
+    }
+    StudioCard {
+        HorizontalLayout {
+            StudioHeading { title: "Nhân vật của bạn"; }
+            StudioButton { label: "Làm mới"; compact: true; enabled: !StudioPromaxAvatars.busy; clicked => { StudioPromaxAvatars.refresh(); } }
+        }
+        if StudioPromaxAvatars.preview.width > 0: Image {
+            source: StudioPromaxAvatars.preview;
+            height: 220px; image-fit: contain;
+        }
+        PromaxAvatarPicker { live-requested => { root.navigate-to-live(); } }
+        Text {
+            text: "Phát lặp chuyển động gốc, tắt tiếng video. Chưa khớp môi với lời AI hoặc sao chép giọng.";
+            color: Floword.warning; font-size: 12px; wrap: word-wrap;
+        }
+        for job in StudioPromaxAvatars.jobs: VerticalLayout {
+            spacing: 4px;
+            Rectangle { height: 1px; background: Floword.line; }
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: job.name + " · " + job.state; color: Floword.text; font-size: 13px; wrap: word-wrap; horizontal-stretch: 1; }
+                StudioButton {
+                    label: job.id == StudioPromaxAvatars.live-active-id ? "Đang dùng cho LIVE" : "Xóa";
+                    compact: true;
+                    enabled: !StudioPromaxAvatars.busy && !StudioPromaxAvatars.scanning && job.deletable && job.id != StudioPromaxAvatars.live-active-id;
+                    clicked => { StudioPromaxAvatars.delete-id = job.id; }
+                }
+            }
+            Text { text: job.details; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+            if StudioPromaxAvatars.delete-id == job.id: VerticalLayout {
+                spacing: 6px;
+                Text { text: "Xóa bản này khỏi thư viện? Video gốc trên máy vẫn giữ nguyên. Bản trong thư viện được chuyển vào thư mục khôi phục."; color: Floword.warning; font-size: 12px; wrap: word-wrap; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    StudioButton { label: "Hủy"; enabled: !StudioPromaxAvatars.busy; clicked => { StudioPromaxAvatars.delete-id = ""; } }
+                    StudioButton { label: "Xác nhận xóa"; enabled: !StudioPromaxAvatars.busy && !StudioPromaxAvatars.scanning && job.deletable && job.id != StudioPromaxAvatars.live-active-id; clicked => { StudioPromaxAvatars.delete-avatar(job.id); } }
+                }
+            }
+        }
+        StudioButton { label: root.details-open ? "Ẩn thông tin xử lý" : "Thông tin xử lý"; compact: true; clicked => { root.details-open = !root.details-open; } }
+        if root.details-open: Text { text: StudioPromaxAvatars.endpoint + "\n" + StudioPromaxAvatars.status; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+    }
+}

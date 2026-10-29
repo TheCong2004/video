@@ -42,6 +42,7 @@ export enum PaneKind {
     /// the VU meters: how loud the timeline plays, left and right
     meters,
     ai-editing,
+    hotclip,
 }
 
 export global Panes {
@@ -60,6 +61,7 @@ export global Panes {
 
     public pure function label(kind: PaneKind) -> string {
         return kind == PaneKind.ai-editing ? "AI Editing"
+            : kind == PaneKind.hotclip ? "Hotclip"
             : kind == PaneKind.media ? I18n.t("paneSwitcher.library")
             : kind == PaneKind.preview ? I18n.t("common.preview")
             : kind == PaneKind.inspector ? I18n.t("paneSwitcher.inspector")
@@ -73,6 +75,7 @@ export global Panes {
     /// Not the label: that is prose and could be translated tomorrow.
     public pure function id(kind: PaneKind) -> string {
         return kind == PaneKind.ai-editing ? "ai-editing"
+            : kind == PaneKind.hotclip ? "hotclip"
             : kind == PaneKind.media ? "media"
             : kind == PaneKind.preview ? "preview"
             : kind == PaneKind.inspector ? "inspector"
@@ -86,7 +89,8 @@ export global Panes {
     /// picture of each: a strip of film, a still frame, the inspector's own
     /// sliders, and a stack of lanes.
     public pure function glyph(kind: PaneKind) -> Glyph {
-        return kind == PaneKind.ai-editing ? Glyph.film
+        return kind == PaneKind.ai-editing ? Glyph.sparkle
+            : kind == PaneKind.hotclip ? Glyph.split
             : kind == PaneKind.media ? Glyph.film
             : kind == PaneKind.preview ? Glyph.image
             : kind == PaneKind.inspector ? Glyph.settings
@@ -263,7 +267,7 @@ export component PaneSwitcher inherits Rectangle {
     /// somewhere to be laid out. When the Keyframes row arrived this still
     /// said four, and the row that removes the panel was the one under the
     /// clip.
-    property <length> list-h: 7 * 26px + 9px + 26px + 8px;
+    property <length> list-h: 8 * 26px + 9px + 26px + 8px;
     /// The whole list when the window has room for it under the button, and
     /// the room otherwise, with the rest reached by scrolling. Never under
     /// three rows: shorter than that is not a list worth scrolling, and
@@ -412,6 +416,11 @@ export component PaneSwitcher inherits Rectangle {
                         kind: PaneKind.ai-editing;
                         current: root.kind == PaneKind.ai-editing;
                         chosen => { menu.close(); root.picked(PaneKind.ai-editing); }
+                    }
+                    SwitchRow {
+                        kind: PaneKind.hotclip;
+                        current: root.kind == PaneKind.hotclip;
+                        chosen => { menu.close(); root.picked(PaneKind.hotclip); }
                     }
                     SwitchRow {
                         kind: PaneKind.timeline;

@@ -30,242 +30,30 @@ export global StudioPublish {
 }
 
 export component StudioPublishPanel inherits VerticalLayout {
-    spacing: 16px;
-
+    min-width: 0px; spacing: 16px;
     StudioCard {
-        StudioHeading { title: I18n.t("studioPublish.title"); }
-        Text { text: "Các video đã xuất trên máy sẽ xuất hiện tại đây. Chưa cấu hình nhà xuất bản: ứng dụng không tự đăng video hay giả lập kết quả đăng bài."; color: Floword.muted; font-size: 14px; wrap: word-wrap; }
-        Text {
-            text: "Bạn có thể lấy tệp đã xuất để tải lên nền tảng thủ công. Tệp nguồn và video đã xuất được giữ nguyên.";
-            color: Floword.muted;
-            font-size: 13px;
-            wrap: word-wrap;
+        FlexboxLayout {
+            min-width: 0px; spacing: 8px;
+            StudioHeading { title: "Video đã xuất"; }
+            StudioButton { label: StudioPublish.busy ? "Đang tải…" : "Tải lại danh sách"; enabled: !StudioPublish.busy; clicked => { StudioPublish.refresh(); } }
         }
-
-        // Action Toolbar & Filters
-        HorizontalLayout {
-            spacing: 10px;
-
-            StudioButton {
-                label: I18n.t("studioPublish.refresh");
-                enabled: !StudioPublish.busy;
-                clicked => { StudioPublish.refresh(); }
-            }
-
-            // Platform Filter: All
-            Rectangle {
-                border-radius: 8px;
-                background: StudioPublish.platform-filter == "all" ? #3b82f622 : Floword.field;
-                border-width: 1px;
-                border-color: StudioPublish.platform-filter == "all" ? #3b82f688 : Floword.line;
-                HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    padding-top: 6px;
-                    padding-bottom: 6px;
-                    Text { text: "Tất cả"; color: StudioPublish.platform-filter == "all" ? #60a5fa : Floword.text; font-size: 12px; font-weight: 600; }
-                }
-                TouchArea { mouse-cursor: pointer; clicked => { StudioPublish.platform-filter = "all"; StudioPublish.refresh(); } }
-            }
-
-            // Platform Filter: TikTok
-            Rectangle {
-                opacity: 0.4;
-                border-radius: 8px;
-                background: StudioPublish.platform-filter == "tiktok" ? #ec489922 : Floword.field;
-                border-width: 1px;
-                border-color: StudioPublish.platform-filter == "tiktok" ? #ec489988 : Floword.line;
-                HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    padding-top: 6px;
-                    padding-bottom: 6px;
-                    Text { text: "TikTok"; color: StudioPublish.platform-filter == "tiktok" ? #f472b6 : Floword.text; font-size: 12px; font-weight: 600; }
-                }
-                TouchArea { enabled: false; }
-            }
-
-            // Platform Filter: Facebook
-            Rectangle {
-                opacity: 0.4;
-                border-radius: 8px;
-                background: StudioPublish.platform-filter == "facebook" ? #2563eb22 : Floword.field;
-                border-width: 1px;
-                border-color: StudioPublish.platform-filter == "facebook" ? #2563eb88 : Floword.line;
-                HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    padding-top: 6px;
-                    padding-bottom: 6px;
-                    Text { text: "Facebook"; color: StudioPublish.platform-filter == "facebook" ? #60a5fa : Floword.text; font-size: 12px; font-weight: 600; }
-                }
-                TouchArea { enabled: false; }
-            }
-
-            // Platform Filter: YouTube
-            Rectangle {
-                opacity: 0.4;
-                border-radius: 8px;
-                background: StudioPublish.platform-filter == "youtube" ? #ef444422 : Floword.field;
-                border-width: 1px;
-                border-color: StudioPublish.platform-filter == "youtube" ? #ef444488 : Floword.line;
-                HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    padding-top: 6px;
-                    padding-bottom: 6px;
-                    Text { text: "YouTube"; color: StudioPublish.platform-filter == "youtube" ? #f87171 : Floword.text; font-size: 12px; font-weight: 600; }
-                }
-                TouchArea { enabled: false; }
-            }
-
-            Rectangle { horizontal-stretch: 1; }
-        }
-
-        if StudioPublish.status != "": Rectangle {
-            border-radius: 8px;
-            background: Floword.field;
-            border-width: 1px;
-            border-color: Floword.line;
-
-            HorizontalLayout {
-                padding: 10px;
-                Text { text: StudioPublish.status; color: Floword.text; font-size: 12px; wrap: word-wrap; horizontal-stretch: 1; min-width: 0px; }
-            }
-        }
-    }
-
-    // Publish Items List
-    StudioCard {
-        HorizontalLayout {
-            alignment: space-between;
-            Text {
-                text: "Video đã xuất cục bộ (" + StudioPublish.items.length + ")";
-                color: Floword.text;
-                font-size: 15px;
-                font-weight: 700;
-            }
-        }
-
-        if StudioPublish.items.length == 0: Rectangle {
-            border-radius: 12px;
-            background: Floword.field;
-            border-width: 1px;
-            border-color: Floword.line;
-
-            HorizontalLayout {
-                padding: 36px;
-                alignment: center;
-                Text { text: I18n.t("studioPublish.empty"); color: Floword.muted; font-size: 13px; }
-            }
-        }
-
-        for item in StudioPublish.items: Rectangle {
-            border-radius: 10px;
-            background: Floword.field;
-            border-width: 1px;
-            border-color: Floword.line;
-
-            HorizontalLayout {
-                padding: 12px;
-                spacing: 14px;
-                alignment: space-between;
-
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
-
-                    // Platform Icon
-                    Rectangle {
-                        width: 40px;
-                        height: 40px;
-                        border-radius: 8px;
-                        background: #3b82f615;
-                        border-width: 1px;
-                        border-color: #3b82f633;
-
-                        Text {
-                            text: item.platform == "local" ? "📁" : item.platform == "tiktok" ? "🎵" : item.platform == "youtube" ? "▶️" : "📘";
-                            font-size: 18px;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
-                    }
-
-                    VerticalLayout {
-                        spacing: 3px;
-                        alignment: center;
-
-                        HorizontalLayout {
-                            spacing: 8px;
-                            Text { text: item.title; color: Floword.text; font-size: 14px; font-weight: 700; }
-
-                            // Status badge
-                            Rectangle {
-                                border-radius: 4px;
-                                background: item.status == "published" ? #10b98122 : item.status == "scheduled" ? #3b82f622 : item.status == "failed" ? #ef444422 : #f59e0b22;
-                                border-width: 1px;
-                                border-color: item.status == "published" ? #10b98155 : item.status == "scheduled" ? #3b82f655 : item.status == "failed" ? #ef444455 : #f59e0b55;
-
-                                HorizontalLayout {
-                                    padding-left: 6px;
-                                    padding-right: 6px;
-                                    padding-top: 1px;
-                                    padding-bottom: 1px;
-                                    Text {
-                                        text: item.status;
-                                        color: item.status == "published" ? #34d399 : item.status == "scheduled" ? #60a5fa : item.status == "failed" ? #f87171 : #fbbf24;
-                                        font-size: 10px;
-                                        font-weight: 700;
-                                    }
-                                }
-                            }
-                        }
-
-                        Text {
-                            text: "Kênh: " + item.page-name + " · Lên lịch: " + item.scheduled-time;
-                            color: Floword.muted;
-                            font-size: 12px;
-                        }
-
-                        if item.error-message != "": Text {
-                            text: "Lỗi: " + item.error-message;
-                            color: #f87171;
-                            font-size: 11px;
-                        }
-                    }
-                }
-
-                // Actions
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: end;
-
-                    if item.status == "pending" || item.status == "ready": StudioButton {
-                        label: "Duyệt xuất bản";
-                        primary: true;
-                        enabled: StudioPublish.publisher-ready && !StudioPublish.busy;
-                        clicked => { StudioPublish.approve(item.id); }
-                    }
-
-                    if item.status == "scheduled" || item.status == "approved" || item.status == "ready": StudioButton {
-                        label: "Đăng ngay";
-                        enabled: StudioPublish.publisher-ready && !StudioPublish.busy;
-                        clicked => { StudioPublish.post-now(item.id); }
-                    }
-
-                    if item.status == "failed": StudioButton {
-                        label: "Thử lại";
-                        enabled: StudioPublish.publisher-ready && !StudioPublish.busy;
-                        clicked => { StudioPublish.retry(item.id); }
-                    }
-
-                    if item.status == "pending" || item.status == "scheduled": StudioButton {
-                        label: "Hủy bỏ";
-                        enabled: StudioPublish.publisher-ready && !StudioPublish.busy;
-                        clicked => { StudioPublish.reject(item.id); }
-                    }
-                }
+        Text { text: "Đăng tự động chưa khả dụng. Video đã xuất vẫn được lưu trên máy."; color: Floword.muted; wrap: word-wrap; }
+        if StudioPublish.status != "": Text { text: StudioPublish.status; color: Floword.warning; wrap: word-wrap; }
+        if !StudioPublish.busy && StudioPublish.items.length == 0: Text { text: "Chưa có video đã xuất."; color: Floword.muted; wrap: word-wrap; }
+        for item in StudioPublish.items: VerticalLayout {
+            spacing: 8px; min-width: 0px;
+            Rectangle { height: 1px; background: Floword.line; }
+            Text { text: item.title; color: Floword.text; font-size: 16px; font-weight: 600; wrap: word-wrap; }
+            Text { text: item.status == "ready" && item.platform == "local" ? "Đã xuất trên máy" : item.status; color: Floword.muted; wrap: word-wrap; }
+            if item.page-name != "": Text { text: item.page-name; color: Floword.muted; wrap: word-wrap; }
+            if item.scheduled-time != "": Text { text: "Lịch dự kiến: " + item.scheduled-time; color: Floword.muted; wrap: word-wrap; }
+            if item.error-message != "": Text { text: item.error-message; color: Floword.danger; wrap: word-wrap; }
+            if StudioPublish.publisher-ready: FlexboxLayout {
+                min-width: 0px; spacing: 8px;
+                if item.status == "pending" || item.status == "ready": StudioButton { label: "Duyệt xuất bản"; enabled: !StudioPublish.busy; clicked => { StudioPublish.approve(item.id); } }
+                if item.status == "scheduled" || item.status == "approved" || item.status == "ready": StudioButton { label: "Đăng ngay"; enabled: !StudioPublish.busy; clicked => { StudioPublish.post-now(item.id); } }
+                if item.status == "failed": StudioButton { label: "Thử lại"; enabled: !StudioPublish.busy; clicked => { StudioPublish.retry(item.id); } }
+                if item.status == "pending" || item.status == "scheduled": StudioButton { label: "Hủy lịch"; enabled: !StudioPublish.busy; clicked => { StudioPublish.reject(item.id); } }
             }
         }
     }

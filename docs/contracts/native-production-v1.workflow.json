@@ -1,0 +1,25 @@
+{
+  "workflowId": "concat.native_production.v1",
+  "name": "Concat · Sản xuất video native (7 công đoạn)",
+  "description": "Promax schedules each stage; the selected Nexora profile executes Grok; Concat owns local assets, narration and final assembly.",
+  "version": "1.0.0",
+  "nodes": [
+    {"nodeId":"sources","name":"Chuẩn bị nguồn","nodeType":"stage.research","config":{},"enabled":true,"retryable":false,"maxAttempts":1,"timeoutMs":120000,"requiredCapabilities":[]},
+    {"nodeId":"script","name":"Kịch bản phân cảnh","nodeType":"stage.story_script","config":{},"enabled":true,"retryable":false,"maxAttempts":1,"timeoutMs":180000,"requiredCapabilities":[]},
+    {"nodeId":"image","name":"Tạo ảnh nhân vật và bối cảnh","nodeType":"stage.grok_image_edit","config":{"operation":"image_edit"},"enabled":true,"retryable":false,"maxAttempts":1,"timeoutMs":1800000,"requiredCapabilities":[]},
+    {"nodeId":"expand","name":"Mở rộng ảnh dọc","nodeType":"stage.grok_content_pipeline","config":{"operation":"expand_9_16"},"enabled":true,"retryable":false,"maxAttempts":1,"timeoutMs":1800000,"requiredCapabilities":[]},
+    {"nodeId":"video","name":"Tạo video từng cảnh","nodeType":"stage.grok_content_pipeline","config":{"operation":"video_generate"},"enabled":true,"retryable":false,"maxAttempts":1,"timeoutMs":1800000,"requiredCapabilities":[]},
+    {"nodeId":"voice","name":"Tạo giọng và khớp thời lượng","nodeType":"stage.voice","config":{},"enabled":true,"retryable":false,"maxAttempts":1,"timeoutMs":900000,"requiredCapabilities":[]},
+    {"nodeId":"assemble","name":"Dựng MP4 và phụ đề","nodeType":"stage.media_timeline","config":{},"enabled":true,"retryable":false,"maxAttempts":1,"timeoutMs":1800000,"requiredCapabilities":[]}
+  ],
+  "edges": [
+    {"edgeId":"sources-script","sourceNodeId":"sources","targetNodeId":"script"},
+    {"edgeId":"script-image","sourceNodeId":"script","targetNodeId":"image"},
+    {"edgeId":"image-expand","sourceNodeId":"image","targetNodeId":"expand"},
+    {"edgeId":"expand-video","sourceNodeId":"expand","targetNodeId":"video"},
+    {"edgeId":"video-voice","sourceNodeId":"video","targetNodeId":"voice"},
+    {"edgeId":"voice-assemble","sourceNodeId":"voice","targetNodeId":"assemble"}
+  ],
+  "settings":{"delayBetweenNodesMs":0,"parallelExecution":false,"maxRetries":0,"maxSteps":7,"stopOnError":true,"timeoutMs":10800000},
+  "variables":{}
+}

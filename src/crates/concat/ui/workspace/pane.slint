@@ -94,6 +94,11 @@ export component PaneBody inherits VerticalLayout {
 // the scroller is worse than losing kinetic scrolling, and a wheel is what a
 // desktop editor is driven with anyway.
 export component PaneScroll inherits Rectangle {
+    /// Explicit navigation resets only; ordinary form edits retain position.
+    in property <int> reset-key;
+    changed reset-key => { root.scroll-to-top(); }
+    /// Reset a bounded list after changing its page/filter without exposing scroll state.
+    public function scroll-to-top() { root.offset = 0px; }
     /// A finger drags the column as well: a press that no control took -
     /// on a label, a note, a heading, the air between rows - scrolls. Not
     /// a Flickable, which would take the drag off a control as well; a
@@ -135,7 +140,7 @@ export component PaneScroll inherits Rectangle {
 
         content := VerticalLayout {
             y: root.at;
-            width: parent.width - 12px;
+            width: Math.max(0px, parent.width - 12px);
             height: self.preferred-height;
 
             @children

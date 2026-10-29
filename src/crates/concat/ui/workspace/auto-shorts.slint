@@ -3,6 +3,7 @@
 import { Floword } from "../theme/floword.slint";
 import { Select, NumberField } from "../primitives/primitives.slint";
 import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+import { PaneScroll } from "pane.slint";
 
 export struct ShortsRow {
     id: string,
@@ -17,11 +18,22 @@ export struct ShortsRow {
     thumbnail: image,
 }
 
+export struct TranscriptRow {
+    id: string,
+    time: string,
+    text: string,
+    marker: string,
+}
+
 export global AutoShorts {
     in-out property <string> source-label;
     in-out property <string> source-info;
+    in-out property <float> source-duration;
     in-out property <string> transcript-label;
-    in-out property <string> status: "Chọn video để tìm và duyệt các đoạn ngắn. Chưa chạy phân tích hay gọi AI.";
+    in-out property <string> status;
+    in-out property <string> diagnostics;
+    in-out property <string> analysis-note;
+    in-out property <bool> analyzed;
     in-out property <bool> busy;
     in-out property <bool> has-source;
     in-out property <float> progress;
@@ -44,6 +56,30 @@ export global AutoShorts {
     in-out property <[ShortsRow]> rows;
     in-out property <bool> watch-enabled;
     in-out property <string> watch-label;
+    in-out property <int> cue-count;
+    in-out property <[TranscriptRow]> transcript-rows;
+    in-out property <string> transcript-query;
+    in-out property <string> transcript-page;
+    in-out property <bool> transcript-previous;
+    in-out property <bool> transcript-next;
+    in-out property <string> transcript-range;
+    in-out property <string> transcript-notice;
+    in-out property <bool> transcript-has-range;
+    in-out property <string> cue-editor-label;
+    in-out property <string> cue-editor-text;
+    in-out property <bool> transcript-undo;
+    in-out property <bool> transcript-redo;
+    in-out property <bool> repetitions-only;
+    in-out property <bool> repetitions-scanned;
+    in-out property <int> repetition-count;
+    callback find-repetitions();
+    callback transcript-search();
+    callback transcript-paginate(int);
+    callback transcript-select(string, int);
+    callback transcript-save();
+    callback transcript-history(bool);
+    callback transcript-create();
+    callback transcript-export();
     callback choose-source();
     callback choose-transcript();
     callback analyze();
@@ -58,6 +94,10 @@ export global AutoShorts {
     callback choose-watch();
     callback toggle-watch();
     callback refresh-results();
+    in-out property <string> url-query;
+    callback import-url();
+    callback activate-preview();
+    callback toggle-preview();
 }
 
 component ShortsNumber inherits VerticalLayout {
@@ -94,40 +134,47 @@ component ShortsChoice inherits VerticalLayout {
 }
 
 export component AutoShortsPage inherits VerticalLayout {
+    property <bool> duration-blocked: AutoShorts.has-source && AutoShorts.source-duration < AutoShorts.min-duration;
+    private property <bool> diagnostics-open;
     min-width: 0px;
-    spacing: 14px;
+    spacing: 16px;
     alignment: start;
     FlexboxLayout {
         min-width: 0px;
         spacing: 12px;
-        Text { text: "Auto Shorts · Video dài thành clip ngắn"; color: Floword.text; font-size: 22px; font-weight: 800; wrap: word-wrap; min-width: 0px; horizontal-stretch: 1; }
+        Text { text: "Video dài → clip ngắn"; color: Floword.text; font-size: 20px; font-weight: 700; wrap: word-wrap; min-width: 0px; horizontal-stretch: 1; }
         StudioButton { label: AutoShorts.advanced ? "Thu gọn nâng cao" : "Tùy chọn nâng cao"; compact: true; clicked => { AutoShorts.advanced = !AutoShorts.advanced; } }
     }
-    Text { text: "1. Chọn nguồn → 2. Phân tích và duyệt → 3. Dựng hoặc xuất clip. Video gốc không bị thay đổi."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+    Text { text: "Ví dụ: video 20 phút → 3 clip dài 15–60 giây. Lấy từ video có sẵn, không tạo thêm cảnh mới."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
 
     StudioCard {
         padding-h: 16px; padding-v: 16px;
-        StudioHeading { title: "1. Video và phụ đề nguồn"; }
+        StudioHeading { title: "1. Chọn video gốc"; }
         Text { text: AutoShorts.has-source ? AutoShorts.source-label : "Chưa chọn video"; color: Floword.text; font-size: 14px; font-weight: 600; wrap: word-wrap; }
         if AutoShorts.source-info != "": Text { text: AutoShorts.source-info; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
         FlexboxLayout {
             min-width: 0px; spacing: 8px;
             StudioButton { label: AutoShorts.has-source ? "Đổi video" : "Chọn video"; primary: !AutoShorts.has-source; enabled: !AutoShorts.busy; clicked => { AutoShorts.choose-source(); } }
-            StudioButton { label: "Nhập phụ đề SRT / VTT"; enabled: AutoShorts.has-source && !AutoShorts.busy; clicked => { AutoShorts.choose-transcript(); } }
+            if AutoShorts.has-source: StudioButton { label: "Thêm phụ đề (nếu có)"; enabled: !AutoShorts.busy; clicked => { AutoShorts.choose-transcript(); } }
         }
-        Text { text: AutoShorts.transcript-label != "" ? AutoShorts.transcript-label : "Có phụ đề sẵn? Nhập để giữ đúng nội dung và thời gian. Nếu không, dùng mô hình nhận giọng nói đã cài trên máy."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+        if AutoShorts.transcript-label != "": Text { text: AutoShorts.transcript-label; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+        if root.duration-blocked: Text {
+            text: AutoShorts.source-duration < 4 ? "Video chỉ dài " + Math.round(AutoShorts.source-duration * 10) / 10 + " giây. Cần video dài ít nhất 4 giây; tính năng này không kéo dài video."
+                : "Video chỉ dài " + Math.round(AutoShorts.source-duration * 10) / 10 + " giây, nhưng clip ngắn nhất đang đặt " + AutoShorts.min-duration + " giây. Chọn video dài hơn hoặc giảm độ dài bên dưới.";
+            color: Floword.warning; font-size: 13px; wrap: word-wrap;
+        }
     }
 
     StudioCard {
         padding-h: 16px; padding-v: 16px;
-        StudioHeading { title: "2. Tìm đoạn đáng giữ"; }
+        StudioHeading { title: "2. Chọn độ dài clip"; }
         FlexboxLayout {
             min-width: 0px; spacing: 12px;
-            ShortsNumber { label: "Số đoạn tối đa"; value: AutoShorts.target-count; minimum: 1; maximum: 12; edited(value) => { AutoShorts.target-count = value; } }
-            ShortsNumber { label: "Ngắn nhất (giây)"; value: AutoShorts.min-duration; minimum: 4; maximum: 180; edited(value) => { AutoShorts.min-duration = value; } }
-            ShortsNumber { label: "Dài nhất (giây)"; value: AutoShorts.max-duration; minimum: 4; maximum: 180; edited(value) => { AutoShorts.max-duration = value; } }
+            ShortsNumber { label: "Lấy tối đa bao nhiêu clip?"; value: AutoShorts.target-count; minimum: 1; maximum: 12; edited(value) => { AutoShorts.target-count = value; } }
+            ShortsNumber { label: "Độ dài từ (giây)"; value: AutoShorts.min-duration; minimum: 4; maximum: 180; edited(value) => { AutoShorts.min-duration = value; } }
+            ShortsNumber { label: "Đến (giây)"; value: AutoShorts.max-duration; minimum: 4; maximum: 180; edited(value) => { AutoShorts.max-duration = value; } }
         }
-        FlexboxLayout {
+        if AutoShorts.advanced: FlexboxLayout {
             min-width: 0px; spacing: 12px;
             ShortsChoice { label: "Tỷ lệ khung hình"; options: ["9:16 · Dọc", "16:9 · Ngang", "1:1 · Vuông", "4:5 · Bài đăng"]; current <=> AutoShorts.aspect-index; }
             ShortsChoice { label: "Độ phân giải"; options: ["720p", "1080p", "4K"]; current <=> AutoShorts.quality-index; }
@@ -144,31 +191,88 @@ export component AutoShortsPage inherits VerticalLayout {
         }
         FlexboxLayout {
             min-width: 0px; spacing: 8px;
-            StudioButton { label: AutoShorts.busy ? "Đang xử lý…" : "Phân tích video"; primary: true; enabled: AutoShorts.has-source && !AutoShorts.busy && AutoShorts.min-duration <= AutoShorts.max-duration; clicked => { AutoShorts.analyze(); } }
+            StudioButton { label: AutoShorts.busy ? "Đang tìm đoạn…" : AutoShorts.analyzed ? "Tìm lại đoạn" : "Tìm đoạn để cắt"; primary: true; enabled: AutoShorts.has-source && !AutoShorts.busy && !root.duration-blocked && AutoShorts.min-duration <= AutoShorts.max-duration; clicked => { if AutoShorts.analyzed { AutoShorts.retry(); } else { AutoShorts.analyze(); } } }
             if AutoShorts.busy: StudioButton { label: "Hủy tác vụ"; clicked => { AutoShorts.cancel(); } }
-            if !AutoShorts.busy && AutoShorts.has-source: StudioButton { label: "Thử lại phân tích"; clicked => { AutoShorts.retry(); } }
         }
         if AutoShorts.min-duration > AutoShorts.max-duration: Text { text: "Thời lượng ngắn nhất không được lớn hơn dài nhất."; color: #fbbf24; font-size: 12px; wrap: word-wrap; }
         if AutoShorts.busy: Rectangle {
             height: 5px; min-width: 0px; border-radius: 3px; background: Floword.field;
             Rectangle { width: parent.width * Math.max(0, Math.min(1, AutoShorts.progress)); height: parent.height; border-radius: 3px; background: Floword.cyan; }
         }
-        Text { text: AutoShorts.status; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+        if AutoShorts.status != "": Text { text: AutoShorts.status; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+        if AutoShorts.analysis-note != "": Text { text: AutoShorts.analysis-note; color: Floword.warning; font-size: 12px; wrap: word-wrap; }
+        if AutoShorts.diagnostics != "": StudioButton { label: root.diagnostics-open ? "Ẩn thông tin kiểm tra" : "Thông tin kiểm tra"; compact: true; clicked => { root.diagnostics-open = !root.diagnostics-open; } }
+        if root.diagnostics-open && AutoShorts.diagnostics != "": Text { text: AutoShorts.diagnostics; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
     }
 
-    StudioHeading { title: "3. Duyệt và xuất · " + AutoShorts.rows.length + "/" + AutoShorts.result-count + " đoạn · đã chọn " + AutoShorts.selected-count; }
+    if AutoShorts.analyzed: StudioCard {
+        padding-h: 16px; padding-v: 16px; spacing: 10px;
+        StudioHeading { title: "Cắt theo lời thoại"; }
+        Text { text: AutoShorts.cue-count > 0 ? "Tìm câu → chọn Bắt đầu và Kết thúc → Thêm clip. Mốc cắt theo cả câu, không chính xác từng từ." : "Chưa có lời thoại. Thêm phụ đề SRT/VTT đúng video rồi tìm lại đoạn để hệ thống tự động nhận diện."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
+        if AutoShorts.cue-count > 0: VerticalLayout {
+            min-width: 0px; spacing: 10px;
+            StudioField { label: "Tìm trong lời thoại"; placeholder: "Nhập câu hoặc cụm từ có dấu…"; compact: true; value: AutoShorts.transcript-query; enabled: !AutoShorts.busy; edited(text) => { AutoShorts.transcript-query = text; AutoShorts.transcript-search(); } }
+            FlexboxLayout {
+                min-width: 0px; spacing: 8px;
+                StudioButton { label: AutoShorts.repetitions-scanned ? "Tìm lại câu nói lặp" : "Tìm câu nói lặp"; compact: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.find-repetitions(); } }
+                StudioButton { label: AutoShorts.repetitions-only ? "Hiện mọi câu" : "Chỉ hiện câu có thể lặp"; compact: true; enabled: !AutoShorts.busy && AutoShorts.repetition-count > 0; clicked => { AutoShorts.repetitions-only = !AutoShorts.repetitions-only; AutoShorts.transcript-search(); } }
+            }
+            if AutoShorts.repetitions-scanned: Text { text: AutoShorts.repetition-count + " cặp có thể lặp (tối đa 2.000). Chỉ so chữ ở các câu gần nhau, không kết luận bản nào tốt hơn và không tự xóa."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+            Text { text: AutoShorts.transcript-page; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+            PaneScroll {
+                height: AutoShorts.transcript-rows.length > 0 ? 300px : 48px;
+                min-width: 0px;
+                property <string> current-page: AutoShorts.transcript-page;
+                changed current-page => { self.scroll-to-top(); }
+                if AutoShorts.transcript-rows.length == 0: Text { text: "Không có câu khớp. Thử cụm từ khác hoặc xóa từ khóa."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+                for cue in AutoShorts.transcript-rows: VerticalLayout {
+                    min-width: 0px; spacing: 6px;
+                    Text { text: cue.time + (cue.marker != "" ? " · " + cue.marker : ""); color: Floword.cyan; font-size: 12px; wrap: word-wrap; }
+                    Text { text: cue.text; color: Floword.text; font-size: 13px; wrap: word-wrap; }
+                    FlexboxLayout {
+                        min-width: 0px; spacing: 6px;
+                        StudioButton { label: "Bắt đầu"; compact: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.transcript-select(cue.id, 0); } }
+                        StudioButton { label: "Kết thúc"; compact: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.transcript-select(cue.id, 1); } }
+                        StudioButton { label: "Sửa câu"; compact: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.transcript-select(cue.id, 2); } }
+                    }
+                }
+            }
+            FlexboxLayout {
+                min-width: 0px; spacing: 8px;
+                StudioButton { label: "Trang trước"; compact: true; enabled: !AutoShorts.busy && AutoShorts.transcript-previous; clicked => { AutoShorts.transcript-paginate(-1); } }
+                StudioButton { label: "Trang sau"; compact: true; enabled: !AutoShorts.busy && AutoShorts.transcript-next; clicked => { AutoShorts.transcript-paginate(1); } }
+            }
+            if AutoShorts.cue-editor-label != "": VerticalLayout {
+                min-width: 0px; spacing: 8px;
+                StudioField { label: AutoShorts.cue-editor-label; compact: true; value: AutoShorts.cue-editor-text; enabled: !AutoShorts.busy; edited(text) => { AutoShorts.cue-editor-text = text; } }
+                StudioButton { label: "Lưu câu đã sửa"; compact: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.transcript-save(); } }
+            }
+            FlexboxLayout {
+                min-width: 0px; spacing: 8px;
+                StudioButton { label: "Hoàn tác lời thoại"; compact: true; enabled: !AutoShorts.busy && AutoShorts.transcript-undo; clicked => { AutoShorts.transcript-history(false); } }
+                StudioButton { label: "Làm lại"; compact: true; enabled: !AutoShorts.busy && AutoShorts.transcript-redo; clicked => { AutoShorts.transcript-history(true); } }
+                StudioButton { label: "Lưu bản phụ đề SRT"; compact: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.transcript-export(); } }
+            }
+            Text { text: AutoShorts.transcript-range; color: Floword.cyan; font-size: 13px; wrap: word-wrap; }
+            StudioButton { label: "Thêm vùng chọn vào danh sách clip"; primary: true; enabled: !AutoShorts.busy && AutoShorts.transcript-has-range; clicked => { AutoShorts.transcript-create(); } }
+            if AutoShorts.transcript-notice != "": Text { text: AutoShorts.transcript-notice; color: Floword.cyan; font-size: 13px; wrap: word-wrap; }
+            Text { text: "Sửa lời thoại chỉ đổi phụ đề, không đổi tiếng nói. Các thay đổi ở phiên này: lưu bản SRT để giữ lại trước khi đổi nguồn, tìm lại đoạn hoặc đóng app. Clip mới vẫn cần xem trước và chọn xuất."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+        }
+    }
+
+    if AutoShorts.result-count > 0: StudioHeading { title: "3. Xem và chọn clip · đã chọn " + AutoShorts.selected-count + "/" + AutoShorts.result-count; }
     if AutoShorts.result-count > 0: StudioCard {
         padding-h: 16px; padding-v: 16px; spacing: 10px;
         StudioField { label: "Tìm trong kết quả"; placeholder: "Tiêu đề, mở đầu hoặc lý do…"; compact: true; value: AutoShorts.query; enabled: !AutoShorts.busy; edited(text) => { AutoShorts.query = text; AutoShorts.refresh-results(); } }
         ShortsChoice { label: "Sắp xếp"; options: ["Điểm cao trước", "Thời gian nguồn", "Thời lượng ngắn trước"]; current: AutoShorts.sort-index; changed current => { AutoShorts.sort-index = self.current; AutoShorts.refresh-results(); } }
         FlexboxLayout {
             min-width: 0px; spacing: 8px;
-            StudioButton { label: AutoShorts.review-only ? "✓ Chỉ đoạn cần xem lại" : "Chỉ đoạn cần xem lại"; compact: true; primary: AutoShorts.review-only; enabled: !AutoShorts.busy; clicked => { AutoShorts.review-only = !AutoShorts.review-only; AutoShorts.refresh-results(); } }
-            StudioButton { label: AutoShorts.selected-only ? "✓ Chỉ đoạn đã chọn" : "Chỉ đoạn đã chọn"; compact: true; primary: AutoShorts.selected-only; enabled: !AutoShorts.busy; clicked => { AutoShorts.selected-only = !AutoShorts.selected-only; AutoShorts.refresh-results(); } }
+            StudioButton { label: AutoShorts.review-only ? "✓ Chỉ đoạn cần xem lại" : "Chỉ đoạn cần xem lại"; compact: true; primary: false; enabled: !AutoShorts.busy; clicked => { AutoShorts.review-only = !AutoShorts.review-only; AutoShorts.refresh-results(); } }
+            StudioButton { label: AutoShorts.selected-only ? "✓ Chỉ đoạn đã chọn" : "Chỉ đoạn đã chọn"; compact: true; primary: false; enabled: !AutoShorts.busy; clicked => { AutoShorts.selected-only = !AutoShorts.selected-only; AutoShorts.refresh-results(); } }
         }
         Text { text: "Bộ lọc chỉ đổi danh sách đang xem. Các đoạn đã chọn vẫn được giữ và vẫn nằm trong lần xuất."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
     }
-    if AutoShorts.rows.length == 0: StudioCard {
+    if AutoShorts.rows.length == 0 && AutoShorts.result-count > 0: StudioCard {
         padding-h: 16px; padding-v: 16px;
         Text { text: AutoShorts.busy ? "Đợi kết quả từ tác vụ đang chạy. Chưa có đoạn nào sẵn sàng để xuất." : AutoShorts.result-count > 0 ? "Không có đoạn khớp bộ lọc hiện tại. Xóa từ khóa hoặc tắt bộ lọc; các lựa chọn trước đó vẫn được giữ." : "Chưa có kết quả. Chọn video và bấm Phân tích; chỉ các đoạn đã kiểm tra hợp lệ mới xuất hiện ở đây."; color: Floword.muted; font-size: 13px; wrap: word-wrap; }
     }
@@ -189,13 +293,13 @@ export component AutoShortsPage inherits VerticalLayout {
         if row.review != "": Text { text: row.review; color: #fbbf24; font-size: 12px; wrap: word-wrap; }
         FlexboxLayout {
             min-width: 0px; spacing: 8px;
-            StudioButton { label: row.selected ? "✓ Đã chọn" : "Chọn đoạn này"; compact: true; primary: row.selected; enabled: !AutoShorts.busy; clicked => { AutoShorts.toggle-selected(row.id); } }
+            StudioButton { label: row.selected ? "✓ Đã chọn" : "Chọn đoạn này"; compact: true; primary: false; enabled: !AutoShorts.busy; clicked => { AutoShorts.toggle-selected(row.id); } }
             StudioButton { label: "Xem đoạn"; compact: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.preview(row.id); } }
             StudioButton { label: "Dựng trên timeline"; compact: true; enabled: !AutoShorts.busy; clicked => { AutoShorts.stage(row.id); } }
         }
     }
 
-    StudioCard {
+    if AutoShorts.result-count > 0: StudioCard {
         padding-h: 16px; padding-v: 16px;
         StudioHeading { title: "Lưu thành video"; }
         Text { text: AutoShorts.output-label != "" ? AutoShorts.output-label : "Chọn thư mục lưu trước khi xuất. Không tự ghi đè video đang có."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
@@ -205,7 +309,7 @@ export component AutoShortsPage inherits VerticalLayout {
             StudioButton { label: "Xuất " + AutoShorts.selected-count + " đoạn đã chọn"; primary: true; enabled: !AutoShorts.busy && AutoShorts.selected-count > 0 && AutoShorts.output-label != ""; clicked => { AutoShorts.export-selected(); } }
             StudioButton { label: "Mở thư mục"; enabled: !AutoShorts.busy && AutoShorts.output-label != ""; clicked => { AutoShorts.open-output(); } }
         }
-        Text { text: "Dựng trên timeline dùng Session/Undo của Concat. Xuất tạo file video; không tự đăng lên mạng xã hội."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+        Text { text: "Xuất video không tự đăng bài. Có thể hoàn tác chỉnh sửa trên timeline."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
     }
 
     if AutoShorts.advanced: StudioCard {

@@ -16,6 +16,8 @@ sha2 = "0.10"
 hmac = "0.12"
 rand = "0.9"
 chrono = { version = "0.4", default-features = false, features = ["std"] }
+chrono-tz = "0.10"
+tungstenite = { version = "=0.28.0", features = ["native-tls"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Security_Cryptography", "Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading"] }

@@ -27,47 +27,67 @@ export global StudioBrowser {
 }
 
 export component StudioBrowserPanel inherits StudioCard {
-    StudioHeading { title: I18n.t("studioBrowser.title"); }
-    Text { text: I18n.t("studioBrowser.scope"); color: Floword.muted; wrap: word-wrap; }
+    property <bool> advanced: false;
+    property <bool> confirm-forget: false;
+    min-width: 0px;
+    StudioHeading { title: "Trình duyệt Nexora"; }
+    Text { text: "Chọn hồ sơ trình duyệt để mở Grok. Đây là kết nối riêng, không thay đổi trình duyệt mặc định của máy."; color: Floword.muted; wrap: word-wrap; }
     HorizontalLayout {
         spacing: 10px;
         alignment: start;
         Rectangle {
             width: 8px; height: 8px; border-radius: 4px;
-            background: StudioBrowser.loaded && StudioBrowser.names.length > 0 ? Floword.success : Floword.cyan;
+            background: StudioBrowser.loaded ? Floword.success : Floword.line-bright;
             y: (parent.height - self.height) / 2;
         }
         Text {
-            text: StudioBrowser.loaded && StudioBrowser.names.length > 0
-                ? "Nexora đã tự động kết nối cục bộ (127.0.0.1:10108)"
-                : "Nexora: Tự động dò tìm nexorabrowser.exe và kết nối ngầm (127.0.0.1:10108)";
-            color: Floword.text; font-size: 13px; font-weight: 600;
+            text: StudioBrowser.busy ? "Đang xử lý…" : StudioBrowser.loaded
+                ? "Đã tải " + StudioBrowser.names.length + " hồ sơ"
+                : "Chưa kiểm tra kết nối";
+            color: Floword.text; font-size: 13px; font-weight: 600; wrap: word-wrap; horizontal-stretch: 1;
         }
     }
-    HorizontalLayout {
+    FlexboxLayout {
         spacing: 8px;
-        StudioButton { label: "Khởi động / Kết nối Nexora"; primary: true; enabled: !StudioBrowser.busy; clicked => { StudioBrowser.start(); } }
-        StudioButton { label: I18n.t("studioBrowser.refresh"); enabled: !StudioBrowser.busy; clicked => { StudioBrowser.refresh(); } }
+        StudioButton { label: "Khởi động & kết nối"; primary: !StudioBrowser.loaded; enabled: !StudioBrowser.busy; clicked => { StudioBrowser.start(); } }
+        StudioButton { label: "Tải lại hồ sơ"; enabled: !StudioBrowser.busy; clicked => { StudioBrowser.refresh(); } }
     }
-    Select {
+    if StudioBrowser.names.length > 0: Select {
         options: StudioBrowser.names; current <=> StudioBrowser.index;
         placeholder: I18n.t("studioBrowser.choose"); height: 40px;
         background: Floword.field; border-color: Floword.line; enabled: !StudioBrowser.busy;
         changed(index) => { StudioBrowser.confirm-open = false; StudioBrowser.confirm-stop = false; }
     }
     if StudioBrowser.loaded && StudioBrowser.names.length == 0: Text { text: I18n.t("studioBrowser.empty"); color: Floword.warning; wrap: word-wrap; }
-    Text { text: StudioBrowser.busy ? I18n.t("studioBrowser.waiting") : StudioBrowser.status; color: Floword.warning; wrap: word-wrap; }
-    Text { text: I18n.t("studioBrowser.noReadiness"); color: Floword.muted; wrap: word-wrap; }
-    HorizontalLayout {
+    if StudioBrowser.busy || StudioBrowser.status != "": Text { text: StudioBrowser.busy ? I18n.t("studioBrowser.waiting") : StudioBrowser.status; color: Floword.warning; wrap: word-wrap; }
+    if StudioBrowser.loaded: Text { text: "Đã đọc hồ sơ không có nghĩa là đã đăng nhập Grok hoặc sẵn sàng tạo video."; color: Floword.muted; wrap: word-wrap; }
+    if StudioBrowser.names.length > 0: FlexboxLayout {
         spacing: 12px;
-        StudioButton { label: I18n.t("studioBrowser.open"); primary: true; enabled: !StudioBrowser.busy && StudioBrowser.names.length > 0; clicked => { StudioBrowser.confirm-open = true; StudioBrowser.confirm-stop = false; } }
-        StudioButton { label: I18n.t("studioBrowser.stop"); enabled: !StudioBrowser.busy && StudioBrowser.names.length > 0; clicked => { StudioBrowser.confirm-stop = true; StudioBrowser.confirm-open = false; } }
-        Rectangle { horizontal-stretch: 1; }
+        StudioButton { label: "Mở Grok bằng hồ sơ đã chọn"; primary: true; enabled: !StudioBrowser.busy; clicked => { StudioBrowser.confirm-open = true; StudioBrowser.confirm-stop = false; } }
+        StudioButton { label: "Dừng hồ sơ"; enabled: !StudioBrowser.busy; clicked => { StudioBrowser.confirm-stop = true; StudioBrowser.confirm-open = false; } }
     }
     if StudioBrowser.confirm-open || StudioBrowser.confirm-stop: VerticalLayout {
         spacing: 10px;
         Text { text: StudioBrowser.confirm-stop ? I18n.t("studioBrowser.confirmStop") : I18n.t("studioBrowser.confirmOpen"); color: Floword.warning; wrap: word-wrap; }
-        StudioButton { label: I18n.t("studioBrowser.confirm"); enabled: !StudioBrowser.busy; clicked => { if StudioBrowser.confirm-stop { StudioBrowser.stop-profile(); } else { StudioBrowser.open-grok(); } } }
+        StudioButton { label: StudioBrowser.confirm-stop ? "Xác nhận dừng hồ sơ" : "Xác nhận mở Grok"; enabled: !StudioBrowser.busy; clicked => { if StudioBrowser.confirm-stop { StudioBrowser.stop-profile(); } else { StudioBrowser.open-grok(); } } }
         StudioButton { label: I18n.t("common.cancel"); enabled: !StudioBrowser.busy; clicked => { StudioBrowser.confirm-open = false; StudioBrowser.confirm-stop = false; } }
+    }
+    StudioButton { label: root.advanced ? "Thu gọn cài đặt kết nối" : "Cài đặt kết nối…"; clicked => { root.advanced = !root.advanced; } }
+    if root.advanced: VerticalLayout {
+        spacing: 10px;
+        min-width: 0px;
+        StudioField { label: "Địa chỉ API Nexora"; value: StudioBrowser.api-origin; placeholder: "http://127.0.0.1:10108"; enabled: !StudioBrowser.busy; edited(text) => { StudioBrowser.api-origin = text; } }
+        StudioField { label: "Đường dẫn Nexora"; value: StudioBrowser.executable; placeholder: "Để trống để dò tìm trên máy"; enabled: !StudioBrowser.busy; edited(text) => { StudioBrowser.executable = text; } }
+        StudioButton { label: "Chọn tệp Nexora…"; enabled: !StudioBrowser.busy; clicked => { StudioBrowser.choose-executable(); } }
+        StudioField { label: StudioBrowser.token-present ? "Token mới · đã có token mã hóa" : "Token API · nếu Nexora yêu cầu"; value: StudioBrowser.new-token; secret: true; enabled: !StudioBrowser.busy; edited(text) => { StudioBrowser.new-token = text; } }
+        Text { text: "Token được lưu mã hóa trên máy. Lưu cấu hình không kiểm tra kết nối; sau khi lưu, chọn Tải lại hồ sơ."; color: Floword.muted; wrap: word-wrap; }
+        StudioButton { label: "Lưu cấu hình"; primary: true; enabled: !StudioBrowser.busy; clicked => { root.confirm-forget = false; StudioBrowser.confirm-open = false; StudioBrowser.confirm-stop = false; StudioBrowser.save-connection(); } }
+        if StudioBrowser.token-present: StudioButton { label: "Quên token đã lưu…"; enabled: !StudioBrowser.busy; clicked => { root.confirm-forget = true; } }
+        if root.confirm-forget: VerticalLayout {
+            spacing: 8px;
+            Text { text: "Xóa token khỏi cấu hình Concat? Bạn có thể cần nhập lại để kết nối Nexora."; color: Floword.warning; wrap: word-wrap; }
+            StudioButton { label: "Xác nhận quên token"; enabled: !StudioBrowser.busy; clicked => { root.confirm-forget = false; StudioBrowser.forget-token(); } }
+            StudioButton { label: "Hủy"; enabled: !StudioBrowser.busy; clicked => { root.confirm-forget = false; } }
+        }
     }
 }
