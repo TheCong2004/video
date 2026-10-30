@@ -46,6 +46,16 @@ fn product(revision: u64, price: u64) -> ProductSnapshot {
         ..Default::default()
     }
 }
+#[test]
+fn operator_product_preview_hides_expired_facts_and_never_confirms_platform_pin() {
+    let r=runtime();
+    let preview=r.featured_snapshot(NOW).unwrap();
+    assert_eq!(preview.sku,"sku");
+    assert_eq!(preview.price_vnd,Some(10000));
+    assert!(r.status().confirmed_pinned_sku.is_none());
+    assert!(r.featured_snapshot("2100-01-01T00:00:00Z").is_none());
+    assert_eq!(r.status().featured_sku.as_deref(),Some("sku"));
+}
 fn command(r: &mut KediLiveRuntime, id: &str, action: ControlAction) {
     let rev = r.status().revision;
     r.execute(

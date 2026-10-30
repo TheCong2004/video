@@ -170,6 +170,9 @@ fn form_plan(form: &Form, config: &EngineSettings) -> Result<Plan, String> {
                 .timestamp(),
         )
     };
+    // A production-only campaign must not depend on Facebook credentials or
+    // stale Page inputs left in the optional publishing form.
+    let pages = if form.publish {
     let connected = Facebook::new(&config.config_root).connected()?;
     let daily = number(&form.daily, "Hạn mức Page")?;
     let slots: Vec<String> = form
@@ -180,6 +183,8 @@ fn form_plan(form: &Form, config: &EngineSettings) -> Result<Plan, String> {
         .map(Into::into)
         .collect();
     let pages=lines(&form.pages).into_iter().map(|row|{let (id,topics)=row.split_once('|').unwrap_or((&row,""));let id=id.trim().to_string();let page=connected.iter().find(|p|p.page_id==id).ok_or_else(||format!("Page {id} chưa được cấp quyền Facebook API; hồ sơ Nexora không thay thế quyền này"))?;Ok(PageRule{page_id:id,name:page.name.clone(),topics:topics.split(',').map(str::trim).filter(|s|!s.is_empty()).map(Into::into).collect(),daily_limit:daily,slots:slots.clone()})}).collect::<Result<Vec<_>,String>>()?;
+    pages
+    } else { Vec::new() };
     let assets: Vec<PathBuf> = lines(&form.assets).into_iter().map(PathBuf::from).collect();
     let plan = Plan {
         objective: form.request.clone(),

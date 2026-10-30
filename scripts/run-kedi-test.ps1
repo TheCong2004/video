@@ -1,6 +1,8 @@
-param([switch]$Version,[switch]$Smoke,[switch]$UseExistingProfile,[switch]$Wait,[switch]$Preview,[switch]$PreviousBuild,[string]$CandidateName,[switch]$RecoverWindowless)
+param([switch]$Version,[switch]$Smoke,[switch]$UseExistingProfile,[switch]$Wait,[switch]$Preview,[switch]$PreviousBuild,[string]$CandidateName,[switch]$RecoverWindowless,[switch]$LiveStudioSmoke)
 $ErrorActionPreference='Stop'
 if($Version -and $Smoke){throw 'Choose -Version or -Smoke.'}
+if($LiveStudioSmoke -and !$Smoke){throw '-LiveStudioSmoke requires -Smoke and an isolated test profile.'}
+if($LiveStudioSmoke -and $UseExistingProfile){throw 'Live Studio smoke cannot use the existing user profile.'}
 $repo=[IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 # Only a smoke-checked, hash-bound publication can change the normal launcher.
 . (Join-Path $PSScriptRoot 'select-kedi-build.ps1')
@@ -83,6 +85,7 @@ $info.EnvironmentVariables['KEDI_COMMERCE_ENABLED']='false'
 $info.EnvironmentVariables['KEDI_MOTION_ENABLED']='false'
 $info.EnvironmentVariables['KEDI_PLATFORM_WRITE_ENABLED']='false'
 foreach($name in @($info.EnvironmentVariables.Keys)){if($name -match '^CONCAT_.*SMOKE'){[void]$info.EnvironmentVariables.Remove($name)}}
+if($LiveStudioSmoke){$info.EnvironmentVariables['CONCAT_KEDI_OPERATOR_SMOKE']='1'}
 if($Version -or $Smoke){
     $info.CreateNoWindow=$true
     $info.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden

@@ -917,7 +917,7 @@ component Rail inherits Rectangle {
                     letter-spacing: 0.8px;
                 }
                 RailItem {
-                    label: "TikTok LIVE"; glyph: Glyph.volume; compact: root.compact; enabled: root.enabled;
+                    label: "Live Studio"; glyph: Glyph.volume; compact: root.compact; enabled: root.enabled;
                     current: root.studio-open && root.studio-route == StudioRoute.live; studio-tone: true;
                     clicked => { root.studio-picked(StudioRoute.live); }
                 }

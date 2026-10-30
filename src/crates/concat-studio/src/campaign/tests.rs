@@ -115,6 +115,21 @@ fn script(text: &str) -> Script {
     }
 }
 #[test]
+fn production_only_needs_no_facebook_pages_and_one_grok_profile_can_serve_multiple_pages() {
+    let mut p = plan(2, false);
+    p.providers.assets.clear();
+    p.providers.grok_profile = "one-browser-profile".into();
+    assert!(p.pages.is_empty());
+    p.validate().unwrap();
+
+    p.publish = true;
+    assert!(p.validate().unwrap_err().contains("Facebook Page"));
+    p.pages = plan(2, true).pages;
+    assert_eq!(p.pages.len(), 2);
+    p.validate().unwrap();
+}
+
+#[test]
 fn missing_upload_uses_grok_and_keeps_media_budget_reservation() {
     let mut p = plan(1, false);
     p.providers.assets.clear();

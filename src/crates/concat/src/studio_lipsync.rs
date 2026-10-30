@@ -202,8 +202,10 @@ pub(crate) fn bind(app: &App) {
         let Some(app) = weak.upgrade() else { return };
         let live = app.global::<StudioLive>();
         // Auto-connect to backend in background silently without requiring manual user action
-        if !live.get_lipsync_enabled() && !live.get_lipsync_busy() {
+        if !live.get_lipsync_enabled() && !live.get_lipsync_busy() && !live.get_lipsync_token().trim().is_empty() {
             live.invoke_connect_lipsync();
+        } else if !live.get_lipsync_enabled() && !live.get_lipsync_busy() {
+            live.set_lipsync_status("Chưa cấu hình dịch vụ khớp môi. Cấu hình KEDI_LIPSYNC_URL và KEDI_LIPSYNC_TOKEN trên máy rồi mở lại app; không nhập token trong bình luận hoặc chat AI.".into());
         }
     });
     let weak = app.as_weak();

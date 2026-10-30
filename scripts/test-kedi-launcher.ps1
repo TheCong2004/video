@@ -8,6 +8,9 @@ $passed=0
 function Assert-True($value,[string]$message){if(!$value){throw $message};$script:passed++}
 function Assert-Throws([scriptblock]$body){$threw=$false;try{& $body | Out-Null}catch{$threw=$true};Assert-True $threw 'Expected refusal'}
 try {
+    $launcher=Join-Path $PSScriptRoot 'run-kedi-test.ps1'
+    Assert-Throws { & $launcher -LiveStudioSmoke }
+    Assert-Throws { & $launcher -LiveStudioSmoke -Smoke -UseExistingProfile }
     $native=Join-Path $testRoot 'src\target\debug'
     $portable=Join-Path $testRoot 'dist\kedi-test'
     New-Item -ItemType Directory -Force -Path $native,$portable,(Join-Path $testRoot '.runtime') | Out-Null

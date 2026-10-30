@@ -1306,6 +1306,9 @@ mod tests {
                             continue;
                         }
                     };
+                    // Accepted Windows sockets may inherit nonblocking mode;
+                    // WouldBlock is not simulated transport loss in these fixtures.
+                    stream.set_nonblocking(false).unwrap();
                     stream
                         .set_read_timeout(Some(Duration::from_secs(3)))
                         .unwrap();

@@ -132,12 +132,16 @@ export component CampaignPanel inherits VerticalLayout {
         StudioField {label:"Phong cách";value:CampaignUi.style;edited(text)=>{CampaignUi.style=text;CampaignUi.dirty=true;}}
         Select {options:["Nội dung độc lập · kiểm tra ngữ nghĩa", "Cho phép nội dung liên quan / cùng series"];current:CampaignUi.unique-content ? 0 : 1;changed(i)=>{CampaignUi.unique-content=i==0;CampaignUi.dirty=true;}}
         Select {options:["Grok qua Nexora · tự tạo ảnh và video", "Edit từ tư liệu đã có"];current:CampaignUi.grok ? 0 : 1;changed(i)=>{CampaignUi.grok=i==0;CampaignUi.dirty=true;}}
+        if CampaignUi.grok: Text {text:"Hồ sơ trình duyệt Nexora dùng Grok";color:Floword.text;wrap:word-wrap;min-width:0px;}
         if CampaignUi.grok: Select {options:CampaignUi.profile-names;current:CampaignUi.profile-index;changed(i)=>{CampaignUi.profile-index=i;CampaignUi.dirty=true;}}
         if CampaignUi.grok: Text {text:"Không có ảnh: AI tự tạo từ kịch bản. Chỉ thêm ảnh tham chiếu nếu muốn giữ sản phẩm hoặc nhân vật cụ thể.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
         ControlAction {label:CampaignUi.grok ? "Thêm ảnh tham chiếu (tùy chọn)" : "Chọn tư liệu";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("assets");}}
         Text {text:CampaignUi.assets;color:Floword.muted;wrap:word-wrap;min-width:0px;font-size:11px;}
-        ControlFoldout {title:"Lịch và Page";summary:CampaignUi.publish ? "Đăng qua Facebook API chính thức" : "Chỉ sản xuất, chưa đăng";
+        Text {text:"Hồ sơ Grok dùng tạo ảnh/video, không phải Page Facebook. Chỉ tạo video thì không cần chọn Page.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+        ControlFoldout {title:"Đăng bài Facebook (tùy chọn)";summary:CampaignUi.publish ? "Đăng qua Facebook API chính thức" : "Chỉ tạo video · không cần Page";
             Select {options:["Chỉ sản xuất video", "Sản xuất và đăng lên Page đã cấp quyền"];current:CampaignUi.publish ? 1 : 0;changed(i)=>{CampaignUi.publish=i==1;CampaignUi.dirty=true;}}
+            if CampaignUi.publish: VerticalLayout {spacing:10px;min-width:0px;
+            Text {text:"Có thể chọn nhiều Page đã cấp quyền Facebook. Các Page này độc lập với hồ sơ trình duyệt dùng Grok ở trên.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
             StudioField {label:"Page được phép · mỗi dòng: ID | chủ đề 1, chủ đề 2 (chủ đề có thể trống)";value:CampaignUi.page-ids;multiline:true;edited(text)=>{CampaignUi.page-ids=text;CampaignUi.dirty=true;}}
             Text {text:CampaignUi.connected-pages;color:Floword.muted;wrap:word-wrap;min-width:0px;}
             StudioField {label:"Ngày bắt đầu · YYYY-MM-DD";value:CampaignUi.start-date;edited(text)=>{CampaignUi.start-date=text;CampaignUi.dirty=true;}}
@@ -146,6 +150,8 @@ export component CampaignPanel inherits VerticalLayout {
             StudioField {label:"Hạn hoàn tất · YYYY-MM-DD HH:MM theo múi giờ trên (tùy chọn)";value:CampaignUi.deadline;edited(text)=>{CampaignUi.deadline=text;CampaignUi.dirty=true;}}
             StudioField {label:"Khung giờ HH:MM, cách nhau bằng dấu phẩy";value:CampaignUi.slots;edited(text)=>{CampaignUi.slots=text;CampaignUi.dirty=true;}}
             StudioField {label:"Tối đa bài / Page / ngày";value:CampaignUi.daily;edited(text)=>{CampaignUi.daily=text;CampaignUi.dirty=true;}}
+            }
+            if !CampaignUi.publish: Text {text:"Video hoàn tất được lưu vào thư viện. Không cần kết nối Facebook hay chọn Page.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
         }
         ControlFoldout {title:"Ngân sách, worker và phê duyệt";summary:"Giới hạn được lưu trong phiên bản kế hoạch";
             StudioField {label:"Nguồn / model AI đã kết nối";value:CampaignUi.text-model;edited(text)=>{CampaignUi.text-model=text;CampaignUi.dirty=true;}}
@@ -164,7 +170,7 @@ export component CampaignPanel inherits VerticalLayout {
         Text {text:CampaignUi.counts;color:Floword.text;wrap:word-wrap;min-width:0px;}
         FlexboxLayout {spacing:6px;
             if CampaignUi.campaign-state!="cancelled" && CampaignUi.campaign-state!="completed": ControlAction {label:"Hủy chiến dịch";clicked=>{CampaignUi.action("cancel");}}
-            ControlAction {label:"Phân lại lịch hợp lệ";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("schedule");}}
+            if CampaignUi.publish: ControlAction {label:"Phân lại lịch hợp lệ";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("schedule");}}
         }
         Text {text:"Worker đã kích hoạt chạy độc lập với cửa sổ này. Pause/Cancel dừng công việc mới; thao tác đang gửi phải chờ biên nhận.";color:Floword.muted;wrap:word-wrap;min-width:0px;font-size:11px;}
     }
@@ -189,19 +195,19 @@ export component CampaignPanel inherits VerticalLayout {
             ControlAction {label:"Duyệt bước này";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("approve-video");}}
             ControlAction {label:"Tiếp tục video";clicked=>{CampaignUi.action("continue-video");}}
             ControlAction {label:"Thử lại lỗi đã xác định";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("retry-video");}}
-            ControlAction {label:"Đối chiếu bài đăng";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("reconcile");}}
+            if CampaignUi.publish: ControlAction {label:"Đối chiếu bài đăng";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("reconcile");}}
             ControlAction {label:"Mở vào editor Concat";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("open-editor");}}
             ControlAction {label:"Xem file";clicked=>{CampaignUi.action("play-video");}}
             ControlAction {label:"Thay tư liệu";enabled:!CampaignUi.busy;clicked=>{CampaignUi.action("replace-media");}}
         }
     }
-    if CampaignUi.selected-id!="": ControlFoldout {title:"Lịch theo Page";summary:"Slot được giữ chỗ, không vượt hạn mức";
+    if CampaignUi.selected-id!="" && CampaignUi.publish: ControlFoldout {title:"Lịch theo Page";summary:"Slot được giữ chỗ, không vượt hạn mức";
         Text {text:CampaignUi.calendar;color:Floword.text;wrap:word-wrap;min-width:0px;}
     }
     if CampaignUi.selected-id!="": ControlFoldout {title:"Nhật ký và chi phí";summary:"Dữ liệu từ worker / API, không dùng số hoàn thành giả";
         Text {text:CampaignUi.log;color:Floword.muted;wrap:word-wrap;min-width:0px;font-size:11px;}
     }
-    ControlFoldout {title:"Kết nối Facebook API";summary:"Token được mã hóa; không gửi token vào chat AI";
+    if CampaignUi.publish: ControlFoldout {title:"Kết nối Facebook API";summary:"Token được mã hóa; không gửi token vào chat AI";
         Text {text:"Dùng User access token từ Meta App đã cấp pages_show_list, pages_read_engagement và pages_manage_posts. Chỉ các Page ID bạn chọn được lưu quyền. Bước kết nối chỉ đọc quyền; chưa đăng bài.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
         StudioField {label:"Phiên bản Graph API của Meta App · vNN.0";value:CampaignUi.graph-version;edited(text)=>{CampaignUi.graph-version=text;}}
         StudioField {label:"User access token · nhập tại đây, không nhập trong yêu cầu AI";value:CampaignUi.user-token;secret:true;edited(text)=>{CampaignUi.user-token=text;}}

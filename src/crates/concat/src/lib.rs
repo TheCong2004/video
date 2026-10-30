@@ -2004,6 +2004,10 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // are not waited on.
     if smoke {
         #[cfg(debug_assertions)]
+        if std::env::var_os("CONCAT_KEDI_OPERATOR_SMOKE").is_some() {
+            studio_kedi_live::smoke_operator(&app).map_err(slint::PlatformError::from)?;
+        }
+        #[cfg(debug_assertions)]
         studio_control_window::smoke_web_login_bridge()?;
         if let Ok(profile) = std::env::var("CONCAT_DOWNLOAD_LIVE_SMOKE_PROFILE") {
             studio_lux::live_smoke(&app, &profile)?;

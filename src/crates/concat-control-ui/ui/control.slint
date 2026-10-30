@@ -29,11 +29,11 @@ export component ControlWindow inherits Window {
         FlexboxLayout {spacing:6px;
             if root.campaign-enabled: ControlAction {label:root.show-campaign ? "← AI Control" : "Campaign Manager";clicked=>{root.show-campaign=!root.show-campaign;}}
             if root.show-plan: ControlAction {label:"← Quay lại yêu cầu";clicked=>{root.show-plan=false;}}
-            ControlAction {label:"Hiện app chính";clicked=>{root.focus-main();}}
             ControlAction {label:"Xếp cạnh nhau";clicked=>{root.tile-windows();}}
-            ControlAction {label:"Ẩn bảng AI";clicked=>{root.dismiss();}}
         }
-        if root.show-campaign: ControlCard {
+        if root.show-campaign: PaneScroll {
+          VerticalLayout {spacing:12px;min-width:0px;alignment:start;
+          ControlCard {
             VerticalLayout {spacing:6px;min-width:0px;
                 ControlFoldout {title:"Đăng nhập AI web";summary:AiControl.web-login-busy ? "Cửa sổ đăng nhập đang mở · đóng cửa sổ khi xong" : "ChatGPT · Gemini · Claude · lưu phiên trên máy";
                 Text {text:"Chọn dịch vụ rồi đăng nhập một lần. Phiên được lưu trên máy.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
@@ -46,7 +46,7 @@ export component ControlWindow inherits Window {
                 if AiControl.web-status!="": StudioStatus {label:AiControl.web-status;tone:AiControl.web-login-busy ? 4 : 0;}
                 }
                 if CampaignUi.action-error!="": StudioStatus {label:CampaignUi.action-error;tone:3;}
-                if CampaignUi.action-error=="": StudioStatus {label:CampaignUi.status;tone:CampaignUi.busy ? 4 : 0;}
+                if CampaignUi.action-error=="" && CampaignUi.status!="": StudioStatus {label:CampaignUi.status;tone:CampaignUi.busy ? 4 : 0;}
                 Text {text:CampaignUi.selected-id=="" ? "Bắt đầu chiến dịch" : CampaignUi.campaign-state=="draft" ? "Bản nháp · cần duyệt trước khi chạy" : CampaignUi.campaign-state=="approved" || CampaignUi.campaign-state=="paused" ? "Kế hoạch đã duyệt · sẵn sàng chạy" : CampaignUi.campaign-state=="running" ? "Chiến dịch đang chạy" : "Điều khiển chiến dịch";font-weight:700;color:Floword.text;wrap:word-wrap;min-width:0px;}
                 if CampaignUi.selected-id=="": Text {text:"Nhập mục tiêu bên dưới, rồi lưu bản nháp. Sau khi lưu, nút duyệt sẽ hiện ngay tại đây.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
                 FlexboxLayout {spacing:6px;
@@ -60,7 +60,9 @@ export component ControlWindow inherits Window {
                 }
             }
         }
-        if root.show-campaign: PaneScroll { CampaignPanel {} }
+          CampaignPanel {}
+          }
+        }
         if !root.show-campaign && !root.show-plan: PaneScroll {
             VerticalLayout {spacing:14px;min-width:0px;alignment:start;
                 StudioStatus {label:AiControl.status;tone:AiControl.busy ? 4 : 0;}

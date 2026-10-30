@@ -611,6 +611,9 @@ mod tests {
                     );
                     std::thread::sleep(Duration::from_millis(5));
                 };
+                // Windows can inherit the listener's nonblocking mode on accept.
+                // Keep the accept loop bounded, but read each fixture request normally.
+                stream.set_nonblocking(false).unwrap();
                 stream
                     .set_read_timeout(Some(Duration::from_secs(3)))
                     .unwrap();

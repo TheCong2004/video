@@ -58,6 +58,7 @@ pub(crate) fn synthesize(
                 crate::studio_opentalking::synthesize_speech_robust(text, fallback_voice)
             }
         },
+        None if SAMPLE_MODE.load(Ordering::Acquire) => Err("Chọn giọng mẫu đã lưu hoặc tải giọng của bạn trước khi đọc.".into()),
         None => crate::studio_opentalking::synthesize_speech_robust(text, fallback_voice),
     }
 }

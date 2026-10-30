@@ -215,6 +215,16 @@ impl KediLiveRuntime {
             analytics_pending: self.analytics.len(),
         }
     }
+    /// Returns only current, scoped facts suitable for the operator preview.
+    /// Expired facts must disappear from the preview as well as from speech.
+    pub fn featured_snapshot(&self, now: &str) -> Option<ProductSnapshot> {
+        let sku = self.planner.brain.products.featured_sku.as_deref()?;
+        self.planner
+            .brain
+            .products
+            .snapshot(&self.config.tenant_id, &self.config.store_id, sku, now)
+            .cloned()
+    }
     fn transition(&mut self, next: LiveSessionState) -> Result<(), ControlError> {
         self.session
             .transition(next)

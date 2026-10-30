@@ -20,7 +20,11 @@ test('voice samples stay on LIVE while technical and preparation controls move o
   assert.match(controls, /StudioLive\.use-sample-voice\(true\)/);
   assert.match(read('src/crates/concat/ui/workspace/studio-live-service.slint'), /export component StudioVoiceServicePanel/);
   assert.doesNotMatch(ui, /if StudioLive\.show-settings: StudioCard/);
-  assert.doesNotMatch(ui, /title: "Thiết lập LIVE"|text: "AI trả lời"|text: "Chẩn đoán kết nối"|choose-director-clip\(index\)/);
+  assert.doesNotMatch(ui, /title: "Thiết lập LIVE"|text: "AI trả lời"|text: "Chẩn đoán kết nối"/);
+  assert.doesNotMatch(controls, /choose-director-clip\(index\)/);
+  const studio = ui.slice(ui.indexOf('export component StudioLivePage'));
+  assert.match(studio, /StudioLive\.studio-tab==1/);
+  assert.match(studio, /StudioLive\.choose-director-clip\(index\)/);
   const interaction = ui.slice(ui.indexOf('title: "Tương tác"'));
   assert.match(interaction, /toggle-auto-product-reply\(\)/);
   assert.match(interaction, /toggle-auto-product-rotation\(\)/);
@@ -53,7 +57,8 @@ test('automatic lip sync verifies configured service without uploading on page e
   assert.doesNotMatch(ensure, /\.render\(|set_lipsync_enabled\(true\)/);
   assert.doesNotMatch(ui, /Tắt khớp môi GPU|Kết nối & bật khớp môi GPU/);
   const settings = read('src/crates/concat/ui/workspace/studio-pane.slint');
-  assert.match(settings, /route == StudioRoute\.settings: StudioLiveServicePanel/);
+  assert.match(settings, /route == StudioRoute\.live: StudioLivePage/);
+  assert.match(ui, /StudioLive\.studio-tab==6/);
   assert.match(settings, /motion-clips: StudioLive\.director-clips/);
 });
 

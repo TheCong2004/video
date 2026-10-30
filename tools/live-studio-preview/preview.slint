@@ -1,0 +1,16 @@
+import { StudioLivePage, StudioLive } from "../../src/crates/concat/ui/workspace/studio-live.slint";
+import { PaneScroll } from "../../src/crates/concat/ui/workspace/pane.slint";
+import { Theme } from "../../src/crates/concat/ui/theme/theme.slint";
+import { Floword } from "../../src/crates/concat/ui/theme/floword.slint";
+import "../../src/crates/concat-text/fonts/HankenGrotesk-Regular.ttf";
+import "../../src/crates/concat-text/fonts/HankenGrotesk-SemiBold.ttf";
+export {StudioLive, Theme}
+export component Preview inherits Window {
+    in property <int> viewport-width:960;
+    in property <int> viewport-height:900;
+    width:root.viewport-width * 1px;height:root.viewport-height * 1px;
+    default-font-family:Theme.font;default-font-size:13px;background:Floword.ground;
+    PaneScroll {width:parent.width;height:parent.height;
+        StudioLivePage {viewport-width:root.viewport-width * 1px;viewport-height:root.viewport-height * 1px;}
+    }
+}

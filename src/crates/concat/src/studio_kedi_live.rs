@@ -19,6 +19,7 @@ use std::{
 
 type Shared = Arc<Mutex<KediLiveRuntime>>;
 static RUNTIME: OnceLock<Shared> = OnceLock::new();
+static INITIALIZING: AtomicBool = AtomicBool::new(false);
 thread_local! {static SPEECH_GENERATION:Cell<Option<u64>>=const{Cell::new(None)};static SPEECH_MOTION:RefCell<Option<PathBuf>>=const{RefCell::new(None)};}
 pub(crate) fn motion_source() -> Option<PathBuf> {
     SPEECH_MOTION.with(|m| m.borrow().clone())
@@ -126,7 +127,15 @@ fn apply(shared: &Shared, action: ControlAction) -> Result<(), String> {
         &utc_now(),
         monotonic_ms(),
     )
-    .map_err(|e| format!("Kedi: {e:?}"))?;
+    .map_err(|e| -> String { match e {
+        concat_studio::kedi_live::ControlError::Policy => "Thiếu snapshot sản phẩm còn hiệu lực hoặc lời đọc chưa qua kiểm tra dữ liệu. Kiểm tra mục Sản phẩm.".into(),
+        concat_studio::kedi_live::ControlError::State => "Thao tác không phù hợp trạng thái phiên. Kiểm tra Bắt đầu / Tạm dừng / Dừng.".into(),
+        concat_studio::kedi_live::ControlError::Input => "Nội dung trống, quá dài hoặc sai định dạng.".into(),
+        concat_studio::kedi_live::ControlError::Disabled => "Runtime chưa được bật. Chọn cách chạy ở mục Phiên.".into(),
+        concat_studio::kedi_live::ControlError::Unauthorized => "Thao tác không được phép trong chế độ hiện tại.".into(),
+        concat_studio::kedi_live::ControlError::Conflict => "Phiên hoặc phiên bản sản phẩm đã thay đổi. Kiểm tra lại trạng thái.".into(),
+        concat_studio::kedi_live::ControlError::Unavailable => "Dịch vụ hoặc đầu ra chưa sẵn sàng. Kiểm tra mục Sức khỏe.".into(),
+    }})?;
     Ok(())
 }
 fn rand_id() -> u128 {
@@ -242,11 +251,38 @@ fn render(weak: &slint::Weak<App>, shared: &Shared, error: Option<String>) {
     };
     let s = r.status();
     let dev = r.config.dev_mode;
+    let product = r.featured_snapshot(&utc_now()).map(|p| format!(
+        "{} · SKU {} · phiên bản {}\nNguồn snapshot: {}\nGiá: {} · Tồn kho: {}\nCó hiệu lực tới {}",
+        p.title, p.sku, p.revision, p.verification_source,
+        p.price_vnd.map(|v| format!("{v} VND")).unwrap_or_else(|| "Chưa xác nhận".into()),
+        p.stock_state, p.valid_until,
+    )).unwrap_or_else(|| "Chưa có snapshot còn hiệu lực. AI sẽ không tự xác nhận giá hoặc tồn kho.".into());
+    let health = format!(
+        "Phiên: {}\nCửa hàng: {} / {}\nHàng đợi: {} tác vụ · {} ms lời đọc\nGiọng: {} · Cảnh: {}\nLỗi tác vụ: {} · Sự kiện loại bỏ: {}\nP95 lập kế hoạch: {}\nAnalytics chờ: {}\nSKU nổi bật: {} · SKU đã ghim: {}\nFPS / độ lệch hình–tiếng: chưa đo\nPhát public / ghim / gửi bình luận: chưa có transport được kiểm chứng",
+        s.session_id,
+        s.tenant_id,
+        s.store_id,
+        s.queued_tasks,
+        s.queued_audio_ms,
+        s.speech_state,
+        s.scene,
+        s.failed_tasks,
+        s.dropped_events,
+        s.p95_plan_ms
+            .map(|v| format!("{v} ms"))
+            .unwrap_or_else(|| "Chưa có mẫu".into()),
+        s.analytics_pending,
+        s.featured_sku.as_deref().unwrap_or("Chưa chọn"),
+        s.confirmed_pinned_sku.as_deref().unwrap_or("Chưa xác nhận"),
+    );
     drop(r);
     let _ = weak.upgrade_in_event_loop(move |app| {
         let ui = app.global::<StudioLive>();
         ui.set_kedi_state(format!("{:?}", s.state).into());
         ui.set_kedi_automatic(s.automatic);
+        ui.set_kedi_mode(if dev { "simulation" } else { "local" }.into());
+        ui.set_kedi_product(product.into());
+        ui.set_kedi_health(health.into());
         ui.set_kedi_status(
             error
                 .unwrap_or_else(|| {
@@ -269,12 +305,68 @@ fn render(weak: &slint::Weak<App>, shared: &Shared, error: Option<String>) {
 }
 
 pub(crate) fn bind(app: &App, legacy_auto: Arc<AtomicBool>) {
+    // Use the existing lip-sync connection owner; process secrets are never
+    // copied to logs, checkpoint files or model prompts.
+    if let Ok(origin)=std::env::var("KEDI_LIPSYNC_URL"){app.global::<StudioLive>().set_lipsync_url(origin.into());}
+    if let Ok(token)=std::env::var("KEDI_LIPSYNC_TOKEN"){app.global::<StudioLive>().set_lipsync_token(token.into());}
+    let weak = app.as_weak();
+    let enable_auto = legacy_auto.clone();
+    app.global::<StudioLive>().on_kedi_enable(move |real_speech| {
+        let Some(app)=weak.upgrade() else {return};
+        if RUNTIME.get().is_some() {return;}
+        let mut flags=LiveFeatureFlags::from_env();
+        flags.live_enabled=true;
+        flags.opentalking_enabled=real_speech;
+        // UI activation never grants platform-write permission.
+        flags.platform_write_enabled=false;
+        if !real_speech {flags.commerce_enabled=false;flags.motion_enabled=false;}
+        if real_speech && ["KEDI_TENANT_ID","KEDI_STORE_ID","KEDI_AVATAR_MANIFEST","KEDI_ASSET_ROOT"].iter().any(|key|std::env::var(key).unwrap_or_default().trim().is_empty()) {
+            app.global::<StudioLive>().set_kedi_status("Thiếu cấu hình cửa hàng hoặc avatar manifest. Xem mục Sức khỏe; chưa bật lời đọc thật.".into());
+            return;
+        }
+        initialize(&app, enable_auto.clone(), flags);
+    });
     let flags = LiveFeatureFlags::from_env();
-    app.global::<StudioLive>()
-        .set_kedi_available(flags.live_enabled);
     if !flags.live_enabled {
         return;
     }
+    initialize(app, legacy_auto, flags);
+}
+
+fn initialize(app: &App, legacy_auto: Arc<AtomicBool>, flags: LiveFeatureFlags) {
+    if RUNTIME.get().is_some()
+        || INITIALIZING
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+    {
+        return;
+    }
+    app.global::<StudioLive>()
+        .set_kedi_status("Đang chuẩn bị runtime và kiểm tra phiên đã lưu…".into());
+    let weak = app.as_weak();
+    let spawned = std::thread::Builder::new()
+        .name("kedi-live-initialize".into())
+        .spawn(move || {
+            let result = prepare_runtime(flags);
+            let _ = weak.upgrade_in_event_loop(move |app| {
+                match result {
+                    Ok((runtime, path)) => {
+                        finish_initialize(&app, legacy_auto, flags, runtime, path)
+                    }
+                    Err(message) => app.global::<StudioLive>().set_kedi_status(message.into()),
+                }
+                INITIALIZING.store(false, Ordering::Release);
+            });
+        });
+    if spawned.is_err() {
+        INITIALIZING.store(false, Ordering::Release);
+        app.global::<StudioLive>()
+            .set_kedi_status("Không mở được tác vụ chuẩn bị phiên".into());
+    }
+}
+
+// Checkpoint files are read on the preparation worker, never in a UI callback.
+fn prepare_runtime(flags: LiveFeatureFlags) -> Result<(KediLiveRuntime, Option<PathBuf>), String> {
     let mut config = RuntimeConfig::demo();
     config.dev_mode = !flags.opentalking_enabled;
     if let Ok(v) = std::env::var("KEDI_TENANT_ID") {
@@ -311,14 +403,33 @@ pub(crate) fn bind(app: &App, legacy_auto: Arc<AtomicBool>) {
     } else {
         KediLiveRuntime::new(config, flags)
     };
-    let Ok(runtime) = created else {
-        app.global::<StudioLive>()
-            .set_kedi_status("Cấu hình tenant/store không hợp lệ".into());
-        return;
-    };
+    let runtime =
+        created.map_err(|_| "Cấu hình tenant/store hoặc checkpoint không hợp lệ".to_string())?;
+    Ok((runtime, state_path))
+}
+
+fn finish_initialize(
+    app: &App,
+    legacy_auto: Arc<AtomicBool>,
+    flags: LiveFeatureFlags,
+    runtime: KediLiveRuntime,
+    state_path: Option<PathBuf>,
+) {
     let shared = Arc::new(Mutex::new(runtime));
     if RUNTIME.set(shared.clone()).is_err() {
         return;
+    }
+    app.global::<StudioLive>().set_kedi_available(true);
+    app.global::<StudioLive>().set_kedi_mode(
+        if flags.opentalking_enabled {
+            "local"
+        } else {
+            "simulation"
+        }
+        .into(),
+    );
+    if flags.opentalking_enabled {
+        app.global::<StudioLive>().invoke_ensure_lipsync();
     }
     if let Some(path) = state_path {
         start_checkpoint_worker(shared.clone(), app.as_weak(), path);
@@ -333,8 +444,13 @@ pub(crate) fn bind(app: &App, legacy_auto: Arc<AtomicBool>) {
         let Some(app) = weak.upgrade() else {
             return;
         };
+        app.global::<StudioLive>().set_kedi_action_error("".into());
         let action = match command.as_str() {
             "start" => {
+                if flags.opentalking_enabled && (!app.global::<StudioLive>().get_lipsync_enabled() || crate::studio_live_video::selected_motion().is_none()) {
+                    app.global::<StudioLive>().set_kedi_action_error("Chọn và xem chuyển động nhân vật, rồi kiểm tra khớp môi ở mục Âm thanh / Đầu ra trước khi bắt đầu lời đọc thật.".into());
+                    return;
+                }
                 if !start_ready.load(Ordering::Acquire) {
                     app.global::<StudioLive>()
                         .set_kedi_status("Chưa qua preflight avatar/consent/codec".into());
@@ -347,6 +463,8 @@ pub(crate) fn bind(app: &App, legacy_auto: Arc<AtomicBool>) {
                 });
                 legacy_auto.store(false, Ordering::Release);
                 app.global::<StudioLive>().set_auto_reply(false);
+                crate::studio_lipsync::cancel();
+                crate::host::Shell::with(|shell,_|shell.studio.borrow().host.playback.stop_speech());
                 ControlAction::Start
             }
             "pause" => ControlAction::Pause,
@@ -361,14 +479,25 @@ pub(crate) fn bind(app: &App, legacy_auto: Arc<AtomicBool>) {
             ControlAction::Stop | ControlAction::Pause | ControlAction::Takeover
         ) {
             crate::studio_lipsync::cancel();
+            // Stop only the speech clock; the existing idle/video playout stays on.
+            crate::host::Shell::with(|shell,_|shell.studio.borrow().host.playback.stop_speech());
+            app.global::<StudioLive>().set_is_speaking(false);
         }
         let error = apply(&controls, action).err();
+        if let Some(ref message) = error {
+            app.global::<StudioLive>()
+                .set_kedi_action_error(message.clone().into());
+        }
         render(&weak, &controls, error);
     });
     let weak = app.as_weak();
     let controls = shared.clone();
     app.global::<StudioLive>().on_kedi_simulate(move |text| {
         let error = apply(&controls, ControlAction::Simulate { text: text.into() }).err();
+        if let Some(app) = weak.upgrade() {
+            app.global::<StudioLive>()
+                .set_kedi_action_error(error.clone().unwrap_or_default().into());
+        }
         render(&weak, &controls, error);
     });
     let weak = app.as_weak();
@@ -376,7 +505,101 @@ pub(crate) fn bind(app: &App, legacy_auto: Arc<AtomicBool>) {
     app.global::<StudioLive>().on_kedi_speak(move |text| {
         crate::studio_lipsync::cancel();
         let error = apply(&controls, ControlAction::Speak { text: text.into() }).err();
+        if let Some(app) = weak.upgrade() {
+            app.global::<StudioLive>()
+                .set_kedi_action_error(error.clone().unwrap_or_default().into());
+        }
         render(&weak, &controls, error);
+    });
+
+    let weak = app.as_weak();
+    let products = shared.clone();
+    app.global::<StudioLive>().on_kedi_import_product(move || {
+        let Some(app) = weak.upgrade() else { return };
+        if app.global::<StudioLive>().get_kedi_product_busy() {
+            return;
+        }
+        app.global::<StudioLive>().set_kedi_product_busy(true);
+        let revision = products.lock().ok().map(|r| r.status().revision);
+        let shared = products.clone();
+        let weak = weak.clone();
+        if let Some(app) = weak.upgrade() {
+            app.global::<StudioLive>().set_kedi_action_error("".into());
+        }
+        let spawned = std::thread::Builder::new()
+            .name("kedi-product-import".into())
+            .spawn(move || {
+                let Some(path) = rfd::FileDialog::new()
+                    .add_filter("Product snapshot", &["json"])
+                    .pick_file()
+                else {
+                    let _ = weak.upgrade_in_event_loop(|app| {
+                        app.global::<StudioLive>().set_kedi_product_busy(false)
+                    });
+                    return;
+                };
+                let result = (|| -> Result<(), String> {
+                    if std::fs::metadata(&path)
+                        .map_err(|_| "Không đọc được snapshot")?
+                        .len()
+                        > 65536
+                    {
+                        return Err("Snapshot vượt giới hạn 64 KB".into());
+                    }
+                    use std::io::Read;
+                    let mut bytes = Vec::new();
+                    std::fs::File::open(path)
+                        .map_err(|_| "Không đọc được snapshot")?
+                        .take(65537)
+                        .read_to_end(&mut bytes)
+                        .map_err(|_| "Không đọc được snapshot")?;
+                    if bytes.len() > 65536 {
+                        return Err("Snapshot vượt giới hạn 64 KB".into());
+                    }
+                    let snapshot: ProductSnapshot = serde_json::from_slice(
+                        bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&bytes),
+                    )
+                    .map_err(|_| "Snapshot JSON không đúng hợp đồng sản phẩm")?;
+                    let sku = snapshot.sku.clone();
+                    let product_revision = snapshot.revision;
+                    let mut r = shared.lock().map_err(|_| "Runtime không khả dụng")?;
+                    if Some(r.status().revision) != revision {
+                        return Err(
+                            "Phiên đã thay đổi trong lúc chọn tệp. Chọn lại snapshot.".into()
+                        );
+                    }
+                    r.install_snapshot(snapshot)
+                        .map_err(|e| format!("Không nhận snapshot: {e:?}"))?;
+                    let expected_revision = r.status().revision;
+                    r.execute(
+                        ControlRequest {
+                            command_id: format!("import-{}", rand_id()),
+                            expected_revision,
+                            action: ControlAction::Feature {
+                                sku,
+                                revision: product_revision,
+                            },
+                        },
+                        Role::Operator,
+                        &utc_now(),
+                        monotonic_ms(),
+                    )
+                    .map_err(|e| format!("Không chọn được sản phẩm: {e:?}"))?;
+                    Ok(())
+                })();
+                let message = result.err().unwrap_or_default();
+                let _ = weak.upgrade_in_event_loop(move |app| {
+                    app.global::<StudioLive>().set_kedi_product_busy(false);
+                    app.global::<StudioLive>()
+                        .set_kedi_action_error(message.into());
+                });
+                render(&weak, &shared, None);
+            });
+        if spawned.is_err() {
+            app.global::<StudioLive>().set_kedi_product_busy(false);
+            app.global::<StudioLive>()
+                .set_kedi_action_error("Không mở được tác vụ nhập snapshot".into());
+        }
     });
 
     let weak = app.as_weak();
@@ -503,6 +726,10 @@ pub(crate) fn bind(app: &App, legacy_auto: Arc<AtomicBool>) {
                         }
                     }
                 }
+                let ready_now = ready.load(Ordering::Acquire);
+                let _ = weak.upgrade_in_event_loop(move |app| {
+                    app.global::<StudioLive>().set_kedi_ready(ready_now)
+                });
                 render(&weak, &shared, preflight_error.clone());
                 std::thread::sleep(Duration::from_millis(80));
             }
@@ -511,4 +738,83 @@ pub(crate) fn bind(app: &App, legacy_auto: Arc<AtomicBool>) {
         app.global::<StudioLive>()
             .set_kedi_status("Không tạo được Kedi worker".into());
     }
+}
+
+/// Runs real native callbacks against the isolated local runtime; never a platform.
+#[cfg(debug_assertions)]
+pub(crate) fn smoke_operator(app: &App) -> Result<(), String> {
+    use std::{cell::RefCell, rc::Rc};
+    app.global::<StudioLive>().invoke_kedi_enable(false);
+    let result = Rc::new(RefCell::new(None));
+    let completed = result.clone();
+    let weak = app.as_weak();
+    let deadline = Instant::now() + Duration::from_secs(15);
+    let timer = slint::Timer::default();
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(20),
+        move || {
+            if completed.borrow().is_some() {
+                return;
+            }
+            if RUNTIME.get().is_some() {
+                let outcome = weak
+                    .upgrade()
+                    .ok_or_else(|| "Test window disappeared".to_string())
+                    .and_then(|app| smoke_operator_actions(&app));
+                *completed.borrow_mut() = Some(outcome);
+                let _ = slint::quit_event_loop();
+            } else if Instant::now() >= deadline {
+                *completed.borrow_mut() =
+                    Some(Err("Local runtime initialization timed out".into()));
+                let _ = slint::quit_event_loop();
+            }
+        },
+    );
+    slint::run_event_loop().map_err(|e| e.to_string())?;
+    timer.stop();
+    let output = result
+        .borrow_mut()
+        .take()
+        .unwrap_or_else(|| Err("Operator smoke ended before initialization".into()));
+    output
+}
+
+#[cfg(debug_assertions)]
+fn smoke_operator_actions(app: &App) -> Result<(), String> {
+    let ui = app.global::<StudioLive>();
+    let shared = RUNTIME
+        .get()
+        .ok_or("Local runtime was not created by the UI callback")?;
+    if !shared.lock().map_err(|_| "runtime lock")?.config.dev_mode {
+        return Err("Operator smoke requires simulation mode".into());
+    }
+    ui.invoke_kedi_control("start".into());
+    if shared.lock().map_err(|_| "runtime lock")?.status().state != LiveSessionState::Live {
+        return Err("Start callback failed".into());
+    }
+    ui.invoke_kedi_simulate("xin chào".into());
+    ui.invoke_kedi_control("pause".into());
+    if shared.lock().map_err(|_| "runtime lock")?.status().state != LiveSessionState::Paused {
+        return Err("Pause callback failed".into());
+    }
+    ui.invoke_kedi_control("resume".into());
+    ui.invoke_kedi_control("takeover".into());
+    if shared
+        .lock()
+        .map_err(|_| "runtime lock")?
+        .status()
+        .automatic
+    {
+        return Err("Takeover left automatic speech enabled".into());
+    }
+    ui.invoke_kedi_control("stop".into());
+    let s = shared.lock().map_err(|_| "runtime lock")?.status();
+    if s.state != LiveSessionState::Stopped || s.queued_tasks != 0 || s.active_task.is_some() {
+        return Err("STOP did not drain and cancel the local runtime".into());
+    }
+    log::info!(
+        "KEDI_OPERATOR_SMOKE=PASS enable/start/comment/pause/resume/takeover/stop; no platform writes"
+    );
+    Ok(())
 }

@@ -42,6 +42,19 @@ $receipt=[ordered]@{
 }
 if($CampaignWorker){$receipt.campaignWorker='concat-campaign-worker.exe';$receipt.campaignWorkerSha256=$workerHash}
 $ready=Join-Path $repo '.runtime\kedi-current-build.json'
+if(!$CampaignWorker -and (Test-Path -LiteralPath $ready)){
+    # A view-only publication must retain the independently verified worker.
+    $previousReceipt=Get-Content -LiteralPath $ready -Raw | ConvertFrom-Json
+    if($previousReceipt.campaignWorkerSha256){
+        if($previousReceipt.campaignWorker -ne 'concat-campaign-worker.exe' -or
+           (Get-FileHash -LiteralPath $workerSource -Algorithm SHA256).Hash.ToLowerInvariant() -ne $previousReceipt.campaignWorkerSha256.ToLowerInvariant()){
+            throw 'Existing campaign worker no longer matches its receipt. Nothing was published.'
+        }
+        foreach($field in @('campaignWorker','campaignWorkerSha256','campaignWorkerRevision','workerVerifiedAtUtc')){
+            if($previousReceipt.PSObject.Properties.Name -contains $field){$receipt[$field]=$previousReceipt.$field}
+        }
+    }
+}
 $staged="$ready.new"
 $json=$receipt | ConvertTo-Json
 [IO.File]::WriteAllText($staged,$json,[Text.UTF8Encoding]::new($false))

@@ -9,6 +9,7 @@ import { StudioAi } from "studio-ai.slint";
 import { StudioOpenTalking } from "studio-opentalking.slint";
 import { PromaxAvatarPicker, StudioPromaxAvatars } from "studio-promax-avatars.slint";
 import { StudioProducts, StudioProductsPanel } from "studio-products.slint";
+import { ControlFoldout } from "control-chrome.slint";
 
 export struct StudioLiveCommentRow {
     event-id: string,
@@ -19,6 +20,16 @@ export struct StudioLiveCommentRow {
 }
 
 export global StudioLive {
+    in-out property <int> studio-tab:0;
+    in-out property <string> kedi-mode:"disabled";
+    in-out property <bool> kedi-ready;
+    in-out property <string> kedi-product;
+    in-out property <string> kedi-health;
+    in-out property <string> kedi-action-error;
+    in-out property <string> kedi-script;
+    in-out property <bool> kedi-product-busy;
+    callback kedi-enable(bool);
+    callback kedi-import-product();
     in-out property <bool> kedi-available;
     in-out property <string> kedi-state: "Created";
     in-out property <string> kedi-status;
@@ -129,7 +140,7 @@ component LiveTabButton inherits Rectangle {
     TouchArea { mouse-cursor: pointer; clicked => { focus.focus(); root.clicked(); } }
 }
 
-export component StudioLivePage inherits VerticalLayout {
+component LegacyLivePage inherits VerticalLayout {
     // Breakpoints must depend on the externally allocated viewport, not this
     // layout's width: Grid/Flex measurement reads its children's minimum sizes.
     // Reading root.width while choosing those sizes recurses at minimize widths.
@@ -375,4 +386,186 @@ export component StudioLivePage inherits VerticalLayout {
             if StudioLive.is-speaking: StudioButton { label: "Ngắt lời"; compact: true; clicked => { StudioLive.interrupt-speech(); } }
         }
     }
+}
+
+component LiveStudioPreview inherits StudioCard {
+    in property <length> preview-height:320px;
+    property <image> poster:StudioLive.avatar-source==1 ? StudioPromaxAvatars.preview : StudioOpenTalking.avatar-preview;
+    StudioHeading {title:"Xem trước · hình và lời đọc";}
+    Rectangle {
+        min-width:0px;height:root.preview-height;background:#080b12;border-radius:8px;clip:true;
+        if StudioLive.video-frame.width>0: Image {width:100%;height:100%;source:StudioLive.video-frame;image-fit:contain;}
+        if StudioLive.video-frame.width==0 && root.poster.width>0: Image {width:100%;height:100%;source:root.poster;image-fit:contain;}
+        if StudioLive.video-frame.width==0 && root.poster.width==0: Text {width:100%;height:100%;text:"Chọn nhân vật ở mục Nhân vật / Cử chỉ";color:#ffffff;font-size:13px;wrap:word-wrap;horizontal-alignment:center;vertical-alignment:center;}
+        if StudioLive.displayed-subtitle!="": Rectangle {
+            x:12px;width:Math.max(0px,parent.width - 24px);y:parent.height - self.height - 12px;min-height:caption.preferred-height;background:#000000cc;border-radius:8px;
+            caption:=VerticalLayout {padding:8px;Text {text:StudioLive.displayed-subtitle;color:white;wrap:word-wrap;min-width:0px;}}
+        }
+    }
+    Text {text:StudioLive.lipsync-active ? "Đang phát hình–tiếng đã đồng bộ" : StudioLive.motion-playing ? "Đang phát chuyển động nguồn · chưa khớp môi theo lời mới" : "Chưa có chuyển động đang phát";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+    if StudioLive.motion-status!="": StudioStatus {label:StudioLive.motion-status;}
+}
+
+export component StudioLivePage inherits VerticalLayout {
+    in property <length> viewport-width:1080px;
+    in property <length> viewport-height:720px;
+    callback configure-ai();
+    callback configure-services();
+    callback manage-avatars();
+    property <bool> legacy;
+    property <bool> can-start:StudioLive.kedi-available && StudioLive.kedi-ready && (StudioLive.kedi-state=="Created" || StudioLive.kedi-state=="Recovering" || StudioLive.kedi-state=="Stopped");
+    property <bool> live:StudioLive.kedi-state=="Live";
+    property <string> state-label:!StudioLive.kedi-available ? "Chưa bật phiên" : root.live ? (StudioLive.kedi-automatic ? "Đang chạy" : "Đã tiếp quản") : StudioLive.kedi-state=="Paused" ? "Tạm dừng" : StudioLive.kedi-state=="Stopped" ? "Đã dừng" : StudioLive.kedi-state=="Recovering" ? "Cần khôi phục" : StudioLive.kedi-ready ? "Sẵn sàng" : "Đang kiểm tra";
+    min-width:0px;height:Math.max(420px,root.viewport-height - 8px);spacing:12px;
+    init=>{
+        if !StudioOpenTalking.catalogs-loaded && !StudioOpenTalking.busy {StudioOpenTalking.refresh();}
+        if !StudioPromaxAvatars.loaded && !StudioPromaxAvatars.busy {StudioPromaxAvatars.refresh();}
+        if StudioPromaxAvatars.live-active-id!="" {StudioLive.avatar-source=1;}
+    }
+    FlexboxLayout {spacing:8px;min-width:0px;vertical-stretch:0;
+        StudioHeading {title:"Live Studio";glyph:Glyph.waveform;}
+        StudioStatus {width:144px;height:32px;label:root.state-label;tone:root.live ? 1 : 0;}
+        StudioButton {label:root.legacy ? "Live Studio mới" : "Điều khiển cũ";compact:true;clicked=>{root.legacy=!root.legacy;}}
+    }
+    if !root.legacy: VerticalLayout {spacing:12px;min-width:0px;vertical-stretch:1;
+        Text {text:StudioLive.kedi-mode=="simulation" ? "THỬ LOCAL · phản hồi và phát lời được mô phỏng, không phát livestream" : StudioLive.kedi-mode=="local" ? "AVATAR / GIỌNG LOCAL · chưa phát tới nền tảng" : "Chuẩn bị phiên, nhân vật và sản phẩm trước khi phát";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+        if StudioLive.kedi-available: FlexboxLayout {spacing:8px;min-width:0px;vertical-stretch:0;
+            StudioButton {label:StudioLive.kedi-state=="Stopped" ? "Phiên mới" : "Bắt đầu phiên";primary:true;enabled:root.can-start;clicked=>{StudioLive.kedi-control("start");}}
+            StudioButton {label:StudioLive.kedi-state=="Paused" || !StudioLive.kedi-automatic ? "Tiếp tục" : "Tạm dừng";enabled:root.live || StudioLive.kedi-state=="Paused";clicked=>{StudioLive.kedi-control(StudioLive.kedi-state=="Paused" || !StudioLive.kedi-automatic ? "resume" : "pause");}}
+            StudioButton {label:"Tiếp quản";enabled:root.live || StudioLive.kedi-state=="Paused" || StudioLive.kedi-state=="Recovering";clicked=>{StudioLive.kedi-control("takeover");}}
+            StudioButton {label:"DỪNG PHIÊN";enabled:StudioLive.kedi-state!="Stopped";clicked=>{StudioLive.kedi-control("stop");}}
+        }
+        if StudioLive.kedi-action-error!="": StudioStatus {label:StudioLive.kedi-action-error;tone:3;}
+        if StudioLive.kedi-status!="": StudioStatus {label:StudioLive.kedi-status;}
+        FlexboxLayout {spacing:6px;min-width:0px;vertical-stretch:0;
+            for entry[index] in ["Phiên", "Nhân vật / Cử chỉ", "Kịch bản", "Sản phẩm", "Bình luận", "Âm thanh / Đầu ra", "Sức khỏe"]: StudioButton {preferred-width:root.viewport-width<650px ? 96px : 120px;min-width:root.viewport-width<650px ? 96px : 120px;max-width:root.viewport-width<650px ? 96px : 120px;compact:true;label:entry;primary:StudioLive.studio-tab==index;clicked=>{StudioLive.studio-tab=index;}}
+        }
+        PaneScroll {vertical-stretch:1;min-height:100px;
+          VerticalLayout {spacing:12px;min-width:0px;alignment:start;
+        if StudioLive.studio-tab==0: VerticalLayout {spacing:12px;min-width:0px;
+            if !StudioLive.kedi-available: StudioCard {
+                StudioHeading {title:"Chọn cách chạy";}
+                Text {text:"Thử local kiểm tra luồng bình luận → trả lời → hàng đợi mà không dùng tài khoản thật. Avatar / giọng local cần manifest và cấu hình cửa hàng đã kiểm tra.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                FlexboxLayout {spacing:8px;
+                    StudioButton {label:"Bật thử local";primary:true;clicked=>{StudioLive.kedi-enable(false);}}
+                    StudioButton {label:"Bật avatar / giọng local";clicked=>{StudioLive.kedi-enable(true);}}
+                }
+            }
+            StudioCard {
+                StudioHeading {title:"Nguồn bình luận TikTok";}
+                Text {text:"Kết nối này nhận tương tác, không tự phát video lên TikTok. Chỉ kết nối kênh bạn được phép sử dụng.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                StudioField {label:"Kênh TikTok";placeholder:"@ten_kenh";value:StudioLive.username;enabled:!StudioLive.session-active && !StudioLive.busy;edited(text)=>{StudioLive.username=text;}}
+                StudioStatus {label:StudioLive.state=="connected" ? "Đã kết nối nguồn bình luận" : StudioLive.state=="connecting" || StudioLive.state=="starting" ? "Đang kết nối" : StudioLive.state=="failed" ? "Kết nối thất bại" : "Chưa kết nối";tone:StudioLive.state=="connected" ? 1 : 0;}
+                if StudioLive.status!="": StudioStatus {label:StudioLive.status;}
+                FlexboxLayout {spacing:8px;
+                    StudioButton {label:StudioLive.busy ? "Đang xử lý…" : "Kết nối bình luận";enabled:!StudioLive.busy && !StudioLive.session-active && StudioLive.username!="";clicked=>{StudioLive.connect(StudioLive.username);}}
+                    StudioButton {label:"Ngắt kết nối";enabled:StudioLive.session-active && !StudioLive.busy;clicked=>{StudioLive.disconnect();}}
+                }
+            }
+            LiveStudioPreview {preview-height:Math.max(220px,Math.min(420px,root.viewport-height - 260px));}
+        }
+        if StudioLive.studio-tab==1: VerticalLayout {spacing:12px;min-width:0px;
+            StudioCard {
+                StudioHeading {title:"Nhân vật";}
+                Select {options:["Nhân vật có sẵn", "Video nhân vật của tôi"];current:StudioLive.avatar-source;changed(i)=>{StudioLive.avatar-source=i;}}
+                if StudioLive.avatar-source==0: Select {options:StudioOpenTalking.avatar-options;current:StudioOpenTalking.avatar-index;placeholder:"Chọn nhân vật";enabled:!StudioOpenTalking.busy;changed(i)=>{StudioOpenTalking.select-avatar(i);}}
+                if StudioLive.avatar-source==1: PromaxAvatarPicker {compact:true;import-requested=>{root.manage-avatars();}}
+                FlexboxLayout {spacing:8px;
+                    StudioButton {label:"Kho nhân vật";clicked=>{root.manage-avatars();}}
+                    StudioButton {label:StudioLive.motion-loading ? "Đang tải…" : "Xem chuyển động";enabled:!StudioLive.motion-loading && !StudioPromaxAvatars.busy;clicked=>{if StudioLive.avatar-source==1 {StudioPromaxAvatars.use-live();} else {StudioLive.select-avatar-motion(StudioOpenTalking.avatar-index);}}}
+                    StudioButton {label:"Chọn video nguồn";enabled:!StudioLive.motion-loading;clicked=>{StudioLive.choose-motion();}}
+                    StudioButton {label:"Dừng chuyển động";enabled:StudioLive.motion-playing;clicked=>{StudioLive.stop-motion();}}
+                }
+            }
+            LiveStudioPreview {}
+            ControlFoldout {title:"Thư viện cử chỉ từ footage";summary:StudioLive.director-status;
+                Text {text:"Giữ chuyển động cơ thể từ video đã chuẩn bị; không coi đây là sinh cử chỉ toàn thân bằng AI.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                for gesture[index] in ["Trả lời bình luận", "Chào khán giả", "Giải thích / Giới thiệu"]: VerticalLayout {spacing:6px;min-width:0px;
+                    Text {text:gesture;color:Floword.text;}
+                    if index<StudioLive.director-clips.length: Text {text:StudioLive.director-clips[index];color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                    FlexboxLayout {spacing:6px;
+                        StudioButton {label:"Chọn clip";compact:true;enabled:!StudioLive.director-busy;clicked=>{StudioLive.choose-director-clip(index);}}
+                        StudioButton {label:"Bỏ clip";compact:true;enabled:!StudioLive.director-busy;clicked=>{StudioLive.clear-director-clip(index);}}
+                    }
+                }
+                StudioButton {label:StudioLive.director-enabled ? "Tắt thư viện cử chỉ" : "Bật thư viện cử chỉ";enabled:!StudioLive.director-busy;clicked=>{StudioLive.toggle-director();}}
+            }
+        }
+        if StudioLive.studio-tab==2: StudioCard {
+            StudioHeading {title:"Kịch bản và lời nói thủ công";}
+            StudioField {label:"Nội dung lời đọc";value:StudioLive.kedi-script;multiline:true;placeholder:"Nhập đoạn lời đọc…";edited(text)=>{StudioLive.kedi-script=text;}}
+            Text {text:"Lời đọc đi qua hàng đợi của phiên. Nói thủ công không chèn cam kết giá / tồn / vận chuyển; dùng Giới thiệu sản phẩm để đọc dữ liệu đã xác nhận.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+            FlexboxLayout {spacing:8px;
+                StudioButton {label:"Đưa vào hàng đợi";primary:true;enabled:root.live && StudioLive.kedi-script!="";clicked=>{StudioLive.kedi-speak(StudioLive.kedi-script);}}
+                StudioButton {label:"Đọc giới thiệu sản phẩm";enabled:root.live;clicked=>{StudioLive.kedi-control("introduce");}}
+            }
+            if StudioLive.kedi-reply!="": Text {text:"Lời phản hồi gần nhất: " + StudioLive.kedi-reply;color:Floword.text;wrap:word-wrap;min-width:0px;}
+        }
+        if StudioLive.studio-tab==3: VerticalLayout {spacing:12px;min-width:0px;
+            StudioCard {
+                StudioHeading {title:"Sản phẩm của phiên LiveBrain";}
+                Text {text:StudioLive.kedi-product=="" ? "Chưa có dữ liệu sản phẩm của phiên" : StudioLive.kedi-product;color:Floword.text;wrap:word-wrap;min-width:0px;}
+                Text {text:"Snapshot từ gateway hoặc tệp bạn nhập phải đúng cửa hàng, có phiên bản và còn hiệu lực. Chọn sản phẩm trong phiên không đồng nghĩa đã ghim trên nền tảng.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                FlexboxLayout {spacing:8px;
+                    StudioButton {label:StudioLive.kedi-product-busy ? "Đang đọc snapshot…" : "Nhập snapshot sản phẩm";enabled:StudioLive.kedi-available && !StudioLive.kedi-product-busy;clicked=>{StudioLive.kedi-import-product();}}
+                    StudioButton {label:"Giới thiệu sản phẩm";enabled:root.live;clicked=>{StudioLive.kedi-control("introduce");}}
+                }
+            }
+            ControlFoldout {title:"Danh mục và kịch bản có sẵn";summary:"Danh mục cũ không thay thế snapshot giá / tồn của LiveBrain";
+                StudioProductsPanel {}
+            }
+        }
+        if StudioLive.studio-tab==4: VerticalLayout {spacing:12px;min-width:0px;
+            if StudioLive.kedi-mode=="simulation": StudioCard {
+                StudioHeading {title:"Bình luận kiểm thử local";}
+                StudioField {label:"Bình luận";value:StudioLive.kedi-comment;placeholder:"Shop ơi, giá bao nhiêu?";edited(text)=>{StudioLive.kedi-comment=text;}}
+                StudioButton {label:"Gửi vào LiveBrain";primary:true;enabled:root.live && StudioLive.kedi-comment!="";clicked=>{StudioLive.kedi-simulate(StudioLive.kedi-comment);}}
+                Text {text:"Kết quả: " + (StudioLive.kedi-reply=="" ? "Chưa có phản hồi" : StudioLive.kedi-reply);color:Floword.text;wrap:word-wrap;min-width:0px;}
+            }
+            StudioCard {
+                StudioHeading {title:"Tương tác từ nguồn kết nối";}
+                Text {text:StudioLive.comments.length + " sự kiện đang hiển thị";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                if StudioLive.comments.length==0: Text {text:"Chưa nhận tương tác. Có thể thử local ở phía trên mà không cần kết nối TikTok.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                for comment in StudioLive.comments: VerticalLayout {spacing:4px;min-width:0px;
+                    Text {text:comment.username + " · " + comment.time;color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                    Text {text:comment.content;color:Floword.text;wrap:word-wrap;min-width:0px;}
+                    Rectangle {height:1px;background:Floword.line;}
+                }
+            }
+        }
+        if StudioLive.studio-tab==5: VerticalLayout {spacing:12px;min-width:0px;
+            StudioCard {
+                StudioHeading {title:"Giọng nói và khớp môi";}
+                Text {text:StudioLive.kedi-mode=="simulation" ? "Phiên thử local không tạo âm thanh. Để nghe thật, mở phiên avatar / giọng local với cấu hình đã kiểm tra." : "Luồng tự động dùng KEDI_VOICE_ID đã cấu hình; chọn giọng bên dưới để nghe thử bằng công cụ có sẵn.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                Select {options:StudioOpenTalking.voice-options;current:StudioOpenTalking.voice-index;placeholder:"Giọng nghe thử";changed(i)=>{StudioOpenTalking.voice-index=i;}}
+                FlexboxLayout {spacing:8px;
+                    StudioButton {label:"Nghe thử giọng";enabled:!root.live && !StudioLive.is-speaking && StudioOpenTalking.voice-options.length>0;clicked=>{StudioLive.speak-text(I18n.t("studioLive.testSpeechSample"));}}
+                    StudioButton {label:"Ngắt giọng hiện tại";enabled:StudioLive.is-speaking;clicked=>{StudioLive.interrupt-speech();}}
+                    StudioButton {label:StudioLive.lipsync-busy ? "Đang kết nối…" : "Kiểm tra khớp môi";enabled:!StudioLive.lipsync-busy;clicked=>{StudioLive.ensure-lipsync();}}
+                }
+                if StudioLive.lipsync-status!="": StudioStatus {label:StudioLive.lipsync-status;}
+            }
+            StudioCard {
+                StudioHeading {title:"Màn hình sạch cho OBS / LIVE Studio";}
+                Text {text:"Thêm nguồn Cửa sổ → Concat LIVE Output trong phần mềm phát. Mở cửa sổ này không bắt đầu livestream public.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                StudioButton {label:StudioLive.output-window-open ? "Đóng màn hình đầu ra" : "Mở màn hình đầu ra";primary:true;enabled:StudioLive.output-window-open || StudioLive.video-frame.width>0 || StudioOpenTalking.avatar-preview.width>0 || StudioPromaxAvatars.preview.width>0;clicked=>{StudioLive.toggle-output-window();}}
+            }
+            LiveStudioPreview {}
+        }
+        if StudioLive.studio-tab==6: VerticalLayout {spacing:12px;min-width:0px;
+            StudioCard {
+                StudioHeading {title:"Trạng thái runtime thực tế";}
+                Text {text:StudioLive.kedi-health=="" ? "Runtime chưa bật. Chọn cách chạy trong mục Phiên." : StudioLive.kedi-health;color:Floword.text;wrap:word-wrap;min-width:0px;}
+                Text {text:StudioLive.kedi-available && !StudioLive.kedi-ready ? "Chưa qua preflight. Chưa cho bắt đầu phiên lời đọc thật." : "Dừng / Tiếp quản hủy tác vụ tự động, không phát lại thao tác chưa rõ kết quả.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                if StudioLive.kedi-available: Text {text:"Chế độ phiên giữ nguyên trong lần mở app này. Muốn đổi từ thử local sang avatar thật, dừng phiên rồi mở lại ứng dụng.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+            }
+            ControlFoldout {title:"Cấu hình avatar / giọng local";summary:"Dùng cấu hình dịch vụ hiện có; không nhập token vào bình luận";
+                Text {text:"Cần KEDI_TENANT_ID, KEDI_STORE_ID, KEDI_ASSET_ROOT và KEDI_AVATAR_MANIFEST. Manifest phải có consent còn hiệu lực và checksum clip. KEDI_VOICE_ID chọn giọng đọc. Gateway cần KEDI_COMMERCE_ENABLED cùng origin, token và SKU đã cấu hình. Chưa cấu hình thì dùng thử local; không tự tải model.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+                StudioButton {label:"Mở kho nhân vật";clicked=>{root.manage-avatars();}}
+            }
+        }
+    }
+          }
+        }
+    if root.legacy: PaneScroll {LegacyLivePage {viewport-width:root.viewport-width;viewport-height:root.viewport-height;configure-ai=>{root.configure-ai();}configure-services=>{root.configure-services();}manage-avatars=>{root.manage-avatars();}}}
 }
