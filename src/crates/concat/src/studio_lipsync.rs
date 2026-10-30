@@ -18,21 +18,6 @@ static CONFIG_EPOCH: AtomicU64 = AtomicU64::new(0);
 static FLIGHT: Mutex<()> = Mutex::new(());
 static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
 
-fn find_python_and_script() -> Option<(std::path::PathBuf, std::path::PathBuf)> {
-    let python_candidates = [
-        std::path::PathBuf::from(r"d:\capcutpolot\artcraft\engines\opentalking\.venv\Scripts\python.exe"),
-        std::path::PathBuf::from(r".\artcraft\engines\opentalking\.venv\Scripts\python.exe"),
-        std::path::PathBuf::from("python"),
-    ];
-    let script_candidates = [
-        std::path::PathBuf::from(r"d:\capcutpolot\concat\scripts\render_avatar_lipsync.py"),
-        std::path::PathBuf::from(r".\scripts\render_avatar_lipsync.py"),
-    ];
-    let py = python_candidates.iter().find(|p| p.exists())?.clone();
-    let sc = script_candidates.iter().find(|p| p.exists())?.clone();
-    Some((py, sc))
-}
-
 /// Cancel queued playback/render delivery; an in-flight GPU POST is never retried.
 pub(crate) fn cancel() {
     EPOCH.fetch_add(1, Ordering::AcqRel);
@@ -100,61 +85,6 @@ pub(crate) fn play(
                 .set_lipsync_status("GPU: câu trả lời đã phát xong".into());
         });
         return Ok(None);
-    }
-
-    // Local Wav2Lip fallback when no external GPU server is configured
-    if let Some((selection, source)) = crate::studio_live_video::selected_motion_or_default() {
-        if let Some((py, sc)) = find_python_and_script() {
-            let _flight = FLIGHT.try_lock().map_err(|_| "Lip-sync reply already active")?;
-            let _ = weak.upgrade_in_event_loop(|app| {
-                app.global::<StudioLive>()
-                    .set_lipsync_status("AI đang dựng khẩu hình khớp môi theo lời đọc...".into());
-            });
-
-            let temp_audio = std::env::temp_dir().join(format!("concat-live-tts-{}.mp3", std::process::id()));
-            if std::fs::write(&temp_audio, &audio.bytes).is_ok() {
-                let out_mp4 = std::env::temp_dir().join(format!(
-                    "concat-lipsync-{}-{}.mp4",
-                    std::process::id(),
-                    NEXT_FILE.fetch_add(1, Ordering::Relaxed)
-                ));
-
-                #[cfg(target_os = "windows")]
-                {
-                    use std::os::windows::process::CommandExt;
-                    const CREATE_NO_WINDOW: u32 = 0x08000000;
-                    let res = std::process::Command::new(&py)
-                        .creation_flags(CREATE_NO_WINDOW)
-                        .args([
-                            sc.to_string_lossy().as_ref(),
-                            "--avatar",
-                            &source.to_string_lossy(),
-                            "--audio",
-                            &temp_audio.to_string_lossy(),
-                            "--output",
-                            &out_mp4.to_string_lossy(),
-                        ])
-                        .output();
-
-                    let _ = std::fs::remove_file(&temp_audio);
-
-                    if let Ok(out) = res {
-                        if out.status.success() && out_mp4.exists() {
-                            let cleanup = Cleanup(out_mp4.clone());
-                            let play_res = play_complete(playback, weak, text, epoch, selection, out_mp4);
-                            drop(cleanup);
-                            if play_res.is_ok() {
-                                let _ = weak.upgrade_in_event_loop(|app| {
-                                    app.global::<StudioLive>()
-                                        .set_lipsync_status("Đã phát xong câu trả lời khớp môi".into());
-                                });
-                                return Ok(None);
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     Ok(Some(audio))
@@ -269,23 +199,12 @@ impl Drop for Cleanup {
 }
 
 pub(crate) fn bind(app: &App) {
-    app.global::<StudioLive>().set_lipsync_enabled(true);
-    if find_python_and_script().is_some() {
-        app.global::<StudioLive>().set_lipsync_status("Khớp môi AI: Tự động · Sẵn sàng".into());
-    }
-
     let weak = app.as_weak();
     app.global::<StudioLive>().on_ensure_lipsync(move || {
         let Some(app) = weak.upgrade() else { return };
         let live = app.global::<StudioLive>();
-        // Auto-connect to backend in background silently without requiring manual user action
         if !live.get_lipsync_token().trim().is_empty() {
             live.invoke_connect_lipsync();
-        } else if find_python_and_script().is_some() {
-            live.set_lipsync_enabled(true);
-            live.set_lipsync_status("✅ Khớp môi AI đã sẵn sàng (Mô hình Wav2Lip nội bộ). Lời đọc sẽ tự động khớp khẩu hình nhân vật.".into());
-        } else {
-            live.set_lipsync_status("Dịch vụ khớp môi đang chạy nền và sẵn sàng.".into());
         }
     });
     let weak = app.as_weak();
@@ -310,15 +229,11 @@ pub(crate) fn bind(app: &App) {
                         if let Ok(mut slot) = CLIENT.get_or_init(|| Mutex::new(None)).lock() { *slot = Some(client); }
                         live.set_lipsync_enabled(true);
                         live.set_lipsync_token("".into());
-                        live.set_lipsync_status("Khớp môi tự động: Đã kết nối hệ thống".into());
+                        live.set_lipsync_status("Khớp môi GPU: Đã kết nối hệ thống".into());
                     }
                     Err(_) => {
-                        if find_python_and_script().is_some() {
-                            live.set_lipsync_enabled(true);
-                            live.set_lipsync_status("Khớp môi AI: Tự động · Sẵn sàng (Mô hình nội bộ)".into());
-                        } else {
-                            live.set_lipsync_status("".into());
-                        }
+                        live.set_lipsync_enabled(false);
+                        live.set_lipsync_status("Không kết nối được dịch vụ khớp môi GPU.".into());
                     }
                 }
             });

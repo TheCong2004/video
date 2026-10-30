@@ -179,76 +179,17 @@ fn create_job_video_with_duration(id: &str, avatar: &str, script: &str, voice: &
         let temp_audio = std::env::temp_dir().join(format!("concat-render-{}.mp3", id));
         let _ = std::fs::write(&temp_audio, &audio.bytes);
 
-        let python_candidates = [
-            std::path::PathBuf::from(
-                r"d:\capcutpolot\artcraft\engines\opentalking\.venv\Scripts\python.exe",
-            ),
-            std::path::PathBuf::from(r".\artcraft\engines\opentalking\.venv\Scripts\python.exe"),
-            std::path::PathBuf::from("python"),
-        ];
+        let ffmpeg_path = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|d| d.join("ffmpeg.exe")))
+            .filter(|p| p.exists())
+            .unwrap_or_else(|| std::path::PathBuf::from("ffmpeg"));
 
-        let script_candidates = [
-            std::path::PathBuf::from(
-                r"d:\capcutpolot\ConcatStudio-Portable\scripts\render_avatar_lipsync.py",
-            ),
-            std::path::PathBuf::from(r"d:\capcutpolot\concat\scripts\render_avatar_lipsync.py"),
-            std::env::current_exe()
-                .ok()
-                .and_then(|p| {
-                    p.parent()
-                        .map(|d| d.join("scripts").join("render_avatar_lipsync.py"))
-                })
-                .unwrap_or_default(),
-            std::path::PathBuf::from(r".\scripts\render_avatar_lipsync.py"),
-        ];
-
-        let python_bin = python_candidates.iter().find(|p| p.exists());
-        let script_py = script_candidates.iter().find(|p| p.exists());
-
-        let mut lipsync_succeeded = false;
-        if let (Some(py), Some(sc)) = (python_bin, script_py) {
-            #[cfg(target_os = "windows")]
-            {
-                use std::os::windows::process::CommandExt;
-                const CREATE_NO_WINDOW: u32 = 0x08000000;
-                let avatar_source_param = temp_avatar_video
-                    .as_ref()
-                    .filter(|p| p.exists())
-                    .unwrap_or(&temp_avatar);
-
-                let res = std::process::Command::new(py)
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .args([
-                        sc.to_string_lossy().as_ref(),
-                        "--avatar",
-                        &avatar_source_param.to_string_lossy(),
-                        "--audio",
-                        &temp_audio.to_string_lossy(),
-                        "--output",
-                        &file_path.to_string_lossy(),
-                    ])
-                    .output();
-
-                if let Ok(out) = res {
-                    if out.status.success() && file_path.exists() {
-                        lipsync_succeeded = true;
-                    }
-                }
-            }
-        }
-
-        if !lipsync_succeeded {
-            let ffmpeg_path = std::env::current_exe()
-                .ok()
-                .and_then(|p| p.parent().map(|d| d.join("ffmpeg.exe")))
-                .filter(|p| p.exists())
-                .unwrap_or_else(|| std::path::PathBuf::from("ffmpeg"));
-
-            #[cfg(target_os = "windows")]
-            {
-                use std::os::windows::process::CommandExt;
-                const CREATE_NO_WINDOW: u32 = 0x08000000;
-                if let Some(v_path) = temp_avatar_video.as_ref().filter(|p| p.exists()) {
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            if let Some(v_path) = temp_avatar_video.as_ref().filter(|p| p.exists()) {
                     let _ = std::process::Command::new(&ffmpeg_path)
                         .creation_flags(CREATE_NO_WINDOW)
                         .args([
@@ -296,7 +237,6 @@ fn create_job_video_with_duration(id: &str, avatar: &str, script: &str, voice: &
                         .output();
                 }
             }
-        }
 
         let _ = std::fs::remove_file(&temp_audio);
         let _ = std::fs::remove_file(&temp_avatar);
