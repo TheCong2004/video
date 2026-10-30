@@ -28,6 +28,41 @@ pub(crate) fn selected_motion() -> Option<(u64, PathBuf)> {
         .clone()
         .filter(|(epoch, _)| selection_current(*epoch))
 }
+
+pub(crate) fn selected_motion_or_default() -> Option<(u64, PathBuf)> {
+    if let Some(m) = selected_motion() {
+        return Some(m);
+    }
+    let mut candidate = None;
+    if let Ok(dirs) = concat_host::AppDirs::locate() {
+        let directory = dirs.data.join("live-motion");
+        if let Ok(entries) = std::fs::read_dir(&directory) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_file() && p.extension().is_some_and(|e| e == "mp4") {
+                    candidate = Some(p);
+                    break;
+                }
+            }
+        }
+    }
+    if candidate.is_none() {
+        let demo_candidates = [
+            std::path::PathBuf::from(r"d:\capcutpolot\concat\src\crates\concat\assets\avatars\demo-video.mp4"),
+            std::path::PathBuf::from(r".\src\crates\concat\assets\avatars\demo-video.mp4"),
+            std::path::PathBuf::from(r".\assets\avatars\demo-video.mp4"),
+        ];
+        candidate = demo_candidates.into_iter().find(|p| p.is_file());
+    }
+    if let Some(path) = candidate {
+        let epoch = SELECTION.load(Ordering::Acquire);
+        if let Ok(mut source) = SOURCE.get_or_init(|| Mutex::new(None)).lock() {
+            *source = Some((epoch, path.clone()));
+        }
+        return Some((epoch, path));
+    }
+    None
+}
 pub(crate) fn selection_current(epoch: u64) -> bool {
     SELECTION.load(Ordering::Acquire) == epoch
 }

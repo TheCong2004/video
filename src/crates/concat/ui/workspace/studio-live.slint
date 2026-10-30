@@ -69,7 +69,7 @@ export global StudioLive {
     in-out property <bool> auto-product-reply;
     in-out property <bool> auto-product-rotation;
     in-out property <bool> is-speaking;
-    in-out property <bool> lipsync-enabled;
+    in-out property <bool> lipsync-enabled: true;
     in-out property <bool> lipsync-active;
     in-out property <bool> lipsync-busy;
     in-out property <string> lipsync-url: "http://127.0.0.1:8766";
@@ -285,7 +285,7 @@ component LegacyLivePage inherits VerticalLayout {
                     StudioHeading { title: "Xem trước"; glyph: Glyph.film; font-size: 15px; }
                     Text { text: StudioLive.motion-loading ? "Đang tải…" : StudioLive.motion-playing ? "Đang phát" : root.has-avatar ? "Sẵn sàng" : "Chưa chọn"; color: StudioLive.motion-playing ? Floword.success : Floword.muted; font-size: 12px; vertical-alignment: center; }
                 }
-                Text { text: StudioLive.lipsync-enabled ? "Khớp môi: Tự động · Đã kết nối" : StudioLive.lipsync-busy ? "Khớp môi: Đang kết nối…" : "Khớp môi: Tự động · Sẵn sàng"; color: StudioLive.lipsync-enabled ? Floword.success : Floword.muted; font-size: 12px; wrap: word-wrap; }
+                Text { text: StudioLive.lipsync-enabled ? "Khớp môi AI: Tự động · Đã kết nối" : StudioLive.lipsync-busy ? "Khớp môi AI: Đang kết nối…" : "Khớp môi AI: Tự động · Sẵn sàng"; color: Floword.success; font-size: 12px; wrap: word-wrap; }
                 if StudioLive.lipsync-status != "": StudioStatus { label: StudioLive.lipsync-status; }
                 Rectangle {
                     min-width: 0px; height: Math.max(280px, Math.min(480px, root.viewport-height - 280px));
@@ -312,7 +312,7 @@ component LegacyLivePage inherits VerticalLayout {
                     if StudioLive.motion-playing: StudioButton { label: "Dừng video"; clicked => { StudioLive.stop-motion(); } }
                     StudioButton { label: "Đổi video"; enabled: !StudioLive.motion-loading; clicked => { StudioLive.choose-motion(); } }
                 }
-                if StudioLive.motion-playing: Text { text: StudioLive.lipsync-active ? "Đang phát tệp hình–tiếng đồng bộ" : "Chuyển động gốc · Không khớp môi theo lời AI"; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+                if StudioLive.motion-playing: Text { text: StudioLive.lipsync-active ? "Đang phát tệp hình–tiếng đồng bộ" : StudioLive.is-speaking ? "Đang dựng chuyển động khớp môi..." : "Chuyển động nhân vật sẵn sàng · Tự động khớp môi khi có lời AI"; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
             }
             StudioCard {
                 spacing: 8px;
@@ -402,7 +402,7 @@ component LiveStudioPreview inherits StudioCard {
             caption:=VerticalLayout {padding:8px;Text {text:StudioLive.displayed-subtitle;color:white;wrap:word-wrap;min-width:0px;}}
         }
     }
-    Text {text:StudioLive.lipsync-active ? "Đang phát hình–tiếng đã đồng bộ" : StudioLive.motion-playing ? "Đang phát chuyển động nguồn · chưa khớp môi theo lời mới" : "Chưa có chuyển động đang phát";color:Floword.muted;wrap:word-wrap;min-width:0px;}
+    Text {text:StudioLive.lipsync-active ? "Đang phát hình–tiếng đã đồng bộ" : StudioLive.motion-playing ? (StudioLive.is-speaking ? "Đang dựng chuyển động khớp môi..." : "Chuyển động nhân vật sẵn sàng · Tự động khớp môi khi có lời AI") : "Chưa có chuyển động đang phát";color:Floword.muted;wrap:word-wrap;min-width:0px;}
     if StudioLive.motion-status!="": StudioStatus {label:StudioLive.motion-status;}
 }
 

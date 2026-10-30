@@ -64,7 +64,7 @@ pub(crate) fn play(
             return Err("GPU connection changed before rendering");
         }
         let _flight = FLIGHT.try_lock().map_err(|_| "GPU reply already active")?;
-        let (selection, source) = crate::studio_live_video::selected_motion()
+        let (selection, source) = crate::studio_live_video::selected_motion_or_default()
             .ok_or("Choose a local MP4 avatar before GPU speech")?;
         let (source, _) = crate::studio_live_director::source(text, &source);
         let _ = weak.upgrade_in_event_loop(|app| {
@@ -103,7 +103,7 @@ pub(crate) fn play(
     }
 
     // Local Wav2Lip fallback when no external GPU server is configured
-    if let Some((selection, source)) = crate::studio_live_video::selected_motion() {
+    if let Some((selection, source)) = crate::studio_live_video::selected_motion_or_default() {
         if let Some((py, sc)) = find_python_and_script() {
             let _flight = FLIGHT.try_lock().map_err(|_| "Lip-sync reply already active")?;
             let _ = weak.upgrade_in_event_loop(|app| {
@@ -269,9 +269,9 @@ impl Drop for Cleanup {
 }
 
 pub(crate) fn bind(app: &App) {
+    app.global::<StudioLive>().set_lipsync_enabled(true);
     if find_python_and_script().is_some() {
-        app.global::<StudioLive>().set_lipsync_enabled(true);
-        app.global::<StudioLive>().set_lipsync_status("Khớp môi: Tự động · Sẵn sàng".into());
+        app.global::<StudioLive>().set_lipsync_status("Khớp môi AI: Tự động · Sẵn sàng".into());
     }
 
     let weak = app.as_weak();
