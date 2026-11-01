@@ -13,3 +13,4 @@ $receipt = [ordered]@{
 }
 $receipt | ConvertTo-Json | Set-Content "d:\capcutpolot\concat\.runtime\kedi-current-build.json"
 Write-Output "Successfully registered $name in kedi-current-build.json"
+

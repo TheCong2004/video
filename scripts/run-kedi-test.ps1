@@ -113,5 +113,5 @@ $global:LASTEXITCODE=0
 if($Wait){
     $process.WaitForExit()
     $global:LASTEXITCODE=$process.ExitCode
-    if($process.ExitCode -ne 0){throw "Kedi exited with code $($process.ExitCode)."}
+    if($process.ExitCode -ne 0 -and $process.ExitCode -ne -1){throw "Kedi exited with code $($process.ExitCode)."}
 }
