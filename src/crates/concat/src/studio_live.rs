@@ -1327,6 +1327,20 @@ pub(crate) fn bind(app: &App) {
         });
         sync_output(&app);
     });
+
+    let _weak_cd = app.as_weak();
+    app.global::<StudioLive>().on_open_chanh_dien(move || {
+        let _ = std::process::Command::new("cmd.exe")
+            .args(["/c", "start", "", "http://127.0.0.1:3088/live/studio.html"])
+            .spawn();
+    });
+
+    let _weak_cdo = app.as_weak();
+    app.global::<StudioLive>().on_open_chanh_dien_overlay(move || {
+        let _ = std::process::Command::new("cmd.exe")
+            .args(["/c", "start", "", "http://127.0.0.1:3088/live/overlay.html"])
+            .spawn();
+    });
 }
 
 pub(crate) fn sync_output(app: &App) {

@@ -123,6 +123,8 @@ export global StudioLive {
     callback set-tab(tab: int);
     in-out property <bool> output-window-open: false;
     callback toggle-output-window();
+    callback open-chanh-dien();
+    callback open-chanh-dien-overlay();
 }
 
 
@@ -205,6 +207,32 @@ component LegacyLivePage inherits VerticalLayout {
         if StudioLive.kedi-reply != "": Text { text: StudioLive.kedi-reply; color: Floword.text; wrap: word-wrap; min-width: 0px; }
     }
     if StudioLive.show-products: StudioProductsPanel { }
+    StudioCard {
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 3px;
+                Text { text: "Chanh Dien Tinh Tam - Live Tuong Tac 2.5D"; color: Floword.text; font-size: 15px; font-weight: 700; }
+                Text { text: "Phong live tung kinh, xuong ten hoi huong cong duc, go mo chuong va quan ly bo doan TikTok LIVE."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+                StudioButton {
+                    label: "Mo Chanh Dien Studio";
+                    primary: true;
+                    clicked => { StudioLive.open-chanh-dien(); }
+                }
+                StudioButton {
+                    label: "Mo Overlay 9:16";
+                    compact: true;
+                    clicked => { StudioLive.open-chanh-dien-overlay(); }
+                }
+            }
+        }
+    }
     GridLayout {
         spacing: 16px; min-width: 0px;
         StudioCard {
