@@ -454,6 +454,8 @@ export component StudioLivePage inherits VerticalLayout {
         StudioHeading {title:"Live Studio";glyph:Glyph.waveform;}
         StudioStatus {width:144px;height:32px;label:root.state-label;tone:root.live ? 1 : 0;}
         StudioButton {label:root.legacy ? "Live Studio mới" : "Điều khiển cũ";compact:true;clicked=>{root.legacy=!root.legacy;}}
+        StudioButton {label:"Mở Chánh Điện Studio";primary:true;compact:true;clicked=>{StudioLive.open-chanh-dien();}}
+        StudioButton {label:"Overlay 9:16";compact:true;clicked=>{StudioLive.open-chanh-dien-overlay();}}
     }
     if !root.legacy: VerticalLayout {spacing:12px;min-width:0px;vertical-stretch:1;
         Text {text:StudioLive.kedi-mode=="simulation" ? "THỬ LOCAL · phản hồi và phát lời được mô phỏng, không phát livestream" : StudioLive.kedi-mode=="local" ? "AVATAR / GIỌNG LOCAL · chưa phát tới nền tảng" : "Chuẩn bị phiên, nhân vật và sản phẩm trước khi phát";color:Floword.muted;wrap:word-wrap;min-width:0px;}
@@ -471,6 +473,32 @@ export component StudioLivePage inherits VerticalLayout {
         PaneScroll {vertical-stretch:1;min-height:100px;
           VerticalLayout {spacing:12px;min-width:0px;alignment:start;
         if StudioLive.studio-tab==0: VerticalLayout {spacing:12px;min-width:0px;
+            StudioCard {
+                spacing: 8px;
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: space-between;
+                    VerticalLayout {
+                        spacing: 3px;
+                        Text { text: "Chanh Dien Tinh Tam - Live Tuong Tac 2.5D"; color: Floword.text; font-size: 15px; font-weight: 700; }
+                        Text { text: "Phong live tung kinh, xuong ten hoi huong cong duc, go mo chuong va quan ly bo doan TikTok LIVE."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: end;
+                        StudioButton {
+                            label: "Mo Chanh Dien Studio";
+                            primary: true;
+                            clicked => { StudioLive.open-chanh-dien(); }
+                        }
+                        StudioButton {
+                            label: "Mo Overlay 9:16";
+                            compact: true;
+                            clicked => { StudioLive.open-chanh-dien-overlay(); }
+                        }
+                    }
+                }
+            }
             if !StudioLive.kedi-available: StudioCard {
                 StudioHeading {title:"Chọn cách chạy";}
                 Text {text:"Thử local kiểm tra luồng bình luận → trả lời → hàng đợi mà không dùng tài khoản thật. Avatar / giọng local cần manifest và cấu hình cửa hàng đã kiểm tra.";color:Floword.muted;wrap:word-wrap;min-width:0px;}
