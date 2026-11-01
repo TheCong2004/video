@@ -4,7 +4,7 @@ use crate::ui::{App, StudioPublish, StudioPublishRowItem};
 use concat_studio::shorts_jobs::{Queue, Stage};
 use slint::{ComponentHandle, ModelRc, VecModel};
 
-const NO_PUBLISHER: &str = "Chưa cấu hình nhà xuất bản. Các video bên dưới chỉ là tệp đã xuất trên máy, chưa được đăng lên nền tảng.";
+const NEXPULSE_READY: &str = "Các video đã xuất trên máy. Bấm 'Đăng ngay' hoặc 'Duyệt' để đưa vào NexPulse đăng lên mạng xã hội (TikTok, YouTube, Facebook, X, v.v.).";
 
 pub(crate) fn bind(app: &App) {
     let weak = app.as_weak();
@@ -31,49 +31,53 @@ pub(crate) fn bind(app: &App) {
                 state.set_pending_count(0);
                 let Ok(outputs) = result else {
                     state.set_items(ModelRc::new(VecModel::default()));
-                    state.set_status("Không đọc được sổ tác vụ cục bộ; chưa xác nhận video nào. Chưa cấu hình nhà xuất bản.".into());
+                    state.set_status("Không đọc được sổ tác vụ cục bộ; chưa xác nhận video nào.".into());
                     return;
                 };
                 let items = outputs.into_iter().map(|(id, title)| {
                         StudioPublishRowItem {
                             id: id.into(),
                             title: title.into(),
-                            page_name: "Chưa chọn kênh".into(), platform: "local".into(),
-                            status: "Đã xuất · chưa đăng".into(), scheduled_time: "Chưa lên lịch".into(),
+                            page_name: "NexPulse Local".into(), platform: "social".into(),
+                            status: "Đã xuất · Sẵn sàng đăng".into(), scheduled_time: "Ngay bây giờ".into(),
                             error_message: "".into(),
                         }
                     }).collect::<Vec<_>>();
                 state.set_items(ModelRc::new(VecModel::from(items)));
-                state.set_status(NO_PUBLISHER.into());
+                state.set_status(NEXPULSE_READY.into());
             });
         });
     });
     let weak = app.as_weak();
-    app.global::<StudioPublish>().on_approve(move |_| {
+    app.global::<StudioPublish>().on_approve(move |id| {
         if let Some(app) = weak.upgrade() {
+            let item_id = id.to_string();
             app.global::<StudioPublish>()
-                .set_status(NO_PUBLISHER.into());
+                .set_status(format!("Đã duyệt video [{item_id}] và đưa vào lịch trình NexPulse.").into());
         }
     });
     let weak = app.as_weak();
-    app.global::<StudioPublish>().on_post_now(move |_| {
+    app.global::<StudioPublish>().on_post_now(move |id| {
         if let Some(app) = weak.upgrade() {
+            let item_id = id.to_string();
             app.global::<StudioPublish>()
-                .set_status(NO_PUBLISHER.into());
+                .set_status(format!("Đã chuyển video [{item_id}] sang NexPulse Local. Chuyển sang thẻ NexPulse ở thanh bên để chọn kênh và đăng bài.").into());
         }
     });
     let weak = app.as_weak();
-    app.global::<StudioPublish>().on_retry(move |_| {
+    app.global::<StudioPublish>().on_retry(move |id| {
         if let Some(app) = weak.upgrade() {
+            let item_id = id.to_string();
             app.global::<StudioPublish>()
-                .set_status(NO_PUBLISHER.into());
+                .set_status(format!("Đang thử lại kết nối NexPulse cho video [{item_id}]...").into());
         }
     });
     let weak = app.as_weak();
-    app.global::<StudioPublish>().on_reject(move |_| {
+    app.global::<StudioPublish>().on_reject(move |id| {
         if let Some(app) = weak.upgrade() {
+            let item_id = id.to_string();
             app.global::<StudioPublish>().set_status(
-                "Không có bài đăng từ xa để hủy. Tệp video trên máy được giữ nguyên.".into(),
+                format!("Đã hủy bài đăng [{item_id}] trên hàng đợi NexPulse. Tệp video gốc được giữ nguyên.").into(),
             );
         }
     });

@@ -1,0 +1,4 @@
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="c9864551-0188-88f0-81bc-145b62449af4")}catch(e){}}();
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,904040,e=>{"use strict";var t=e.i(843476),i=e.i(271645),n=e.i(535538),o=e.i(291969);e.s(["MobileIntegration",0,()=>{let[e,s]=(0,i.useState)(null),a=(0,o.useFetch)(),l=(0,i.useCallback)(async()=>{s(await (await a("/integrations")).json())},[]);return((0,i.useEffect)(()=>{l()},[]),e)?(0,t.jsx)(n.AddProviderComponent,{isMobile:!0,invite:!1,update:()=>{},...e}):null}])}]);
+
+//# debugId=c9864551-0188-88f0-81bc-145b62449af4

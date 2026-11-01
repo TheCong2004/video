@@ -19,25 +19,42 @@ fn account(source: &str) -> Result<(String, String), String> {
     if url.scheme() != "https"
         || !url.username().is_empty()
         || url.password().is_some()
-        || !matches!(url.host_str(), Some("www.tiktok.com" | "tiktok.com"))
     {
-        return Err("Cách lấy qua trình duyệt chỉ nhận trang tài khoản TikTok HTTPS.".into());
+        return Err("Chỉ nhận liên kết tài khoản HTTPS an toàn.".into());
     }
-    let handle = url
-        .path()
-        .trim_matches('/')
-        .strip_prefix('@')
-        .filter(|s| {
-            !s.is_empty()
-                && s.len() <= 64
-                && s.bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || b"._".contains(&b))
-        })
-        .ok_or("Dán link tài khoản TikTok dạng https://www.tiktok.com/@tên.")?;
-    Ok((
-        format!("https://www.tiktok.com/@{handle}"),
-        handle.to_ascii_lowercase(),
-    ))
+    let host = url.host_str().unwrap_or("");
+    if host.contains("tiktok.com") {
+        let handle = url
+            .path()
+            .trim_matches('/')
+            .strip_prefix('@')
+            .filter(|s| {
+                !s.is_empty()
+                    && s.len() <= 64
+                    && s.bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b"._".contains(&b))
+            })
+            .ok_or("Dán link tài khoản TikTok dạng https://www.tiktok.com/@tên.")?;
+        return Ok((
+            format!("https://www.tiktok.com/@{handle}"),
+            handle.to_ascii_lowercase(),
+        ));
+    }
+    if host.contains("douyin.com") {
+        let path = url.path().trim_matches('/');
+        let sec_uid = if let Some(stripped) = path.strip_prefix("user/") {
+            stripped
+        } else {
+            path
+        };
+        if !sec_uid.is_empty() {
+            return Ok((
+                format!("https://www.douyin.com/user/{sec_uid}"),
+                sec_uid.to_ascii_lowercase(),
+            ));
+        }
+    }
+    Err("Dán link tài khoản TikTok (@tên) hoặc Douyin (douyin.com/user/...).".into())
 }
 
 fn browser_binary() -> Result<PathBuf, String> {

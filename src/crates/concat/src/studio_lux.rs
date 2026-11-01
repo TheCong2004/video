@@ -173,21 +173,25 @@ fn prepare_choices(app: &App, shared: Shared) {
         }
     });
 }
-fn tiktok_account(text: &str) -> bool {
-    url::Url::parse(text).ok().is_some_and(|u| {
-        u.scheme() == "https"
-            && matches!(u.host_str(), Some("tiktok.com" | "www.tiktok.com"))
-            && u.path().trim_matches('/').starts_with('@')
-            && !u.path().trim_matches('/').contains('/')
-    })
+fn is_account_url(text: &str) -> bool {
+    let (_, is_account): (String, bool) = concat_studio::lux::normalize_and_classify_url(text);
+    is_account
 }
 fn fetch(app: &App, shared: Shared, browser: bool) {
     if active(app) {
         return;
     }
     let ui = app.global::<StudioLux>();
-    let playlist = ui.get_is_playlist();
-    let url = match lux::validate_video_request(&ui.get_url(), playlist) {
+    let (clean_url, is_account): (String, bool) = concat_studio::lux::normalize_and_classify_url(&ui.get_url());
+    let playlist = if is_account {
+        ui.set_is_playlist(true);
+        ui.set_can_browser(true);
+        true
+    } else {
+        ui.set_is_playlist(false);
+        false
+    };
+    let url = match lux::validate_video_request(&clean_url, playlist) {
         Ok(u) => u,
         Err(e) => {
             ui.set_error(e.into());
@@ -242,7 +246,7 @@ fn fetch(app: &App, shared: Shared, browser: bool) {
                         ui.set_has_info(true); ui.set_status("Đã lấy thông tin video.".into()); s.video = Some(video);
                     } else { ui.set_error("Không tìm thấy video có thể tải.".into()); }
                 }
-                Err(e) => { ui.set_error(lux::friendly_error(&e).into()); ui.set_status(if tiktok_account(&url) { "Chưa đọc được tài khoản. Hoàn tất xác minh trong trình duyệt nếu có, rồi bấm Lấy danh sách lại." } else { "Không đọc được danh sách. Kiểm tra quyền truy cập và thử lại." }.into()); }
+                Err(e) => { ui.set_error(lux::friendly_error(&e).into()); ui.set_status(if is_account_url(&url) { "Chưa đọc được tài khoản. Hoàn tất xác minh trong trình duyệt nếu có, rồi bấm Lấy danh sách lại." } else { "Không đọc được video. Kiểm tra quyền truy cập và thử lại." }.into()); }
             }
             drop(s);
             if playlist { prepare_choices(&app, shared.clone()); }
@@ -276,13 +280,14 @@ pub(crate) fn bind(app: &App) {
             if ui.get_url().trim() == text.trim() {
                 return;
             }
-            let was_account = ui.get_can_browser();
-            let is_account = tiktok_account(&text);
+            let (normalized, is_account): (String, bool) = concat_studio::lux::normalize_and_classify_url(&text);
             ui.set_can_browser(is_account);
-            if was_account || is_account {
-                ui.set_is_playlist(is_account);
+            ui.set_is_playlist(is_account);
+            if normalized != text.as_str() && !normalized.is_empty() {
+                ui.set_url(normalized.into());
+            } else {
+                ui.set_url(text);
             }
-            ui.set_url(text);
             if let Ok(mut s) = shared.lock() {
                 clear_info(&app, &mut s);
             }
@@ -357,8 +362,12 @@ pub(crate) fn bind(app: &App) {
     let shared = state.clone();
     app.global::<StudioLux>().on_fetch_info(move || {
         if let Some(app) = weak.upgrade() {
-            let browser = tiktok_account(&app.global::<StudioLux>().get_url());
-            fetch(&app, shared.clone(), browser);
+            let current = app.global::<StudioLux>().get_url();
+            let (normalized, is_account): (String, bool) = concat_studio::lux::normalize_and_classify_url(&current);
+            if normalized != current.as_str() && !normalized.is_empty() {
+                app.global::<StudioLux>().set_url(normalized.into());
+            }
+            fetch(&app, shared.clone(), is_account);
         }
     });
     let weak = app.as_weak();

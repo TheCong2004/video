@@ -119,6 +119,7 @@ slint = { version = "1.18", default-features = false, features = [
 ] }
 
 [dependencies]
+ureq = "2"
 chrono-tz = "0.10"
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 # The log facade. The window writes `log::warn!`; where that ends up is

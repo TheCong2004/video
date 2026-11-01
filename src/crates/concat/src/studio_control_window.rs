@@ -228,7 +228,8 @@ pub(crate) fn bind(app: &App) {
             let requested=app.global::<AiControl>().get_workspace_open();
             app.global::<AiControl>().set_workspace_open(false);
             visible_ticks+=1;
-            if (initial && visible_ticks>=18) || requested {
+            let auto_show = std::env::var("CONCAT_AUTO_SHOW_AI_CONTROL").as_deref() == Ok("1");
+            if (auto_show && initial && visible_ticks>=18) || requested {
                 initial=false;
                 if slot.is_none() {
                     match create(&app) {Ok(panel)=>*slot=Some(panel),Err(error)=>{log::error!("AI window: {error}");return;}}

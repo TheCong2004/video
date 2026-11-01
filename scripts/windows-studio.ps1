@@ -1,4 +1,4 @@
-﻿param([switch]$CheckOnly, [switch]$TestAdapters, [switch]$TestAI, [switch]$RunBuilt, [switch]$Build, [switch]$Release, [switch]$Version, [switch]$Smoke)
+param([switch]$CheckOnly, [switch]$TestAdapters, [switch]$TestAI, [switch]$RunBuilt, [switch]$Build, [switch]$Release, [switch]$Version, [switch]$Smoke)
 
 $ErrorActionPreference = 'Stop'
 $concatRoot = Split-Path -Parent $PSScriptRoot
@@ -45,7 +45,7 @@ try {
     catch { Write-Warning "Pre-build cleanup was not completed: $($_.Exception.Message)" }
     if (!$RunBuilt) {
         $buildDrive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($sourceRoot))
-        if ($buildDrive.AvailableFreeSpace -lt 4GB) {
+        if ($buildDrive.AvailableFreeSpace -lt 3GB) {
             throw 'Not enough free disk space for a native build (need at least 4 GB). Run cleanup-build.ps1 -PruneOwnCache -PruneMainIncremental -Apply while no compiler is running. Existing EXE and projects are preserved.'
         }
     }
@@ -77,7 +77,7 @@ try {
     $runtimeDirs = @((Join-Path $env:FFMPEG_DIR 'bin'), $env:ORT_LIB_LOCATION, $sherpaRuntime)
     $existingRuntimeDirs = @($runtimeDirs | Where-Object { Test-Path -LiteralPath $_ -PathType Container })
     $env:PATH = ($existingRuntimeDirs -join ';') + ';' + $env:PATH
-    if (!$env:CARGO_BUILD_JOBS) { $env:CARGO_BUILD_JOBS = '1' }
+    if (!$env:CARGO_BUILD_JOBS) { $env:CARGO_BUILD_JOBS = '8' }
     Push-Location -LiteralPath $sourceRoot
     try {
         $nativeLogSnapshot = @{}
@@ -107,7 +107,25 @@ try {
             if ($LASTEXITCODE -ne 0) { throw "Concat API and MCP bridge tests failed with exit code $LASTEXITCODE." }
         }
         elseif ($CheckOnly) { & cargo check -p concat }
-        elseif ($Build) { & cargo build -p concat --bin concat }
+        elseif ($Build) {
+            & cargo build -p concat --bin concat
+            if ($LASTEXITCODE -eq 0) {
+                $builtConcat = Join-Path $sourceRoot 'target\debug\concat.exe'
+                if (Test-Path -LiteralPath $builtConcat) {
+                    $hash = (Get-FileHash $builtConcat -Algorithm SHA256).Hash
+                    $short = $hash.Substring(0, 12).ToLower()
+                    $targetExe = "concat-ai-control-$short.exe"
+                    Copy-Item $builtConcat (Join-Path $sourceRoot "target\debug\$targetExe") -Force
+                    $receiptObj = @{
+                        version = 1
+                        uiRevision = "Concat Studio + Postiz Native Dev / $(Get-Date -Format 'yyyy-MM-dd')"
+                        executable = $targetExe
+                        sha256 = $hash
+                    } | ConvertTo-Json
+                    Set-Content (Join-Path $concatRoot '.runtime\kedi-current-build.json') $receiptObj
+                }
+            }
+        }
         elseif ($Release) { & cargo build -p concat --bin concat --release }
         else { & cargo run -p concat --bin concat }
         if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) {

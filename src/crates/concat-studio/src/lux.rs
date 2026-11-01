@@ -312,6 +312,67 @@ pub fn is_youtube_url(url: &str) -> bool {
         })
 }
 
+/// Smart URL classifier and normalizer:
+/// Returns (normalized_url, is_account_or_playlist).
+/// - Single video (Douyin modal_id, TikTok /video/, YouTube /watch): is_account = false
+/// - Account / Channel (Douyin /user/, TikTok /@..., YouTube /@...): is_account = true
+pub fn normalize_and_classify_url(input: &str) -> (String, bool) {
+    let trimmed = input.trim();
+    if let Ok(parsed) = url::Url::parse(trimmed) {
+        let host = parsed.host_str().unwrap_or("").to_lowercase();
+        let path = parsed.path();
+
+        // 1. Douyin
+        if host == "douyin.com" || host.ends_with(".douyin.com") {
+            if let Some((_, modal_id)) = parsed.query_pairs().find(|(k, _)| k == "modal_id") {
+                if !modal_id.is_empty() {
+                    return (format!("https://www.douyin.com/video/{}", modal_id), false);
+                }
+            }
+            if path.contains("/video/") || path.contains("/note/") {
+                return (trimmed.to_string(), false);
+            }
+            if path.contains("/user/") {
+                return (trimmed.to_string(), true);
+            }
+        }
+
+        // 2. TikTok
+        if host == "tiktok.com" || host.ends_with(".tiktok.com") {
+            if path.contains("/video/") {
+                return (trimmed.to_string(), false);
+            }
+            if path.trim_matches('/').starts_with('@') {
+                return (trimmed.to_string(), true);
+            }
+        }
+
+        // 3. YouTube
+        if host == "youtube.com" || host.ends_with(".youtube.com") || host == "youtu.be" {
+            if path.contains("/watch") || path.contains("/shorts/") || host == "youtu.be" {
+                return (trimmed.to_string(), false);
+            }
+            if path.starts_with("/@") || path.contains("/channel/") || path.contains("/c/") {
+                return (trimmed.to_string(), true);
+            }
+            if parsed.query_pairs().any(|(k, _)| k == "list") {
+                return (trimmed.to_string(), true);
+            }
+        }
+
+        // 4. Bilibili
+        if host == "bilibili.com" || host.ends_with(".bilibili.com") {
+            if path.contains("/video/") {
+                return (trimmed.to_string(), false);
+            }
+            if path.contains("/space/") {
+                return (trimmed.to_string(), true);
+            }
+        }
+    }
+    (trimmed.to_string(), false)
+}
+
 /// Validate video links before invoking an extractor (profile feeds are not videos).
 pub fn validate_video_url(input: &str) -> Result<String, String> {
     validate_video_request(input, false)
@@ -319,7 +380,8 @@ pub fn validate_video_url(input: &str) -> Result<String, String> {
 
 /// A profile feed is accepted only when the user explicitly requests a playlist/channel.
 pub fn validate_video_request(input: &str, playlist: bool) -> Result<String, String> {
-    let url = url::Url::parse(input.trim()).map_err(|_| "Nhập liên kết video https:// hợp lệ.")?;
+    let (normalized, is_profile) = normalize_and_classify_url(input);
+    let url = url::Url::parse(normalized.trim()).map_err(|_| "Nhập liên kết video https:// hợp lệ.")?;
     if !matches!(url.scheme(), "https" | "http")
         || url.host_str().is_none()
         || !url.username().is_empty()
@@ -328,12 +390,13 @@ pub fn validate_video_request(input: &str, playlist: bool) -> Result<String, Str
         return Err("Chỉ nhận liên kết video HTTP/HTTPS, không kèm mật khẩu.".into());
     }
     let host = url.host_str().unwrap_or_default();
-    if !playlist
-        && (host == "tiktok.com" || host.ends_with(".tiktok.com"))
-        && url.path().starts_with("/@")
-        && !url.path().contains("/video/")
-    {
-        return Err("Đây là trang hồ sơ TikTok. Bật 'Tải danh sách phát / kênh' để tải cả hồ sơ, hoặc dán liên kết một video /@tên/video/…".into());
+    if !playlist && is_profile {
+        if host.contains("douyin.com") {
+            return Err("Đây là trang tài khoản Douyin. Bật 'Tải danh sách phát / kênh' để quét danh sách video.".into());
+        }
+        if host.contains("tiktok.com") {
+            return Err("Đây là trang hồ sơ TikTok. Bật 'Tải danh sách phát / kênh' để tải cả hồ sơ, hoặc dán liên kết một video /@tên/video/…".into());
+        }
     }
     Ok(url.into())
 }

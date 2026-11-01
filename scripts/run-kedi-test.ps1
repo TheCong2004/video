@@ -84,6 +84,8 @@ $info.EnvironmentVariables['KEDI_OT_ADAPTER_ENABLED']='false'
 $info.EnvironmentVariables['KEDI_COMMERCE_ENABLED']='false'
 $info.EnvironmentVariables['KEDI_MOTION_ENABLED']='false'
 $info.EnvironmentVariables['KEDI_PLATFORM_WRITE_ENABLED']='false'
+if($env:CONCAT_POSTIZ_MODE){$info.EnvironmentVariables['CONCAT_POSTIZ_MODE']=$env:CONCAT_POSTIZ_MODE}
+if($env:POSTIZ_DEV_URL){$info.EnvironmentVariables['POSTIZ_DEV_URL']=$env:POSTIZ_DEV_URL}
 foreach($name in @($info.EnvironmentVariables.Keys)){if($name -match '^CONCAT_.*SMOKE'){[void]$info.EnvironmentVariables.Remove($name)}}
 if($LiveStudioSmoke){$info.EnvironmentVariables['CONCAT_KEDI_OPERATOR_SMOKE']='1'}
 if($Version -or $Smoke){

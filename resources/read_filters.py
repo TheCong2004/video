@@ -1,0 +1,3 @@
+with open(r"d:\capcutpolot\postiz-app\apps\frontend\src\components\launches\filters.tsx", "r", encoding="utf-8") as f:
+    print(f.read()[:2000])
+

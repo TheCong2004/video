@@ -1172,6 +1172,7 @@ dependencies = [
  "sha2",
  "slint",
  "toml",
+ "ureq 2.12.1",
  "url",
  "wayland-backend",
  "wayland-client",

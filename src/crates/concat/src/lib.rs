@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
 //! Concat's editor window, in Slint.
@@ -2043,6 +2043,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         log::info!("smoke: ok");
         concat_host::studio_local_avatars::shutdown();
         studio_hotclip::shutdown();
+        studio_web::shutdown();
         log::logger().flush();
         std::process::exit(0);
     }
@@ -2069,6 +2070,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     studio_scenes::shutdown(&app);
     studio_native_production::shutdown();
     studio_hotclip::shutdown();
+    studio_web::shutdown();
     concat_host::studio_local_avatars::shutdown();
     auto_shorts::shutdown();
     studio_local_ai::shutdown();
