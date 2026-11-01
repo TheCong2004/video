@@ -207,31 +207,6 @@ component LegacyLivePage inherits VerticalLayout {
         if StudioLive.kedi-reply != "": Text { text: StudioLive.kedi-reply; color: Floword.text; wrap: word-wrap; min-width: 0px; }
     }
     if StudioLive.show-products: StudioProductsPanel { }
-    StudioCard {
-        spacing: 8px;
-        HorizontalLayout {
-            spacing: 12px;
-            alignment: space-between;
-            VerticalLayout {
-                spacing: 3px;
-                Text { text: "Chanh Dien Tinh Tam - Live Tuong Tac 2.5D"; color: Floword.text; font-size: 15px; font-weight: 700; }
-                Text { text: "Phong live tung kinh, xuong ten hoi huong cong duc, go mo chuong va quan ly bo doan TikTok LIVE."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
-            }
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: end;
-                StudioButton {
-                    label: "Mo Chanh Dien Studio";
-                    primary: true;
-                    clicked => { StudioLive.open-chanh-dien(); }
-                }
-                StudioButton {
-                    label: "Mo Overlay 9:16";
-                    compact: true;
-                    clicked => { StudioLive.open-chanh-dien-overlay(); }
-                }
-            }
-        }
     }
     GridLayout {
         spacing: 16px; min-width: 0px;
@@ -441,6 +416,7 @@ export component StudioLivePage inherits VerticalLayout {
     callback configure-services();
     callback manage-avatars();
     property <bool> legacy;
+    property <int> live-mode: 0;
     property <bool> can-start:StudioLive.kedi-available && StudioLive.kedi-ready && (StudioLive.kedi-state=="Created" || StudioLive.kedi-state=="Recovering" || StudioLive.kedi-state=="Stopped");
     property <bool> live:StudioLive.kedi-state=="Live";
     property <string> state-label:!StudioLive.kedi-available ? "Chưa bật phiên" : root.live ? (StudioLive.kedi-automatic ? "Đang chạy" : "Đã tiếp quản") : StudioLive.kedi-state=="Paused" ? "Tạm dừng" : StudioLive.kedi-state=="Stopped" ? "Đã dừng" : StudioLive.kedi-state=="Recovering" ? "Cần khôi phục" : StudioLive.kedi-ready ? "Sẵn sàng" : "Đang kiểm tra";
@@ -454,10 +430,13 @@ export component StudioLivePage inherits VerticalLayout {
         StudioHeading {title:"Live Studio";glyph:Glyph.waveform;}
         StudioStatus {width:144px;height:32px;label:root.state-label;tone:root.live ? 1 : 0;}
         StudioButton {label:root.legacy ? "Live Studio mới" : "Điều khiển cũ";compact:true;clicked=>{root.legacy=!root.legacy;}}
-        StudioButton {label:"Mở Chánh Điện Studio";primary:true;compact:true;clicked=>{StudioLive.open-chanh-dien();}}
-        StudioButton {label:"Overlay 9:16";compact:true;clicked=>{StudioLive.open-chanh-dien-overlay();}}
     }
-    if !root.legacy: VerticalLayout {spacing:12px;min-width:0px;vertical-stretch:1;
+    HorizontalLayout {
+        spacing: 8px; min-width: 0px; height: 36px;
+        StudioButton {label:"🤖 1. Chế độ Live AI";primary:root.live-mode == 0;clicked=>{root.live-mode = 0;}}
+        StudioButton {label:"🪷 2. Chế độ Chánh Điện Online";primary:root.live-mode == 1;clicked=>{root.live-mode = 1;}}
+    }
+    if root.live-mode == 0 && !root.legacy: VerticalLayout {spacing:12px;min-width:0px;vertical-stretch:1;
         Text {text:StudioLive.kedi-mode=="simulation" ? "THỬ LOCAL · phản hồi và phát lời được mô phỏng, không phát livestream" : StudioLive.kedi-mode=="local" ? "AVATAR / GIỌNG LOCAL · chưa phát tới nền tảng" : "Chuẩn bị phiên, nhân vật và sản phẩm trước khi phát";color:Floword.muted;wrap:word-wrap;min-width:0px;}
         if StudioLive.kedi-available: FlexboxLayout {spacing:8px;min-width:0px;vertical-stretch:0;
             StudioButton {label:StudioLive.kedi-state=="Stopped" ? "Phiên mới" : "Bắt đầu phiên";primary:true;enabled:root.can-start;clicked=>{StudioLive.kedi-control("start");}}
@@ -623,5 +602,62 @@ export component StudioLivePage inherits VerticalLayout {
     }
           }
         }
+    if root.live-mode == 1: VerticalLayout {
+        spacing: 12px; min-width: 0px; vertical-stretch: 1;
+        Text { text: "CHẾ ĐỘ CHÁNH ĐIỆN ONLINE 2.5D · Phòng live tụng kinh, gõ mõ, xướng tên hồi hướng công đức và quản lý bồ đoàn TikTok LIVE"; color: Floword.muted; wrap: word-wrap; min-width: 0px; }
+        
+        StudioCard {
+            spacing: 12px;
+            StudioHeading { title: "Điều khiển Phòng Live Chánh Điện (Port 3088)"; glyph: Glyph.waveform; }
+            Text { text: "Dịch vụ phòng live đang chạy tại: http://127.0.0.1:3088. Tự động nhận tương tác TikTok LIVE, gõ mõ chuông và xướng tên hồi hướng bằng giọng AI."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+            
+            HorizontalLayout {
+                spacing: 10px;
+                StudioButton {
+                    label: "Mở Bảng Điều Khiển Live Studio (Director)";
+                    primary: true;
+                    clicked => { StudioLive.open-chanh-dien(); }
+                }
+                StudioButton {
+                    label: "Mở Màn Hình Overlay 9:16 (OBS / TikTok Studio)";
+                    clicked => { StudioLive.open-chanh-dien-overlay(); }
+                }
+            }
+        }
+
+        StudioCard {
+            spacing: 12px;
+            StudioHeading { title: "Cấu hình & Tương tác TikTok LIVE"; }
+            StudioField {
+                label: "Kênh TikTok Live";
+                placeholder: "@ten_kenh_tiktok";
+                value: StudioLive.username;
+                edited(text) => { StudioLive.username = text; }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                StudioButton {
+                    label: "Kết nối kênh";
+                    primary: true;
+                    enabled: StudioLive.username != "";
+                    clicked => { StudioLive.connect(StudioLive.username); }
+                }
+                StudioButton {
+                    label: "Ngắt kết nối";
+                    enabled: StudioLive.session-active;
+                    clicked => { StudioLive.disconnect(); }
+                }
+            }
+            Text { text: "Khi kết nối thành công: người xem bình luận hoặc tặng quà sẽ tự động được xướng tên hồi hướng công đức và xếp chỗ trên bồ đoàn 2.5D."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+        }
+
+        StudioCard {
+            spacing: 12px;
+            StudioHeading { title: "Tích hợp OBS Studio & TikTok LIVE Studio"; }
+            Text { text: "1. Trong OBS Studio: Thêm nguồn 'Browser' -> Dán URL: http://127.0.0.1:3088/live/overlay.html (Kích thước: 1080 x 1920)."; color: Floword.text; font-size: 13px; wrap: word-wrap; }
+            Text { text: "2. Trong TikTok LIVE Studio: Thêm nguồn 'Cửa sổ' (Window Capture) chọn cửa sổ Overlay hoặc dùng OBS Virtual Camera."; color: Floword.text; font-size: 13px; wrap: word-wrap; }
+            Text { text: "3. Tự động gõ mõ chuông, phát nhạc thiền thanh tịnh và xướng kinh định kỳ mỗi 3 phút."; color: Floword.muted; font-size: 12px; wrap: word-wrap; }
+        }
+    }
     if root.legacy: PaneScroll {LegacyLivePage {viewport-width:root.viewport-width;viewport-height:root.viewport-height;configure-ai=>{root.configure-ai();}configure-services=>{root.configure-services();}manage-avatars=>{root.manage-avatars();}}}
 }
