@@ -23,7 +23,7 @@ fn account(source: &str) -> Result<(String, String), String> {
         return Err("Chỉ nhận liên kết tài khoản HTTPS an toàn.".into());
     }
     let host = url.host_str().unwrap_or("");
-    if host.contains("tiktok.com") {
+    if host == "tiktok.com" || host.ends_with(".tiktok.com") {
         let handle = url
             .path()
             .trim_matches('/')
@@ -40,7 +40,7 @@ fn account(source: &str) -> Result<(String, String), String> {
             handle.to_ascii_lowercase(),
         ));
     }
-    if host.contains("douyin.com") {
+    if host == "douyin.com" || host.ends_with(".douyin.com") {
         let path = url.path().trim_matches('/');
         let sec_uid = if let Some(stripped) = path.strip_prefix("user/") {
             stripped

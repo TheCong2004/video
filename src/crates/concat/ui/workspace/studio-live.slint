@@ -8,8 +8,11 @@ import { StudioCard, StudioHeading, StudioButton, StudioField, StudioStatus } fr
 import { StudioAi } from "studio-ai.slint";
 import { StudioOpenTalking } from "studio-opentalking.slint";
 import { PromaxAvatarPicker, StudioPromaxAvatars } from "studio-promax-avatars.slint";
-import { StudioProducts, StudioProductsPanel } from "studio-products.slint";
+import { StudioProducts, StudioProductsPanel, TempleProductsPanel } from "studio-products.slint";
 import { ControlFoldout } from "control-chrome.slint";
+import { TemplePalette, TempleButton, TempleField, TempleCard, TempleToggle, TempleSelect, TempleSlider } from "temple-chrome.slint";
+
+export struct TempleViewerRow { id: string, name: string, skin: string, coins: int, simulated: bool }
 
 export struct StudioLiveCommentRow {
     event-id: string,
@@ -126,7 +129,32 @@ export global StudioLive {
     callback open-chanh-dien();
     callback open-chanh-dien-overlay();
     callback cd-action(string, string, string, int);
-    in-out property <string> cd-server-status: "Server: Kết nối tốt";
+    callback cd-ensure();
+    callback cd-settings();
+    callback cd-hide-preview();
+    callback cd-reload-preview();
+    in-out property <bool> cd-page-active;
+    in-out property <bool> cd-preview-allowed;
+    in-out property <bool> cd-preview-inline;
+    in-out property <bool> cd-preview-loaded;
+    in-out property <string> cd-preview-status: "Đang tải overlay LIVE…";
+    in-out property <length> cd-preview-x;
+    in-out property <length> cd-preview-y;
+    in-out property <length> cd-preview-width;
+    in-out property <length> cd-preview-height;
+    in-out property <bool> cd-audio-enabled;
+    in-out property <string> cd-origin;
+    in-out property <bool> cd-connected;
+    in-out property <bool> cd-settings-pending;
+    in-out property <int> cd-capacity: 24;
+    in-out property <string> cd-tt-state: "idle";
+    in-out property <[TempleViewerRow]> cd-people;
+    in-out property <[string]> cd-logs;
+    in-out property <int> cd-log-revision;
+    in-out property <int> cd-bpm: 52;
+    in-out property <int> cd-voice-index;
+    in-out property <int> cd-seats-index;
+    in-out property <string> cd-server-status: "Server: Chưa kết nối";
     in-out property <string> cd-tiktok-status: "TikTok: Chưa kết nối";
     in-out property <string> cd-viewers-count: "0/24 người";
     in-out property <string> cd-sim-name: "Minh An";
@@ -136,7 +164,7 @@ export global StudioLive {
     in-out property <bool> cd-music-enabled: true;
     in-out property <bool> cd-chant-enabled: true;
     in-out property <int> cd-bottom-tab: 0;
-    in-out property <string> cd-event-log: "[01:20:47] Server chạy tại http://localhost:3088 · Bảng điều khiển: http://localhost:3088/live/studio.html · Overlay: http://localhost:3088/live/overlay.html\n[01:21:05] Sẵn sàng nhận bình luận, tặng quà, thả tim và xướng danh công đức.";
+    in-out property <string> cd-event-log: "";
     in-out property <string> cd-script-text: "Nguyện đem công đức này, hướng về khắp tất cả, đệ tử và chúng sinh, đều trọn thành Phật đạo. Cầu chúc cho mọi người một ngày an lạc và nhiều may mắn.";
     in-out property <bool> cd-auto-reply: true;
     in-out property <bool> cd-auto-product: true;
@@ -424,769 +452,271 @@ component LiveStudioPreview inherits StudioCard {
     if StudioLive.motion-status!="": StudioStatus {label:StudioLive.motion-status;}
 }
 
-export component StudioLivePage inherits VerticalLayout {
+component TemplePill inherits Rectangle {
+    in property <string> label;
+    in property <bool> success;
+    min-height: 29px; max-height: 29px;
+    preferred-width: caption.preferred-width + 20px;
+    min-width: 0px; horizontal-stretch: 0;
+    background: root.success ? #10b98118 : #ffffff08;
+    border-radius: 15px; border-width: 1px;
+    border-color: root.success ? #10b98166 : TemplePalette.line;
+    caption := Text { x: 10px; width: Math.max(0px, parent.width - 20px); height: 100%; text: root.label; color: root.success ? #34d399 : TemplePalette.muted; font-size: 12px; vertical-alignment: center; overflow: elide; }
+}
+
+component TempleEventLog inherits Rectangle {
+    min-width: 0px; height: 244px;
+    background: TemplePalette.field; border-radius: 8px;
+    border-width: 1px; border-color: TemplePalette.line;
+    property <int> revision: StudioLive.cd-log-revision;
+    changed revision => { log-scroll.scroll-to-bottom(); }
+    log-scroll := PaneScroll {
+        x: 10px; y: 10px; width: Math.max(0px, parent.width - 20px); height: parent.height - 20px;
+        VerticalLayout {
+            spacing: 3px; alignment: start;
+            if StudioLive.cd-logs.length == 0: Text { text: "Chờ sự kiện từ máy chủ LIVE…"; color: TemplePalette.muted; font-size: 13px; wrap: word-wrap; }
+            for line in StudioLive.cd-logs: Text { text: line; color: #a5b4fc; font-family: "Consolas"; font-size: 12px; wrap: word-wrap; min-width: 0px; }
+        }
+    }
+}
+
+export component StudioLivePage inherits Rectangle {
     in property <length> viewport-width: 1080px;
     in property <length> viewport-height: 720px;
     callback configure-ai();
     callback configure-services();
     callback manage-avatars();
-
+    callback manage-scripts();
+    property <bool> inline-preview: root.viewport-width >= 1050px;
+    property <length> preview-width: Math.max(180px, Math.min(440px, Math.min(root.viewport-width * 0.27, (root.viewport-height - (root.viewport-width < 1180px ? 220px : 170px)) * 9 / 16)));
+    property <length> controls-width: Math.max(0px, root.viewport-width - (root.inline-preview ? root.preview-width + 40px : 0px) - 48px);
+    property <int> columns: root.controls-width >= 840px ? 3 : root.controls-width >= 540px ? 2 : 1;
     min-width: 0px;
-    height: Math.max(420px, root.viewport-height - 8px);
-    spacing: 10px;
-
-    // TOP DIRECTOR HEADER (Exact match to Chanh Dien Online)
-    Rectangle {
-        height: 46px;
-        background: #090e17;
-        border-radius: 8px;
-        border-width: 1px;
-        border-color: #1e293b;
-
+    height: Math.max(400px, root.viewport-height);
+    background: TemplePalette.ground;
+    clip: true;
+    init => { StudioLive.cd-ensure(); }
+    VerticalLayout {
+        spacing: 0px;
+        Rectangle {
+            min-height: toolbar.preferred-height; vertical-stretch: 0;
+            background: TemplePalette.panel;
+            toolbar := GridLayout {
+                padding: 15px; spacing: 10px; min-width: 0px;
+                FlexboxLayout {
+                    row: 0; col: 0; spacing: 9px; min-width: 0px;
+                    preferred-width: root.viewport-width < 1180px ? root.viewport-width - 30px : 650px;
+                    horizontal-stretch: 0;
+                    Text { text: "🪷  Chánh Điện Tịnh Tâm"; font-family: "Georgia"; font-size: 19px; font-weight: 700; color: TemplePalette.gold; height: 40px; vertical-alignment: center; }
+                    TemplePill { label: StudioLive.cd-server-status; success: StudioLive.cd-connected; }
+                    TemplePill { label: StudioLive.cd-tiktok-status; success: StudioLive.cd-tt-state == "connected"; }
+                    TemplePill { label: StudioLive.cd-viewers-count; }
+                }
+                HorizontalLayout {
+                    row: root.viewport-width < 1180px ? 1 : 0;
+                    col: root.viewport-width < 1180px ? 0 : 1;
+                    spacing: 8px; alignment: end; min-width: 0px; horizontal-stretch: 1;
+                    TempleButton { label: "📋 Copy Link OBS Studio"; clicked => { StudioLive.cd-action("copy-obs", "", "", 0); } }
+                    TempleButton { label: "▣ Mở Cửa Sổ Phát (1080×1920)"; tone: 3; clicked => { StudioLive.open-chanh-dien-overlay(); } }
+                    TempleButton { label: StudioLive.cd-audio-enabled ? "🔊 Tắt âm preview" : "🔊 Bật âm thanh"; clicked => { StudioLive.cd-action("audio", "", "", StudioLive.cd-audio-enabled ? 0 : 1); } }
+                }
+            }
+        }
+        Rectangle { height: 1px; background: TemplePalette.line; }
         HorizontalLayout {
-            padding-left: 12px; padding-right: 12px;
-            alignment: space-between;
-
-            // Left: Title + Status pills
-            HorizontalLayout {
-                spacing: 10px;
-                alignment: start;
-                Text {
-                    text: "🪷 Chánh Điện Tịnh Tâm";
-                    color: #f59e0b;
-                    font-size: 14px;
-                    font-weight: 700;
-                    vertical-alignment: center;
-                }
-                Rectangle {
-                    background: rgba(16, 185, 129, 0.2);
-                    border-radius: 12px;
-                    border-width: 1px;
-                    border-color: #10b981;
-                    HorizontalLayout {
-                        padding-left: 9px; padding-right: 9px;
-                        Text { text: StudioLive.cd-server-status; color: #34d399; font-size: 11px; font-weight: 600; vertical-alignment: center; }
+            spacing: 0px; min-width: 0px;
+            PaneScroll {
+                horizontal-stretch: 1; min-width: 0px;
+                VerticalLayout {
+                    padding: 18px; spacing: 18px; alignment: start; min-width: 0px;
+                    GridLayout {
+                        spacing: 18px; min-width: 0px;
+                        TempleCard {
+                            row: 0; col: 0; horizontal-stretch: 1;
+                            width: (root.controls-width - (root.columns - 1) * 18px) / root.columns;
+                            title: "1 · KẾT NỐI TIKTOK LIVE";
+                            Text { text: "Username kênh đang phát LIVE (bắt đầu bằng @)"; color: TemplePalette.muted; font-size: 13px; wrap: word-wrap; min-width: 0px; }
+                            HorizontalLayout {
+                                spacing: 8px; min-width: 0px;
+                                TempleField { value: StudioLive.username; placeholder: "@username_cua_ban"; enabled: StudioLive.cd-tt-state != "connected" && StudioLive.cd-tt-state != "connecting"; edited(value) => { StudioLive.username = value; } }
+                                TempleButton { label: "Kết nối"; tone: 1; width: 72px; enabled: StudioLive.cd-connected && StudioLive.username != "" && StudioLive.cd-tt-state != "connecting" && StudioLive.cd-tt-state != "disconnecting" && StudioLive.cd-tt-state != "connected"; clicked => { StudioLive.cd-action("connect", StudioLive.username, "", 0); } }
+                                TempleButton { label: "Ngắt"; tone: 2; width: 58px; enabled: StudioLive.cd-connected && (StudioLive.cd-tt-state == "connected" || StudioLive.cd-tt-state == "connecting"); clicked => { StudioLive.cd-action("disconnect", "", "", 0); } }
+                            }
+                            Text { text: "Chỉ đọc sự kiện công khai của phòng LIVE (bình luận, quà, tim). Không yêu cầu bạn nhập cookie hay mật khẩu TikTok."; color: TemplePalette.muted; font-size: 13px; wrap: word-wrap; min-width: 0px; }
+                            Text { text: "Danh sách đạo hữu đang ngồi tụng kinh:"; color: TemplePalette.muted; font-size: 13px; wrap: word-wrap; }
+                            Rectangle {
+                                height: 134px; background: TemplePalette.field; border-radius: 7px; border-width: 1px; border-color: TemplePalette.line;
+                                PaneScroll {
+                                    VerticalLayout {
+                                        padding: 10px; spacing: 7px;
+                                        if StudioLive.cd-people.length == 0: Text { text: "Chưa có ai"; color: TemplePalette.muted; horizontal-alignment: center; font-size: 13px; }
+                                        for person in StudioLive.cd-people: HorizontalLayout {
+                                            spacing: 7px;
+                                            Text { text: person.name + (person.simulated ? " · mô phỏng" : ""); color: TemplePalette.text; font-size: 12px; wrap: word-wrap; min-width: 0px; horizontal-stretch: 1; }
+                                            Text { text: person.coins > 0 ? person.coins + " 🪙" : person.skin; color: TemplePalette.gold; font-size: 11px; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        TempleCard {
+                            row: root.columns == 1 ? 1 : 0; col: root.columns == 1 ? 0 : 1; horizontal-stretch: 1;
+                            width: (root.controls-width - (root.columns - 1) * 18px) / root.columns;
+                            title: "2 · THỬ NGHIỆM TƯƠNG TÁC";
+                            HorizontalLayout {
+                                spacing: 10px; min-width: 0px;
+                                TempleField { label: "Tên người xem"; value: StudioLive.cd-sim-name; edited(value) => { StudioLive.cd-sim-name = value; } }
+                                TempleField { label: "Bình luận / Lời nguyện"; value: StudioLive.cd-sim-text; edited(value) => { StudioLive.cd-sim-text = value; } }
+                            }
+                            FlexboxLayout {
+                                spacing: 8px; min-width: 0px;
+                                TempleButton { label: "Gửi bình luận"; enabled: StudioLive.cd-connected && StudioLive.cd-sim-text != ""; clicked => { StudioLive.cd-action("chat", StudioLive.cd-sim-name, StudioLive.cd-sim-text, 0); } }
+                                TempleButton { label: "❤️ Thả tim"; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("like", StudioLive.cd-sim-name, "", 0); } }
+                            }
+                            Text { text: "Thử tặng quà (kèm xướng tên hồi hướng công đức):"; color: TemplePalette.muted; font-size: 13px; wrap: word-wrap; }
+                            HorizontalLayout {
+                                spacing: 8px; min-width: 0px;
+                                TempleButton { label: "🌹 Hoa hồng · 1"; stacked: true; horizontal-stretch: 1; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("gift", StudioLive.cd-sim-name, "Hoa hồng", 1); } }
+                                TempleButton { label: "🪷 Hoa sen · 30"; stacked: true; horizontal-stretch: 1; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("gift", StudioLive.cd-sim-name, "Đèn hoa sen", 30); } }
+                                TempleButton { label: "🔔 Chuông · 199"; stacked: true; horizontal-stretch: 1; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("gift", StudioLive.cd-sim-name, "Chuông vàng", 199); } }
+                            }
+                            Text { text: "Đổ người mẫu & Bot mô phỏng:"; color: TemplePalette.muted; font-size: 13px; wrap: word-wrap; }
+                            FlexboxLayout {
+                                spacing: 8px; min-width: 0px;
+                                for count in [15, 36, 64, 100]: TempleButton { label: count + " người"; compact: true; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("fill", "", "", count); } }
+                                TempleButton { label: StudioLive.cd-bot-running ? "🤖 Tắt Bot" : "🤖 Bật Bot"; compact: true; active: StudioLive.cd-bot-running; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("bots", "", "", StudioLive.cd-bot-running ? 0 : 1); } }
+                                TempleButton { label: "Làm trống"; compact: true; tone: 2; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("clear", "", "", 0); } }
+                            }
+                            Text { text: "Các thao tác trong bảng này là dữ liệu mô phỏng trong cảnh LIVE."; color: TemplePalette.muted; font-size: 11px; wrap: word-wrap; }
+                        }
+                        TempleCard {
+                            row: root.columns == 3 ? 0 : root.columns == 2 ? 1 : 2;
+                            col: root.columns == 3 ? 2 : 0; colspan: root.columns == 2 ? 2 : 1;
+                            width: root.columns == 2 ? root.controls-width : (root.controls-width - (root.columns - 1) * 18px) / root.columns;
+                            horizontal-stretch: 1; title: "3 · ÂM THANH & TỤNG NIỆM";
+                            HorizontalLayout {
+                                spacing: 12px; min-width: 0px;
+                                TempleToggle { label: "Tiếng gõ mõ"; checked: StudioLive.cd-mo-enabled; horizontal-stretch: 1; toggled => { StudioLive.cd-mo-enabled = !StudioLive.cd-mo-enabled; StudioLive.cd-settings(); } }
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 6px;
+                                    Text { text: "Nhịp mõ: " + StudioLive.cd-bpm + " BPM"; color: TemplePalette.muted; font-size: 13px; wrap: word-wrap; }
+                                    TempleSlider { value: StudioLive.cd-bpm; edited(value) => { StudioLive.cd-bpm = value; StudioLive.cd-settings(); } }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: 12px; min-width: 0px;
+                                TempleToggle { label: "Nhạc thiền"; checked: StudioLive.cd-music-enabled; horizontal-stretch: 1; toggled => { StudioLive.cd-music-enabled = !StudioLive.cd-music-enabled; StudioLive.cd-settings(); } }
+                                TempleToggle { label: "Tự đọc kinh định kỳ"; checked: StudioLive.cd-chant-enabled; horizontal-stretch: 1; toggled => { StudioLive.cd-chant-enabled = !StudioLive.cd-chant-enabled; StudioLive.cd-settings(); } }
+                            }
+                            HorizontalLayout {
+                                spacing: 12px; min-width: 0px;
+                                TempleSelect { label: "Giọng đọc AI (Edge TTS)"; options: ["Nam Minh (Giọng Nam Trầm Ấm)", "Hoài My (Giọng Nữ Nhẹ Nhàng)"]; current: StudioLive.cd-voice-index; horizontal-stretch: 1; selected(index) => { StudioLive.cd-voice-index = index; StudioLive.cd-settings(); } }
+                                TempleSelect { label: "Sức chứa"; options: ["Tự động (24 → 100)", "24 chỗ", "36 chỗ", "64 chỗ", "100 chỗ"]; current: StudioLive.cd-seats-index; horizontal-stretch: 1; selected(index) => { StudioLive.cd-seats-index = index; StudioLive.cd-settings(); } }
+                            }
+                            FlexboxLayout {
+                                spacing: 8px; min-width: 0px;
+                                TempleButton { label: "Gõ mõ 1 tiếng"; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("mo", "", "", 0); } }
+                                TempleButton { label: "Đọc kinh ngay"; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("chant", "", "", 0); } }
+                                TempleButton { label: "🔔 Gõ chuông"; compact: true; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("bell", "", "", 0); } }
+                            }
+                            Text { text: "Âm thanh được phát bởi overlay. Chỉ bật preview khi cần nghe thử."; color: TemplePalette.muted; font-size: 11px; wrap: word-wrap; }
+                        }
                     }
-                }
-                Rectangle {
-                    background: #1e293b;
-                    border-radius: 12px;
-                    HorizontalLayout {
-                        padding-left: 9px; padding-right: 9px;
-                        Text { text: StudioLive.cd-tiktok-status; color: #94a3b8; font-size: 11px; vertical-alignment: center; }
+                    TempleCard {
+                        FlexboxLayout {
+                            min-width: 0px; spacing: 7px;
+                            TempleButton { label: "📜 Nhật Ký Sự Kiện"; compact: true; active: StudioLive.cd-bottom-tab == 0; clicked => { StudioLive.cd-bottom-tab = 0; } }
+                            TempleButton { label: "🤖 Avatar & Nhân Vật AI"; compact: true; active: StudioLive.cd-bottom-tab == 1; clicked => { StudioLive.cd-bottom-tab = 1; if !StudioPromaxAvatars.loaded && !StudioPromaxAvatars.busy { StudioPromaxAvatars.refresh(); } } }
+                            TempleButton { label: "🛍 Sản Phẩm & Giỏ Hàng"; compact: true; active: StudioLive.cd-bottom-tab == 2; clicked => { StudioLive.cd-bottom-tab = 2; StudioProducts.open = true; if !StudioProducts.loaded && !StudioProducts.busy { StudioProducts.load(); } } }
+                            TempleButton { label: "📖 Kịch Bản & Lời Đọc AI"; compact: true; active: StudioLive.cd-bottom-tab == 3; clicked => { StudioLive.cd-bottom-tab = 3; } }
+                            TempleButton { label: "Điều phối LIVE & LiveBrain"; compact: true; active: StudioLive.cd-bottom-tab == 4; clicked => { StudioLive.cd-bottom-tab = 4; } }
+                            Text { text: StudioLive.kedi-available ? "● LiveBrain: " + StudioLive.kedi-state : "● LiveBrain chưa khởi động"; color: StudioLive.kedi-state == "Live" ? #34d399 : TemplePalette.muted; font-size: 12px; vertical-alignment: center; wrap: word-wrap; }
+                        }
+                        if StudioLive.cd-bottom-tab == 0: TempleEventLog { }
+                        if StudioLive.cd-bottom-tab == 1: VerticalLayout {
+                            spacing: 12px;
+                            Text { text: "Hình tướng bồ đoàn trong cảnh Chánh Điện"; color: TemplePalette.muted; font-size: 13px; wrap: word-wrap; }
+                            FlexboxLayout {
+                                spacing: 8px; min-width: 0px;
+                                for skin[index] in ["Sư Thầy", "Chú Tiểu", "Ni Cô", "Bà", "Nam", "Nữ"]: TempleButton { label: skin; compact: true; enabled: StudioLive.cd-connected; clicked => { StudioLive.cd-action("skin", "", index == 0 ? "monk" : index == 1 ? "child" : index == 2 ? "nun" : index == 3 ? "granny" : index == 4 ? "man" : "woman", 0); } }
+                            }
+                            // Use the real Concat avatar library and its existing creation route.
+                            PromaxAvatarPicker { temple: true; }
+                            TempleButton { label: "Mở thư viện & tạo nhân vật AI"; clicked => { root.manage-avatars(); } }
+                        }
+                        if StudioLive.cd-bottom-tab == 2: VerticalLayout {
+                            spacing: 12px;
+                            TempleProductsPanel { }
+                            FlexboxLayout {
+                                spacing: 8px; min-width: 0px;
+                                TempleButton { label: "📌 Ghim sản phẩm lên overlay"; enabled: StudioLive.cd-connected && StudioProducts.active-title != ""; clicked => { StudioLive.cd-action("pin", StudioProducts.active-title, StudioProducts.active-price, 0); } }
+                                TempleButton { label: "📢 Đọc sản phẩm đang chọn"; enabled: StudioLive.cd-connected && StudioLive.pinned-script != ""; clicked => { StudioLive.cd-action("say", "", StudioLive.pinned-script, 0); } }
+                            }
+                        }
+                        if StudioLive.cd-bottom-tab == 3: VerticalLayout {
+                            spacing: 12px;
+                            TempleField { label: "Nội dung lời đọc / kịch bản cầu an"; value: StudioLive.cd-script-text; multiline: true; edited(value) => { StudioLive.cd-script-text = value; } }
+                            FlexboxLayout {
+                                spacing: 8px; min-width: 0px;
+                                TempleButton { label: "🔊 AI đọc kịch bản ngay"; tone: 1; enabled: StudioLive.cd-connected && StudioLive.cd-script-text != ""; clicked => { StudioLive.cd-action("say", "", StudioLive.cd-script-text, 0); } }
+                                TempleButton { label: "⏹ Dừng phát giọng"; tone: 2; enabled: StudioLive.cd-connected || StudioLive.is-speaking; clicked => { StudioLive.cd-action("stop", "", "", 0); if StudioLive.is-speaking { StudioLive.interrupt-speech(); } } }
+                                TempleButton { label: "Thư viện kịch bản Concat"; clicked => { root.manage-scripts(); } }
+                            }
+                            Text { text: "Giọng đọc dùng lựa chọn Edge TTS ở bảng Âm thanh. Điều phối AI, giọng mẫu và tự động giới thiệu sản phẩm nằm ở tab Điều phối LIVE & LiveBrain."; color: TemplePalette.muted; font-size: 12px; wrap: word-wrap; }
+                        }
+                        if StudioLive.cd-bottom-tab == 4: LegacyLivePage {
+                            viewport-width: root.controls-width - 36px; viewport-height: root.viewport-height;
+                            configure-ai => { root.configure-ai(); }
+                            configure-services => { root.configure-services(); }
+                            manage-avatars => { root.manage-avatars(); }
+                        }
                     }
-                }
-                Rectangle {
-                    background: #1e293b;
-                    border-radius: 12px;
-                    HorizontalLayout {
-                        padding-left: 9px; padding-right: 9px;
-                        Text { text: StudioLive.cd-viewers-count; color: #94a3b8; font-size: 11px; vertical-alignment: center; }
+                    if !root.inline-preview: TempleButton { label: "Mở preview LIVE dọc 9:16"; tone: 3; clicked => { StudioLive.open-chanh-dien-overlay(); } }
+                    FlexboxLayout {
+                        spacing: 8px; min-width: 0px;
+                        Text { text: StudioLive.cd-origin; color: TemplePalette.muted; font-size: 11px; vertical-alignment: center; }
+                        TempleButton { label: "Mở bảng điều khiển web"; compact: true; clicked => { StudioLive.open-chanh-dien(); } }
                     }
                 }
             }
-
-            // Right: Quick OBS & Stream actions
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: end;
-
-                Rectangle {
-                    background: #1e293b;
-                    border-radius: 6px;
-                    border-width: 1px;
-                    border-color: #334155;
+            Rectangle {
+                width: root.inline-preview ? root.preview-width + 40px : 0px;
+                min-height: 0px; visible: root.inline-preview; clip: true;
+                background: #06090f;
+                VerticalLayout {
+                    padding: 18px; spacing: 14px; alignment: start;
                     HorizontalLayout {
-                        padding-left: 10px; padding-right: 10px;
-                        Text { text: "📋 Copy Link OBS Studio"; color: #f1f5f9; font-size: 11px; font-weight: 600; vertical-alignment: center; }
+                        alignment: space-between; min-width: 0px;
+                        Text { text: "MÀN HÌNH PREVIEW (9:16)"; color: TemplePalette.muted; font-size: 12px; font-weight: 700; min-width: 0px; }
+                        Text { text: "1080 × 1920"; color: TemplePalette.gold; font-size: 12px; font-weight: 700; }
                     }
-                    TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { StudioLive.cd-action("copy-obs", "", "", 0); }
+                    native-preview := Rectangle {
+                        height: root.preview-width * 16 / 9;
+                        background: #080d16; border-radius: 15px;
+                        border-width: 2px; border-color: #75500b;
+                        // The actual overlay WebView owns animation, visitors and audio.
+                        // A loading/error state replaces the old static temple imitation.
+                        if !StudioLive.cd-preview-loaded: VerticalLayout {
+                            padding: 20px; spacing: 14px; alignment: center;
+                            Text { text: StudioLive.cd-preview-status; color: TemplePalette.muted; font-size: 13px; wrap: word-wrap; horizontal-alignment: center; }
+                            TempleButton { label: "Tải lại preview"; clicked => { StudioLive.cd-reload-preview(); } }
+                        }
                     }
-                }
-                Rectangle {
-                    background: #c2410c;
-                    border-radius: 6px;
-                    HorizontalLayout {
-                        padding-left: 12px; padding-right: 12px;
-                        Text { text: "🗔 Mở Cửa Sổ Phát (1080×1920)"; color: #ffffff; font-size: 11px; font-weight: 700; vertical-alignment: center; }
-                    }
-                    TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { StudioLive.cd-action("open-popup", "", "", 0); }
-                    }
-                }
-                Rectangle {
-                    background: #1d4ed8;
-                    border-radius: 6px;
-                    HorizontalLayout {
-                        padding-left: 10px; padding-right: 10px;
-                        Text { text: "🔊 Bật âm thanh"; color: #ffffff; font-size: 11px; font-weight: 600; vertical-alignment: center; }
-                    }
-                    TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { StudioLive.cd-action("open-studio", "", "", 0); }
-                    }
+                    Text { text: StudioLive.cd-audio-enabled ? "Preview có âm thanh" : "Preview tắt âm · Browser Source OBS độc lập"; color: TemplePalette.muted; font-size: 11px; wrap: word-wrap; }
                 }
             }
         }
     }
-
-    // MAIN 2-COLUMN STAGE (Director Left | Preview Right)
-    HorizontalLayout {
-        spacing: 12px;
-        min-width: 0px;
-        vertical-stretch: 1;
-
-        // LEFT COLUMN: DIRECTOR CONTROLS (takes flex width)
-        PaneScroll {
-            horizontal-stretch: 1;
-            VerticalLayout {
-                spacing: 12px;
-                min-width: 0px;
-
-                // 3 COLUMNS HORIZONTAL ROW: Card 1, Card 2, Card 3 (Exact match to chanh-dien-online)
-                HorizontalLayout {
-                    spacing: 10px;
-                    min-width: 0px;
-
-                    // 1. KẾT NỐI TIKTOK LIVE (horizontal-stretch: 1)
-                    Rectangle {
-                        background: #0f172a;
-                        border-radius: 10px;
-                        border-width: 1px;
-                        border-color: #1e293b;
-                        padding: 12px;
-                        horizontal-stretch: 1;
-
-                        VerticalLayout {
-                            spacing: 8px;
-                            Text { text: "1 · KẾT NỐI TIKTOK LIVE"; color: #f59e0b; font-size: 12px; font-weight: 700; }
-                            Text { text: "Username kênh đang phát LIVE:"; color: #94a3b8; font-size: 11px; }
-                            HorizontalLayout {
-                                spacing: 6px;
-                                StudioField {
-                                    placeholder: "@username_cua_ban";
-                                    value: StudioLive.username;
-                                    horizontal-stretch: 1;
-                                    edited(text) => { StudioLive.username = text; }
-                                }
-                                Rectangle {
-                                    background: #059669; border-radius: 6px; width: 68px; height: 34px;
-                                    Text { text: "Kết nối"; color: #ffffff; font-size: 11px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("connect", StudioLive.username, "", 0); } }
-                                }
-                                Rectangle {
-                                    background: #991b1b; border-radius: 6px; width: 55px; height: 34px;
-                                    Text { text: "Ngắt"; color: #fecdd3; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("disconnect", "", "", 0); } }
-                                }
-                            }
-                            Text {
-                                text: "Chỉ đọc sự kiện công khai phòng live. An toàn 100%, không cần cookie hay mật khẩu.";
-                                color: #64748b; font-size: 10px; wrap: word-wrap;
-                            }
-                            Text { text: "Đạo hữu đang ngồi tụng kinh:"; color: #94a3b8; font-size: 11px; }
-                            Rectangle {
-                                background: #070b12; border-radius: 6px; border-width: 1px; border-color: #1e293b; height: 36px;
-                                Text { text: StudioLive.cd-viewers-count == "0/24 người" ? "Chưa có ai" : StudioLive.cd-viewers-count; color: #64748b; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; }
-                            }
-                        }
-                    }
-
-                    // 2. THỬ NGHIỆM TƯƠNG TÁC (horizontal-stretch: 1.35)
-                    Rectangle {
-                        background: #0f172a;
-                        border-radius: 10px;
-                        border-width: 1px;
-                        border-color: #1e293b;
-                        padding: 12px;
-                        horizontal-stretch: 1.35;
-
-                        VerticalLayout {
-                            spacing: 8px;
-                            Text { text: "2 · THỬ NGHIỆM TƯƠNG TÁC"; color: #f59e0b; font-size: 12px; font-weight: 700; }
-                            HorizontalLayout {
-                                spacing: 6px;
-                                StudioField { label: "Tên người xem"; value: StudioLive.cd-sim-name; horizontal-stretch: 1; edited(t) => { StudioLive.cd-sim-name = t; } }
-                                StudioField { label: "Bình luận / Lời nguyện"; value: StudioLive.cd-sim-text; horizontal-stretch: 1.8; edited(t) => { StudioLive.cd-sim-text = t; } }
-                            }
-                            HorizontalLayout {
-                                spacing: 6px;
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; border-width: 1px; border-color: #334155; height: 32px; horizontal-stretch: 1;
-                                    Text { text: "Gửi bình luận"; color: #f1f5f9; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", StudioLive.cd-sim-name, StudioLive.cd-sim-text, 0); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; border-width: 1px; border-color: #334155; height: 32px; width: 95px;
-                                    Text { text: "❤️ Thả tim"; color: #f87171; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("like", "", "", 0); } }
-                                }
-                            }
-                            Text { text: "Thử tặng quà (xướng danh công đức):"; color: #94a3b8; font-size: 10px; }
-                            HorizontalLayout {
-                                spacing: 6px;
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; border-width: 1px; border-color: #334155; height: 32px; horizontal-stretch: 1;
-                                    Text { text: "🌹 Hoa hồng · 1"; color: #f43f5e; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("gift", StudioLive.cd-sim-name, "Hoa hồng", 1); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; border-width: 1px; border-color: #334155; height: 32px; horizontal-stretch: 1;
-                                    Text { text: "🪷 Hoa sen · 30"; color: #f472b6; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("gift", StudioLive.cd-sim-name, "Đèn hoa sen", 30); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; border-width: 1px; border-color: #334155; height: 32px; horizontal-stretch: 1;
-                                    Text { text: "🔔 Chuông · 199"; color: #fbbf24; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("gift", StudioLive.cd-sim-name, "Chuông vàng", 199); } }
-                                }
-                            }
-                            HorizontalLayout {
-                                spacing: 4px;
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 28px; horizontal-stretch: 1;
-                                    Text { text: "15 người"; color: #e2e8f0; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("fill", "", "", 15); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 28px; horizontal-stretch: 1;
-                                    Text { text: "36 người"; color: #e2e8f0; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("fill", "", "", 36); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 28px; horizontal-stretch: 1;
-                                    Text { text: "64 người"; color: #e2e8f0; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("fill", "", "", 64); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 28px; horizontal-stretch: 1;
-                                    Text { text: "100 người"; color: #e2e8f0; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("fill", "", "", 100); } }
-                                }
-                                Rectangle {
-                                    background: StudioLive.cd-bot-running ? #4338ca : #312e81;
-                                    border-radius: 6px; height: 28px; width: 72px;
-                                    Text { text: StudioLive.cd-bot-running ? "🤖 Tắt Bot" : "🤖 Bật Bot"; color: #ffffff; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => {
-                                            StudioLive.cd-bot-running = !StudioLive.cd-bot-running;
-                                            StudioLive.cd-action("bots", "", "", StudioLive.cd-bot-running ? 1 : 0);
-                                        }
-                                    }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 28px; width: 62px;
-                                    Text { text: "Làm trống"; color: #f87171; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("clear", "", "", 0); } }
-                                }
-                            }
-                        }
-                    }
-
-                    // 3. ÂM THANH & TỤNG NIỆM (horizontal-stretch: 1)
-                    Rectangle {
-                        background: #0f172a;
-                        border-radius: 10px;
-                        border-width: 1px;
-                        border-color: #1e293b;
-                        padding: 12px;
-                        horizontal-stretch: 1;
-
-                        VerticalLayout {
-                            spacing: 8px;
-                            Text { text: "3 · ÂM THANH & TỤNG NIỆM"; color: #f59e0b; font-size: 12px; font-weight: 700; }
-                            HorizontalLayout {
-                                spacing: 8px;
-                                Rectangle {
-                                    background: StudioLive.cd-mo-enabled ? rgba(16, 185, 129, 0.2) : #1e293b;
-                                    border-radius: 6px; border-width: 1px; border-color: StudioLive.cd-mo-enabled ? #10b981 : #334155;
-                                    height: 32px; horizontal-stretch: 1;
-                                    Text { text: StudioLive.cd-mo-enabled ? "☑ Tiếng gõ mõ: Bật" : "☐ Tiếng gõ mõ: Tắt"; color: #f1f5f9; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => {
-                                            StudioLive.cd-mo-enabled = !StudioLive.cd-mo-enabled;
-                                            StudioLive.cd-action("mo", "", "", 0);
-                                        }
-                                    }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 32px; width: 85px;
-                                    Text { text: "🔔 Gõ 1 tiếng"; color: #fbbf24; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("bell", "", "", 0); } }
-                                }
-                            }
-                            HorizontalLayout {
-                                spacing: 8px;
-                                Rectangle {
-                                    background: StudioLive.cd-music-enabled ? rgba(16, 185, 129, 0.2) : #1e293b;
-                                    border-radius: 6px; border-width: 1px; border-color: StudioLive.cd-music-enabled ? #10b981 : #334155;
-                                    height: 32px; horizontal-stretch: 1;
-                                    Text { text: StudioLive.cd-music-enabled ? "☑ Nhạc thiền: Bật" : "☐ Nhạc thiền: Tắt"; color: #f1f5f9; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => {
-                                            StudioLive.cd-music-enabled = !StudioLive.cd-music-enabled;
-                                            StudioLive.cd-action("chant", "", "", 0);
-                                        }
-                                    }
-                                }
-                                Rectangle {
-                                    background: StudioLive.cd-chant-enabled ? rgba(16, 185, 129, 0.2) : #1e293b;
-                                    border-radius: 6px; border-width: 1px; border-color: StudioLive.cd-chant-enabled ? #10b981 : #334155;
-                                    height: 32px; horizontal-stretch: 1;
-                                    Text { text: StudioLive.cd-chant-enabled ? "☑ Đọc kinh (3p)" : "☐ Đọc kinh"; color: #f1f5f9; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => {
-                                            StudioLive.cd-chant-enabled = !StudioLive.cd-chant-enabled;
-                                            StudioLive.cd-action("chant", "", "", 0);
-                                        }
-                                    }
-                                }
-                            }
-                            HorizontalLayout {
-                                spacing: 8px;
-                                VerticalLayout {
-                                    spacing: 3px; horizontal-stretch: 1;
-                                    Text { text: "Giọng đọc Edge TTS:"; color: #94a3b8; font-size: 10px; }
-                                    Rectangle {
-                                        background: #080d16; border-radius: 6px; border-width: 1px; border-color: #1e293b; height: 30px;
-                                        Text { text: "Nam Minh (Trầm Ấm)"; color: #f1f5f9; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; }
-                                    }
-                                }
-                                VerticalLayout {
-                                    spacing: 3px; horizontal-stretch: 1;
-                                    Text { text: "Nhịp mõ:"; color: #94a3b8; font-size: 10px; }
-                                    Rectangle {
-                                        background: #080d16; border-radius: 6px; border-width: 1px; border-color: #1e293b; height: 30px;
-                                        Text { text: "52 BPM (Chuẩn thiền)"; color: #f59e0b; font-size: 11px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // LOWER SECTION: TỔNG HỢP TẤT CẢ CHỨC NĂNG (Tabs)
-                Rectangle {
-                    background: #0f172a;
-                    border-radius: 10px;
-                    border-width: 1px;
-                    border-color: #1e293b;
-                    padding: 12px;
-
-                    VerticalLayout {
-                        spacing: 10px;
-
-                        // Tab Bar Header
-                        HorizontalLayout {
-                            spacing: 8px;
-                            height: 34px;
-                            alignment: space-between;
-
-                            HorizontalLayout {
-                                spacing: 6px;
-                                Rectangle {
-                                    background: StudioLive.cd-bottom-tab == 0 ? #b45309 : #1e293b;
-                                    border-radius: 6px;
-                                    HorizontalLayout {
-                                        padding-left: 10px; padding-right: 10px;
-                                        Text { text: "📜 Nhật Ký Sự Kiện"; color: #ffffff; font-size: 11px; font-weight: 600; vertical-alignment: center; }
-                                    }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-bottom-tab = 0; } }
-                                }
-                                Rectangle {
-                                    background: StudioLive.cd-bottom-tab == 1 ? #b45309 : #1e293b;
-                                    border-radius: 6px;
-                                    HorizontalLayout {
-                                        padding-left: 10px; padding-right: 10px;
-                                        Text { text: "🤖 Avatar & Nhân Vật AI"; color: #ffffff; font-size: 11px; font-weight: 600; vertical-alignment: center; }
-                                    }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-bottom-tab = 1; } }
-                                }
-                                Rectangle {
-                                    background: StudioLive.cd-bottom-tab == 2 ? #b45309 : #1e293b;
-                                    border-radius: 6px;
-                                    HorizontalLayout {
-                                        padding-left: 10px; padding-right: 10px;
-                                        Text { text: "🛍️ Sản Phẩm & Giỏ Hàng"; color: #ffffff; font-size: 11px; font-weight: 600; vertical-alignment: center; }
-                                    }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-bottom-tab = 2; } }
-                                }
-                                Rectangle {
-                                    background: StudioLive.cd-bottom-tab == 3 ? #b45309 : #1e293b;
-                                    border-radius: 6px;
-                                    HorizontalLayout {
-                                        padding-left: 10px; padding-right: 10px;
-                                        Text { text: "📖 Kịch Bản & Lời Đọc AI"; color: #ffffff; font-size: 11px; font-weight: 600; vertical-alignment: center; }
-                                    }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-bottom-tab = 3; } }
-                                }
-                            }
-
-                            Text {
-                                text: "● LiveBrain Engine Sẵn Sàng";
-                                color: #34d399;
-                                font-size: 11px;
-                                font-weight: 600;
-                                vertical-alignment: center;
-                            }
-                        }
-
-                        // Tab 0: Nhật Ký Sự Kiện
-                        if StudioLive.cd-bottom-tab == 0: Rectangle {
-                            background: #090d16;
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: #1e293b;
-                            min-height: 120px;
-                            padding: 8px;
-                            Text {
-                                text: StudioLive.cd-event-log;
-                                color: #a5b4fc;
-                                font-size: 11px;
-                                wrap: word-wrap;
-                            }
-                        }
-
-                        // Tab 1: Avatar & Nhân Vật AI
-                        if StudioLive.cd-bottom-tab == 1: VerticalLayout {
-                            spacing: 8px;
-                            Text { text: "Chọn hình tướng hiển thị trên bồ đoàn hoặc Avatar AI dẫn dắt:"; color: #94a3b8; font-size: 11px; }
-                            HorizontalLayout {
-                                spacing: 8px;
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 34px; horizontal-stretch: 1;
-                                    Text { text: "🧘 Sư Thầy"; color: #f1f5f9; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "Đạo Tràng", "!skin monk", 0); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 34px; horizontal-stretch: 1;
-                                    Text { text: "🧒 Chú Tiểu"; color: #f1f5f9; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "Đạo Tràng", "!skin child", 0); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 34px; horizontal-stretch: 1;
-                                    Text { text: "🧕 Ni Cô"; color: #f1f5f9; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "Đạo Tràng", "!skin nun", 0); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 34px; horizontal-stretch: 1;
-                                    Text { text: "👵 Cụ Bà"; color: #f1f5f9; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "Đạo Tràng", "!skin granny", 0); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 34px; horizontal-stretch: 1;
-                                    Text { text: "👨 Cư Sĩ Nam"; color: #f1f5f9; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "Đạo Tràng", "!skin man", 0); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 34px; horizontal-stretch: 1;
-                                    Text { text: "👩 Cư Sĩ Nữ"; color: #f1f5f9; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "Đạo Tràng", "!skin woman", 0); } }
-                                }
-                            }
-                            HorizontalLayout {
-                                spacing: 8px;
-                                alignment: start;
-                                Rectangle {
-                                    background: #0284c7; border-radius: 6px; height: 32px;
-                                    HorizontalLayout {
-                                        padding-left: 12px; padding-right: 12px;
-                                        Text { text: "✨ Áp dụng Avatar Sư Thầy Trụ Trì (Áo Vàng Cà Sa)"; color: #ffffff; font-size: 11px; font-weight: 700; vertical-alignment: center; }
-                                    }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "Hệ Thống", "Kích hoạt Avatar Trụ Trì", 0); } }
-                                }
-                                Rectangle {
-                                    background: #1e293b; border-radius: 6px; height: 32px;
-                                    HorizontalLayout {
-                                        padding-left: 12px; padding-right: 12px;
-                                        Text { text: "📁 Mở kho video nhân vật"; color: #cbd5e1; font-size: 11px; vertical-alignment: center; }
-                                    }
-                                    TouchArea { mouse-cursor: pointer; clicked => { root.manage-avatars(); } }
-                                }
-                            }
-                        }
-
-                        // Tab 2: Sản Phẩm & Giỏ Hàng
-                        if StudioLive.cd-bottom-tab == 2: VerticalLayout {
-                            spacing: 8px;
-                            HorizontalLayout {
-                                alignment: space-between;
-                                Text { text: "Vật phẩm tâm linh ghim giỏ hàng TikTok LIVE & AI tự động đọc giới thiệu:"; color: #94a3b8; font-size: 11px; vertical-alignment: center; }
-                                Rectangle {
-                                    background: StudioLive.cd-auto-product ? #059669 : #475569;
-                                    border-radius: 6px; height: 28px;
-                                    HorizontalLayout {
-                                        padding-left: 10px; padding-right: 10px;
-                                        Text { text: StudioLive.cd-auto-product ? "🔄 Tự động nhắc (Mỗi 5p): Bật" : "🔄 Tự động nhắc: Tắt"; color: #ffffff; font-size: 10px; font-weight: 600; vertical-alignment: center; }
-                                    }
-                                    TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => {
-                                            StudioLive.cd-auto-product = !StudioLive.cd-auto-product;
-                                            StudioLive.cd-action("chat", "TikTok Shop", StudioLive.cd-auto-product ? "Bật tự động nhắc giỏ hàng" : "Tắt nhắc giỏ hàng", 0);
-                                        }
-                                    }
-                                }
-                            }
-                            HorizontalLayout {
-                                spacing: 10px;
-                                // SP 1
-                                Rectangle {
-                                    background: #090d16; border-radius: 8px; border-width: 1px; border-color: #1e293b; padding: 10px; horizontal-stretch: 1;
-                                    VerticalLayout {
-                                        spacing: 6px;
-                                        Text { text: "📿 Chuỗi Hạt Bồ Đề 108 Hạt"; color: #fde047; font-size: 11px; font-weight: 700; }
-                                        Text { text: "Gỗ tự nhiên trì chú bình an · 199.000đ"; color: #94a3b8; font-size: 10px; }
-                                        HorizontalLayout {
-                                            spacing: 6px;
-                                            Rectangle {
-                                                background: #b45309; border-radius: 4px; height: 28px; horizontal-stretch: 1;
-                                                Text { text: "📌 Ghim Live"; color: #ffffff; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                                TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "TikTok Shop", "Đã ghim: Chuỗi Hạt Bồ Đề 108 Hạt (199.000đ)", 0); } }
-                                            }
-                                            Rectangle {
-                                                background: #1e293b; border-radius: 4px; height: 28px; horizontal-stretch: 1;
-                                                Text { text: "📢 AI Đọc"; color: #f1f5f9; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                                TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "AI Voice", "Chuỗi Hạt Bồ Đề 108 Hạt gỗ tự nhiên niệm Phật bình an, giá một trăm chín mươi chín ngàn đồng.", 0); } }
-                                            }
-                                        }
-                                    }
-                                }
-                                // SP 2
-                                Rectangle {
-                                    background: #090d16; border-radius: 8px; border-width: 1px; border-color: #1e293b; padding: 10px; horizontal-stretch: 1;
-                                    VerticalLayout {
-                                        spacing: 6px;
-                                        Text { text: "🪵 Nhang Trầm Hương Tự Nhiên"; color: #fde047; font-size: 11px; font-weight: 700; }
-                                        Text { text: "Trầm rừng thanh tịnh · 250.000đ"; color: #94a3b8; font-size: 10px; }
-                                        HorizontalLayout {
-                                            spacing: 6px;
-                                            Rectangle {
-                                                background: #b45309; border-radius: 4px; height: 28px; horizontal-stretch: 1;
-                                                Text { text: "📌 Ghim Live"; color: #ffffff; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                                TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "TikTok Shop", "Đã ghim: Nhang Trầm Hương Tự Nhiên (250.000đ)", 0); } }
-                                            }
-                                            Rectangle {
-                                                background: #1e293b; border-radius: 4px; height: 28px; horizontal-stretch: 1;
-                                                Text { text: "📢 AI Đọc"; color: #f1f5f9; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                                TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "AI Voice", "Nhang Trầm Hương tự nhiên thanh tịnh không gian phòng thờ, giá hai trăm năm mươi ngàn đồng.", 0); } }
-                                            }
-                                        }
-                                    }
-                                }
-                                // SP 3
-                                Rectangle {
-                                    background: #090d16; border-radius: 8px; border-width: 1px; border-color: #1e293b; padding: 10px; horizontal-stretch: 1;
-                                    VerticalLayout {
-                                        spacing: 6px;
-                                        Text { text: "🪷 Đèn Hoa Sen Pha Lê Đổi Màu"; color: #fde047; font-size: 11px; font-weight: 700; }
-                                        Text { text: "Đèn LED thờ cúng 7 màu · 320.000đ"; color: #94a3b8; font-size: 10px; }
-                                        HorizontalLayout {
-                                            spacing: 6px;
-                                            Rectangle {
-                                                background: #b45309; border-radius: 4px; height: 28px; horizontal-stretch: 1;
-                                                Text { text: "📌 Ghim Live"; color: #ffffff; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                                TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "TikTok Shop", "Đã ghim: Đèn Hoa Sen Pha Lê (320.000đ)", 0); } }
-                                            }
-                                            Rectangle {
-                                                background: #1e293b; border-radius: 4px; height: 28px; horizontal-stretch: 1;
-                                                Text { text: "📢 AI Đọc"; color: #f1f5f9; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                                                TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "AI Voice", "Đèn Hoa Sen Pha Lê đổi màu trang nghiêm bàn thờ, giá ba trăm hai mươi ngàn đồng.", 0); } }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Tab 3: Kịch Bản & Lời Đọc AI
-                        if StudioLive.cd-bottom-tab == 3: VerticalLayout {
-                            spacing: 8px;
-                            Text { text: "Nội dung lời đọc thủ công hoặc kịch bản cầu an cho phòng live:"; color: #94a3b8; font-size: 11px; }
-                            StudioField {
-                                value: StudioLive.cd-script-text;
-                                multiline: true;
-                                edited(t) => { StudioLive.cd-script-text = t; }
-                            }
-                            HorizontalLayout {
-                                spacing: 8px;
-                                Rectangle {
-                                    background: #0284c7; border-radius: 6px; height: 32px;
-                                    HorizontalLayout {
-                                        padding-left: 14px; padding-right: 14px;
-                                        Text { text: "▶ AI Đọc kịch bản ngay (Edge TTS)"; color: #ffffff; font-size: 11px; font-weight: 700; vertical-alignment: center; }
-                                    }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "AI Voice", StudioLive.cd-script-text, 0); } }
-                                }
-                                Rectangle {
-                                    background: StudioLive.cd-auto-reply ? #059669 : #475569;
-                                    border-radius: 6px; height: 32px;
-                                    HorizontalLayout {
-                                        padding-left: 12px; padding-right: 12px;
-                                        Text { text: StudioLive.cd-auto-reply ? "💬 Tự động trả lời bình luận (LiveBrain): Bật" : "💬 Tự động trả lời: Tắt"; color: #ffffff; font-size: 11px; font-weight: 600; vertical-alignment: center; }
-                                    }
-                                    TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => {
-                                            StudioLive.cd-auto-reply = !StudioLive.cd-auto-reply;
-                                            StudioLive.cd-action("chat", "Hệ Thống", StudioLive.cd-auto-reply ? "Bật tự động trả lời bình luận" : "Tắt tự động trả lời", 0);
-                                        }
-                                    }
-                                }
-                                Rectangle {
-                                    background: #991b1b; border-radius: 6px; height: 32px;
-                                    HorizontalLayout {
-                                        padding-left: 12px; padding-right: 12px;
-                                        Text { text: "⏹ Dừng phát giọng"; color: #fecdd3; font-size: 11px; font-weight: 600; vertical-alignment: center; }
-                                    }
-                                    TouchArea { mouse-cursor: pointer; clicked => { StudioLive.cd-action("chat", "Hệ Thống", "Dừng phát âm thanh", 0); } }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // RIGHT COLUMN: 9:16 LIVE PREVIEW
-        VerticalLayout {
-            width: root.viewport-width < 900px ? 260px : 330px;
-            spacing: 8px;
-            alignment: start;
-
-            HorizontalLayout {
-                alignment: space-between;
-                Text { text: "MÀN HÌNH PREVIEW (9:16)"; color: #cbd5e1; font-size: 11px; font-weight: 700; }
-                Text { text: "1080 × 1920"; color: #f59e0b; font-size: 11px; font-weight: 700; }
-            }
-
-            Rectangle {
-                width: 100%;
-                height: root.viewport-width < 900px ? 460px : 560px;
-                background: #080d16;
-                border-radius: 12px;
-                border-width: 2px;
-                border-color: #334155;
-                clip: true;
-
-                // Real Temple Background!
-                Image {
-                    source: @image-url("../assets/chanh-dien-hall.jpg");
-                    image-fit: cover;
-                    width: 100%;
-                    height: 100%;
-                }
-
-                // Live Overlay Simulation (Plaque, stats, badges, etc.)
-                VerticalLayout {
-                    padding: 10px;
-                    spacing: 8px;
-                    alignment: space-between;
-
-                    // Top Golden Plaque
-                    Rectangle {
-                        height: 48px;
-                        background: rgba(15, 23, 42, 0.88);
-                        border-radius: 8px;
-                        border-width: 1.5px;
-                        border-color: #f59e0b;
-                        VerticalLayout {
-                            alignment: center;
-                            spacing: 2px;
-                            Text { text: "🪷 CHÁNH ĐIỆN TỊNH TÂM 🪷"; color: #f59e0b; font-size: 12px; font-weight: 700; horizontal-alignment: center; }
-                            Text { text: "Nam Mô A Di Đà Phật"; color: #fef08a; font-size: 10px; font-weight: 600; horizontal-alignment: center; }
-                        }
-                    }
-
-                    // Stats pill
-                    HorizontalLayout {
-                        alignment: center;
-                        Rectangle {
-                            height: 22px;
-                            background: rgba(0, 0, 0, 0.65);
-                            border-radius: 11px;
-                            border-width: 1px;
-                            border-color: rgba(255, 255, 255, 0.15);
-                            HorizontalLayout {
-                                padding-left: 8px; padding-right: 8px; spacing: 6px;
-                                Text { text: "● 0/24 đạo tràng"; color: #34d399; font-size: 9px; font-weight: 600; vertical-alignment: center; }
-                                Text { text: "⏱ 01:10:30"; color: #cbd5e1; font-size: 9px; vertical-alignment: center; }
-                            }
-                        }
-                    }
-
-                    // Mid section with floating cards
-                    HorizontalLayout {
-                        alignment: space-between;
-                        // Left card: Cong duc
-                        Rectangle {
-                            width: 80px; height: 42px;
-                            background: rgba(15, 23, 42, 0.82);
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: rgba(245, 158, 11, 0.4);
-                            VerticalLayout {
-                                alignment: center; spacing: 2px;
-                                Text { text: "✦ Công Đức ✦"; color: #f59e0b; font-size: 9px; font-weight: 700; horizontal-alignment: center; }
-                                Text { text: "Chưa có"; color: #94a3b8; font-size: 8px; horizontal-alignment: center; }
-                            }
-                        }
-                        // Right card: Guiding tips
-                        Rectangle {
-                            width: 140px; height: 50px;
-                            background: rgba(15, 23, 42, 0.82);
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: rgba(255, 255, 255, 0.2);
-                            VerticalLayout {
-                                alignment: center; spacing: 1px; padding: 3px;
-                                Text { text: "• Bình luận bất kỳ để vào thiền"; color: #f8fafc; font-size: 8px; }
-                                Text { text: "• Có nam · nữ · sư · ni · tiểu · bà..."; color: #fcd34d; font-size: 8px; }
-                                Text { text: "• Tặng quà được xướng tên"; color: #f87171; font-size: 8px; }
-                            }
-                        }
-                    }
-
-                    // Monk badges at altar
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 4px;
-                        Rectangle {
-                            background: rgba(245, 158, 11, 0.85); border-radius: 4px; height: 16px;
-                            HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Thầy Minh Đạo"; color: #000000; font-size: 8px; font-weight: 700; vertical-alignment: center; } }
-                        }
-                        Rectangle {
-                            background: rgba(239, 68, 68, 0.85); border-radius: 4px; height: 16px;
-                            HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Sư Trụ Trì"; color: #ffffff; font-size: 8px; font-weight: 700; vertical-alignment: center; } }
-                        }
-                        Rectangle {
-                            background: rgba(245, 158, 11, 0.85); border-radius: 4px; height: 16px;
-                            HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Thầy Tâm Từ"; color: #000000; font-size: 8px; font-weight: 700; vertical-alignment: center; } }
-                        }
-                    }
-
-                    // Bottom audio button
-                    Rectangle {
-                        height: 32px;
-                        background: #b45309;
-                        border-radius: 6px;
-                        HorizontalLayout {
-                            alignment: center; spacing: 6px;
-                            Text { text: "🔔 Bấm để bật âm thanh"; color: #ffffff; font-size: 11px; font-weight: 700; vertical-alignment: center; }
-                        }
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { StudioLive.cd-action("bell", "", "", 0); }
-                        }
-                    }
-                }
+    Timer {
+        interval: 80ms;
+        running: StudioLive.cd-page-active;
+        triggered => {
+            StudioLive.cd-preview-inline = root.inline-preview;
+            if root.inline-preview {
+                StudioLive.cd-preview-x = native-preview.absolute-position.x + 2px;
+                StudioLive.cd-preview-y = native-preview.absolute-position.y + 2px;
+                StudioLive.cd-preview-width = native-preview.width - 4px;
+                StudioLive.cd-preview-height = native-preview.height - 4px;
             }
         }
     }

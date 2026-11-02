@@ -99,6 +99,7 @@ export component PaneScroll inherits Rectangle {
     changed reset-key => { root.scroll-to-top(); }
     /// Reset a bounded list after changing its page/filter without exposing scroll state.
     public function scroll-to-top() { root.offset = 0px; }
+    public function scroll-to-bottom() { root.offset = -root.overflow; }
     /// A finger drags the column as well: a press that no control took -
     /// on a label, a note, a heading, the air between rows - scrolls. Not
     /// a Flickable, which would take the drag off a control as well; a

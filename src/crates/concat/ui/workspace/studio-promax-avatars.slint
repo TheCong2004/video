@@ -2,6 +2,7 @@
 import { Floword } from "../theme/floword.slint";
 import { Select } from "../primitives/primitives.slint";
 import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+import { TemplePalette, TempleSelect, TempleButton } from "temple-chrome.slint";
 
 export struct PromaxAvatarRow { id: string, name: string, state: string, details: string, deletable: bool }
 export global StudioPromaxAvatars {
@@ -33,12 +34,18 @@ export global StudioPromaxAvatars {
 
 export component PromaxAvatarPicker inherits VerticalLayout {
     in property <bool> compact;
+    in property <bool> temple;
     callback live-requested();
     callback import-requested();
     spacing: 8px;
     min-width: 0px;
-    Text { text: "Nhân vật của bạn"; color: Floword.text; font-size: root.compact ? 11.5px : 14px; font-weight: 700; wrap: word-wrap; }
-    if StudioPromaxAvatars.ready-options.length > 0: Select {
+    Text { text: "Nhân vật của bạn"; color: root.temple ? TemplePalette.text : Floword.text; font-size: root.compact ? 11.5px : 14px; font-weight: 700; wrap: word-wrap; }
+    if root.temple && StudioPromaxAvatars.ready-options.length > 0: TempleSelect {
+        label: "Nhân vật đã sẵn sàng"; options: StudioPromaxAvatars.ready-options;
+        current: StudioPromaxAvatars.selected-index;
+        selected(index) => { if !StudioPromaxAvatars.busy { StudioPromaxAvatars.selected-index = index; StudioPromaxAvatars.select-avatar(index); } }
+    }
+    if !root.temple && StudioPromaxAvatars.ready-options.length > 0: Select {
         options: StudioPromaxAvatars.ready-options;
         current <=> StudioPromaxAvatars.selected-index;
         enabled: !StudioPromaxAvatars.busy;
@@ -46,18 +53,25 @@ export component PromaxAvatarPicker inherits VerticalLayout {
     }
     if StudioPromaxAvatars.ready-options.length == 0: Text {
         text: StudioPromaxAvatars.loaded ? "Chưa có nhân vật sẵn sàng. Thêm video trong mục Nhân vật." : "Chưa tải nhân vật.";
-        color: Floword.muted; font-size: 12px; wrap: word-wrap;
+        color: root.temple ? TemplePalette.muted : Floword.muted; font-size: 12px; wrap: word-wrap;
     }
-    StudioButton {
+    function activate() {
+        if StudioPromaxAvatars.busy { return; }
+        if StudioPromaxAvatars.ready-options.length > 0 { StudioPromaxAvatars.use-live(); root.live-requested(); }
+        else if StudioPromaxAvatars.ready { StudioPromaxAvatars.choose-video(); root.import-requested(); }
+        else { StudioPromaxAvatars.refresh(); }
+    }
+    if root.temple: TempleButton {
+        label: StudioPromaxAvatars.ready-options.length > 0 ? "Dùng cho LIVE" : StudioPromaxAvatars.ready ? "Thêm video" : "Thử tải lại";
+        enabled: !StudioPromaxAvatars.busy; tone: 1;
+        clicked => { root.activate(); }
+    }
+    if !root.temple: StudioButton {
         compact: root.compact;
         label: StudioPromaxAvatars.ready-options.length > 0 ? "Dùng cho LIVE" : StudioPromaxAvatars.ready ? "Thêm video" : "Thử tải lại";
         primary: true;
         enabled: !StudioPromaxAvatars.busy;
-        clicked => {
-            if StudioPromaxAvatars.ready-options.length > 0 { StudioPromaxAvatars.use-live(); root.live-requested(); }
-            else if StudioPromaxAvatars.ready { StudioPromaxAvatars.choose-video(); root.import-requested(); }
-            else { StudioPromaxAvatars.refresh(); }
-        }
+        clicked => { root.activate(); }
     }
     if root.compact && (StudioPromaxAvatars.error || StudioPromaxAvatars.busy): Text {
         text: StudioPromaxAvatars.status;

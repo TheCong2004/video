@@ -46,6 +46,7 @@ $liveResources=Join-Path $output 'resources\tiktok-live-connector'
 if($LASTEXITCODE -ge 8){throw 'Bundling TikTok runtime failed.'}
 New-Item -ItemType Directory -Path (Join-Path $output 'resources\node') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $localAi 'node.exe') -Destination (Join-Path $output 'resources\node\node.exe')
+& (Join-Path $PSScriptRoot 'stage-temple-runtime.ps1') -Destination (Join-Path $output 'resources')
 New-Item -ItemType Directory -Path (Join-Path $output 'resources\bin') -Force | Out-Null
 foreach ($downloader in @('lux.exe', 'yt-dlp.exe')) {
     $downloaderPath = Join-Path $packageRoot "resources\bin\$downloader"

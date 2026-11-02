@@ -58,7 +58,7 @@ import { StudioSession } from "workspace/studio-session.slint";
 import { PaneScroll } from "workspace/pane.slint";
 import { StudioOpenTalking } from "workspace/studio-opentalking.slint";
 import { StudioPromaxAvatars, PromaxAvatarRow } from "workspace/studio-promax-avatars.slint";
-import { StudioLive, StudioLiveCommentRow } from "workspace/studio-live.slint";
+import { StudioLive, StudioLiveCommentRow, TempleViewerRow } from "workspace/studio-live.slint";
 import { StudioProducts, StudioProductRow } from "workspace/studio-products.slint";
 import { ScriptLibrary, StudioPromptRow } from "workspace/studio-scripts.slint";
 import { ProductionStudio, StudioRunRow } from "workspace/studio-production.slint";
@@ -94,6 +94,7 @@ export {
     StudioPromaxAvatars, PromaxAvatarRow,
     StudioLive,
     StudioLiveCommentRow,
+    TempleViewerRow,
     StudioProducts, StudioProductRow,
     ScriptLibrary, StudioPromptRow,
     ProductionStudio, StudioRunRow,
@@ -164,6 +165,7 @@ export component App inherits Window {
     changed on-start => {
         if (!root.on-start) {
             StudioWeb.hide-native();
+            StudioLive.cd-hide-preview();
             StudioHotclip.hide-native();
             keys.focus();
         }
@@ -172,7 +174,7 @@ export component App inherits Window {
         || root.project-sheet.open || root.captions.open || root.speech.open
         || root.start.composing;
     changed sheet-open => {
-        if root.sheet-open { StudioWeb.hide-native(); StudioHotclip.hide-native(); }
+        if root.sheet-open { StudioWeb.hide-native(); StudioHotclip.hide-native(); StudioLive.cd-hide-preview(); }
         if (!root.sheet-open) {
             keys.focus();
         }
@@ -180,7 +182,7 @@ export component App inherits Window {
 
     out property <bool> web-host-allowed: root.on-start && !root.sheet-open && !root.confirm.open && !root.relink.open && root.open-menu < 0;
     changed web-host-allowed => {
-        if !root.web-host-allowed { StudioWeb.hide-native(); StudioHotclip.hide-native(); }
+        if !root.web-host-allowed { StudioWeb.hide-native(); StudioHotclip.hide-native(); StudioLive.cd-hide-preview(); }
     }
 
     // The editor's own state and actions live on the Editor global rather

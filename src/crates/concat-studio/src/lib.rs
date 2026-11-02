@@ -24,6 +24,8 @@ pub mod live_adapters;
 pub mod live_brain;
 pub mod live_director;
 pub mod live_runtime;
+pub mod temple_live;
+pub mod temple_runtime;
 pub mod live_scene;
 pub mod live_voice;
 pub mod local_ai;

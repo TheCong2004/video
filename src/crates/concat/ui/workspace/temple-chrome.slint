@@ -1,0 +1,195 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Page-local presentation: the application's light/dark palette cannot alter
+// broadcast controls. Operation/state ownership stays in the existing services.
+export global TemplePalette {
+    out property <color> ground: #090d16;
+    out property <color> panel: #0f172a;
+    out property <color> field: #090d16;
+    out property <color> card: #1e293b;
+    out property <color> line: #263244;
+    out property <color> text: #f1f5f9;
+    out property <color> muted: #94a3b8;
+    out property <color> gold: #fbbf24;
+    out property <color> green: #10b981;
+}
+
+export component TempleButton inherits Rectangle {
+    in property <string> label;
+    in property <int> tone; // neutral, green, danger, gold
+    in property <bool> enabled: true;
+    in property <bool> active;
+    in property <bool> compact;
+    in property <bool> stacked;
+    callback clicked();
+    min-width: 0px;
+    min-height: root.stacked ? 56px : root.compact ? 34px : 40px;
+    max-height: root.stacked ? 56px : root.compact ? 34px : 40px;
+    preferred-width: Math.min(250px, caption.preferred-width + 24px);
+    horizontal-stretch: 0;
+    background: root.active || root.tone == 3 ? #78350f : root.tone == 1 ? #10b981 : root.tone == 2 ? #47212a : touch.has-hover ? #334155 : TemplePalette.card;
+    border-radius: 7px;
+    border-width: 1px;
+    border-color: focus.has-focus ? #93c5fd : root.active || root.tone == 3 ? TemplePalette.gold : root.tone == 2 ? #ef4444 : TemplePalette.line;
+    opacity: root.enabled ? 1 : 0.45;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+    forward-focus: focus;
+    caption := Text {
+        x: 8px; width: Math.max(0px, root.width - 16px); height: root.height;
+        text: root.label; color: root.tone == 2 ? #fca5a5 : TemplePalette.text;
+        font-size: root.compact ? 12px : 13px; font-weight: 600;
+        horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap;
+    }
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if event.text == Key.Return || event.text == " " { root.clicked(); return accept; }
+            return reject;
+        }
+    }
+    touch := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { focus.focus(); root.clicked(); } }
+}
+
+export component TempleField inherits Rectangle {
+    in property <string> label;
+    in-out property <string> value;
+    in property <string> placeholder;
+    in property <bool> multiline;
+    in property <bool> enabled: true;
+    callback edited(string);
+    min-width: 0px; horizontal-stretch: 1;
+    min-height: body.preferred-height; max-height: body.preferred-height;
+    forward-focus: input;
+    body := VerticalLayout {
+        spacing: 7px;
+        if root.label != "": Text { text: root.label; color: TemplePalette.muted; font-size: 12px; wrap: word-wrap; min-width: 0px; }
+        Rectangle {
+            height: root.multiline ? 120px : 40px;
+            background: TemplePalette.field; border-radius: 7px;
+            border-width: 1px; border-color: input.has-focus ? TemplePalette.gold : TemplePalette.line;
+            clip: true;
+            input := TextInput {
+                x: 11px; y: 9px; width: Math.max(0px, parent.width - 22px); height: parent.height - 18px;
+                text <=> root.value;
+                color: TemplePalette.text; font-size: 13px;
+                single-line: !root.multiline; wrap: root.multiline ? word-wrap : no-wrap;
+                read-only: !root.enabled; accessible-label: root.label == "" ? root.placeholder : root.label;
+                selection-background-color: #334155; selection-foreground-color: #ffffff;
+                edited => { root.edited(self.text); }
+            }
+            if root.value == "" && !input.has-focus: Text {
+                x: 11px; width: Math.max(0px, parent.width - 22px); height: 100%;
+                text: root.placeholder; color: #64748b; font-size: 13px; vertical-alignment: center;
+            }
+        }
+    }
+}
+
+export component TempleCard inherits Rectangle {
+    in property <string> title;
+    min-width: 0px;
+    min-height: body.preferred-height;
+    background: TemplePalette.panel; border-radius: 12px;
+    border-width: 1px; border-color: TemplePalette.line;
+    body := VerticalLayout {
+        padding: 18px; spacing: 14px; alignment: start; min-width: 0px;
+        if root.title != "": Text { text: root.title; color: TemplePalette.gold; font-size: 14px; font-weight: 700; wrap: word-wrap; min-width: 0px; }
+        @children
+    }
+}
+
+export component TempleToggle inherits Rectangle {
+    in property <string> label;
+    in property <bool> checked;
+    in property <bool> enabled: true;
+    callback toggled();
+    min-width: 0px; min-height: 40px;
+    opacity: root.enabled ? 1 : 0.45;
+    accessible-role: checkbox; accessible-label: root.label;
+    accessible-checked: root.checked; accessible-enabled: root.enabled;
+    forward-focus: focus;
+    HorizontalLayout {
+        spacing: 9px; alignment: start;
+        Rectangle {
+            width: 17px; height: 17px;
+            background: root.checked ? #93c5fd : TemplePalette.field;
+            border-radius: 3px; border-width: 1px; border-color: focus.has-focus ? TemplePalette.gold : #94a3b8;
+            Text { text: root.checked ? "✓" : ""; color: #0f172a; horizontal-alignment: center; vertical-alignment: center; font-weight: 700; }
+        }
+        Text { text: root.label; color: TemplePalette.muted; font-size: 12px; wrap: word-wrap; min-width: 0px; horizontal-stretch: 1; }
+    }
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => { if event.text == " " || event.text == Key.Return { root.toggled(); return accept; } return reject; }
+    }
+    TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { focus.focus(); root.toggled(); } }
+}
+
+export component TempleSelect inherits Rectangle {
+    in property <string> label;
+    in property <[string]> options;
+    in property <int> current;
+    callback selected(int);
+    min-width: 0px; min-height: 80px; max-height: 80px;
+    VerticalLayout {
+        spacing: 7px;
+        Text { text: root.label; color: TemplePalette.muted; font-size: 12px; wrap: word-wrap; min-width: 0px; }
+        Rectangle {
+            height: 40px; background: TemplePalette.field; border-radius: 7px;
+            border-width: 1px; border-color: focus.has-focus ? TemplePalette.gold : TemplePalette.line;
+            HorizontalLayout {
+                padding-left: 11px; padding-right: 11px; spacing: 5px;
+                Text { text: root.current >= 0 && root.current < root.options.length ? root.options[root.current] : "Chọn…"; color: TemplePalette.text; font-size: 13px; min-width: 0px; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
+                Text { text: "⌄"; color: TemplePalette.muted; vertical-alignment: center; }
+            }
+            TouchArea { mouse-cursor: pointer; clicked => { focus.focus(); popup.show(); } }
+        }
+    }
+    forward-focus: focus;
+    accessible-role: combobox; accessible-label: root.label;
+    focus := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Return || event.text == " " { popup.show(); return accept; }
+            if event.text == Key.DownArrow { root.selected(Math.min(root.options.length - 1, root.current + 1)); return accept; }
+            if event.text == Key.UpArrow { root.selected(Math.max(0, root.current - 1)); return accept; }
+            return reject;
+        }
+    }
+    popup := PopupWindow {
+        y: root.height; width: root.width;
+        Rectangle {
+            background: TemplePalette.card; border-radius: 7px; border-width: 1px; border-color: TemplePalette.line;
+            VerticalLayout {
+                padding: 4px;
+                for option[index] in root.options: TempleButton {
+                    label: option; active: index == root.current; horizontal-stretch: 1;
+                    clicked => { root.selected(index); popup.close(); }
+                }
+            }
+        }
+    }
+}
+
+export component TempleSlider inherits Rectangle {
+    in property <int> value: 52;
+    callback edited(int);
+    min-height: 32px; min-width: 70px;
+    accessible-role: slider; accessible-label: "Nhịp mõ BPM";
+    forward-focus: focus;
+    Rectangle { y: root.height / 2 - 3px; height: 6px; width: 100%; background: #475569; border-radius: 3px; }
+    Rectangle { y: root.height / 2 - 3px; height: 6px; width: parent.width * (root.value - 20) / 80; background: #93c5fd; border-radius: 3px; }
+    Rectangle { x: Math.max(0px, (parent.width - 18px) * (root.value - 20) / 80); y: root.height / 2 - 9px; width: 18px; height: 18px; background: #93c5fd; border-radius: 9px; border-width: focus.has-focus ? 2px : 0px; border-color: TemplePalette.gold; }
+    focus := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.RightArrow || event.text == Key.UpArrow { root.edited(Math.min(100, root.value + 1)); return accept; }
+            if event.text == Key.LeftArrow || event.text == Key.DownArrow { root.edited(Math.max(20, root.value - 1)); return accept; }
+            return reject;
+        }
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => { if event.kind == PointerEventKind.down { focus.focus(); root.edited(Math.round(20 + Math.max(0, Math.min(1, self.mouse-x / self.width)) * 80)); } }
+        moved => { if self.pressed { root.edited(Math.round(20 + Math.max(0, Math.min(1, self.mouse-x / self.width)) * 80)); } }
+    }
+}

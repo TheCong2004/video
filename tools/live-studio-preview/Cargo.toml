@@ -6,10 +6,17 @@ publish = false
 
 [workspace]
 
+[features]
+native = ["slint/backend-winit", "slint/unstable-winit-030", "slint/accessibility", "dep:concat-studio", "dep:serde_json", "dep:wry", "dep:windows-sys"]
+
 [dependencies]
 slint = { version = "=1.18.1", default-features = false, features = ["std", "renderer-software", "compat-1-2"] }
 i-slint-core = { version = "=1.18.1", default-features = false, features = ["image-decoders", "image-default-formats"] }
 png = "0.17"
+concat-studio = { path = "../../src/crates/concat-studio", optional = true }
+serde_json = { version = "1", optional = true }
+wry = { version = "=0.57.0", default-features = false, optional = true }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_Shell"], optional = true }
 
 [build-dependencies]
 slint-build = "=1.18.1"

@@ -2,6 +2,7 @@
 import { I18n } from "../i18n.slint";
 import { Floword } from "../theme/floword.slint";
 import { StudioCard, StudioHeading, StudioButton, StudioField } from "studio-chrome.slint";
+import { TemplePalette, TempleCard, TempleButton, TempleField, TempleToggle } from "temple-chrome.slint";
 
 export struct StudioProductRow {
     index: int, title: string, price: string, enabled: bool, active: bool,
@@ -102,6 +103,57 @@ export component StudioProductsPanel inherits StudioCard {
                 StudioButton { label: I18n.t("studioProducts.apply"); primary: true; clicked => { StudioProducts.apply(); } }
                 StudioButton { label: I18n.t("common.cancel"); clicked => { StudioProducts.editing = false; } }
             }
+        }
+    }
+}
+
+// Broadcast presentation of the same repository/editor state. All mutations
+// stay in StudioProducts' existing native adapter; no sample products exist.
+export component TempleProductsPanel inherits VerticalLayout {
+    spacing: 12px; min-width: 0px;
+    FlexboxLayout {
+        spacing: 8px; min-width: 0px;
+        TempleButton { label: "Tải sản phẩm"; enabled: !StudioProducts.busy && !StudioProducts.dirty && !StudioProducts.editing; clicked => { StudioProducts.load(); } }
+        TempleButton { label: "Thêm sản phẩm"; tone: 1; enabled: StudioProducts.loaded && !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.uncertain && StudioProducts.rows.length < 200; clicked => { StudioProducts.new-product(); } }
+        TempleButton { label: "Lưu thay đổi"; enabled: StudioProducts.dirty && !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.uncertain; clicked => { StudioProducts.save(); } }
+        TempleButton { label: "Sản phẩm tiếp theo"; enabled: StudioProducts.loaded && !StudioProducts.busy && !StudioProducts.dirty && !StudioProducts.editing && !StudioProducts.uncertain; clicked => { StudioProducts.next-product(); } }
+        if StudioProducts.dirty || StudioProducts.uncertain: TempleButton { label: "Tải lại dữ liệu đã lưu"; enabled: !StudioProducts.busy; clicked => { StudioProducts.discard(); } }
+    }
+    Text { text: StudioProducts.busy ? "Đang tải sản phẩm…" : StudioProducts.status == "studioAi.authRequired" ? "Kết nối tài khoản AI trong Concat để tải thư viện sản phẩm." : StudioProducts.status; color: TemplePalette.muted; font-size: 12px; wrap: word-wrap; }
+    if StudioProducts.loaded && StudioProducts.rows.length == 0: Text { text: "Chưa có sản phẩm trong thư viện."; color: TemplePalette.muted; font-size: 13px; wrap: word-wrap; }
+    for product in StudioProducts.rows: TempleCard {
+        title: product.title + " · " + product.price;
+        Text { text: product.active ? "Đang chọn" : product.enabled ? "Sẵn sàng" : "Đã tắt"; color: product.active ? TemplePalette.green : TemplePalette.muted; font-size: 12px; }
+        FlexboxLayout {
+            spacing: 8px; min-width: 0px;
+            TempleButton { label: "Chỉnh sửa"; compact: true; enabled: !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.uncertain; clicked => { StudioProducts.edit(product.index); } }
+            TempleButton { label: "Chọn sản phẩm"; compact: true; enabled: product.enabled && !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.dirty && !StudioProducts.uncertain; clicked => { StudioProducts.select-product(product.index); } }
+            TempleButton { label: "Xóa sản phẩm"; compact: true; tone: 2; enabled: !StudioProducts.busy && !StudioProducts.editing && !StudioProducts.uncertain; clicked => { StudioProducts.delete-index = product.index; } }
+        }
+    }
+    if StudioProducts.delete-index >= 0: VerticalLayout {
+        spacing: 8px;
+        Text { text: "Xóa sản phẩm này khỏi thư viện?"; color: TemplePalette.gold; font-size: 13px; wrap: word-wrap; }
+        FlexboxLayout {
+            spacing: 8px;
+            TempleButton { label: "Xác nhận xóa"; tone: 2; enabled: !StudioProducts.busy; clicked => { StudioProducts.remove(StudioProducts.delete-index); } }
+            TempleButton { label: "Hủy"; clicked => { StudioProducts.delete-index = -1; } }
+        }
+    }
+    if StudioProducts.editing: VerticalLayout {
+        spacing: 10px;
+        TempleField { label: "Tên sản phẩm"; value: StudioProducts.title; edited(value) => { StudioProducts.title = value; } }
+        HorizontalLayout {
+            spacing: 10px; min-width: 0px;
+            TempleField { label: "Giá"; value: StudioProducts.price; edited(value) => { StudioProducts.price = value; } }
+            TempleField { label: "Thời lượng đọc (giây)"; value: StudioProducts.duration; edited(value) => { StudioProducts.duration = value; } }
+        }
+        TempleField { label: "Kịch bản giới thiệu"; multiline: true; value: StudioProducts.script; edited(value) => { StudioProducts.script = value; } }
+        TempleToggle { label: "Cho phép sử dụng sản phẩm"; checked: StudioProducts.enabled; toggled => { StudioProducts.enabled = !StudioProducts.enabled; } }
+        FlexboxLayout {
+            spacing: 8px;
+            TempleButton { label: "Áp dụng"; tone: 1; enabled: !StudioProducts.busy; clicked => { StudioProducts.apply(); } }
+            TempleButton { label: "Hủy chỉnh sửa"; enabled: !StudioProducts.busy; clicked => { StudioProducts.editing = false; } }
         }
     }
 }

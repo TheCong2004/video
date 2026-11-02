@@ -106,10 +106,10 @@ export component StudioPage inherits VerticalLayout {
     callback choose-project();
     callback back();
     callback navigate(route: StudioRoute);
-    padding: 16px;
-    spacing: 16px;
+    padding: root.route == StudioRoute.live ? 0px : 16px;
+    spacing: root.route == StudioRoute.live ? 0px : 16px;
     alignment: start;
-    if root.route != StudioRoute.auto-shorts: FlexboxLayout {
+    if root.route != StudioRoute.auto-shorts && root.route != StudioRoute.live: FlexboxLayout {
         min-width: 0px; spacing: 8px;
         if root.route != StudioRoute.live: Text { text: StudioBridge.title(root.route); color: Floword.text; font-size: 20px; font-weight: 700; wrap: word-wrap; horizontal-stretch: 1; min-width: 0px; vertical-alignment: center; }
         if root.route != StudioRoute.ai-control && root.route != StudioRoute.film && root.route != StudioRoute.production && root.route != StudioRoute.kedi-factory && root.route != StudioRoute.kedi-providers: StudioButton { label: "← Xưởng phim AI"; compact: true; clicked => { root.navigate(StudioRoute.production); } }
@@ -168,11 +168,12 @@ export component StudioPage inherits VerticalLayout {
         navigate-to-live => { root.navigate(StudioRoute.live); }
     }
     if root.route == StudioRoute.live: StudioLivePage {
-        viewport-width: Math.max(0px, root.viewport-width - 32px);
+        viewport-width: root.viewport-width;
         viewport-height: root.viewport-height;
         configure-ai => { root.navigate(StudioRoute.keys); }
         configure-services => { }
         manage-avatars => { StudioOpenTalking.active-tab = 1; root.navigate(StudioRoute.opentalking); }
+        manage-scripts => { root.navigate(StudioRoute.scripts); }
     }
     if root.route == StudioRoute.scripts: StudioScripts {
         apply-template(brief, scenes, duration) => {

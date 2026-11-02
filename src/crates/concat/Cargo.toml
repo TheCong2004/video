@@ -87,7 +87,7 @@ libc = "0.2"
 # Only the explicitly requested NexPulse section; the editor remains native.
 wry = { version = "=0.57.0", default-features = false }
 url = "2"
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell"] }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 slint = { version = "1.18", default-features = false, features = [

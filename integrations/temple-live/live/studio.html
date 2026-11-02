@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chánh Điện Tịnh Tâm · Live Studio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg: #090d16;
+  --panel: #0f172a;
+  --card: #1e293b;
+  --card-hover: #334155;
+  --fg: #f8fafc;
+  --muted: #94a3b8;
+  --gold: #f59e0b;
+  --gold-light: #fbbf24;
+  --line: rgba(255, 255, 255, 0.08);
+  --accent: #6366f1;
+  --green: #10b981;
+  --red: #ef4444;
+  --display: "Noto Serif", Georgia, serif;
+  --body: "Be Vietnam Pro", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 var(--body);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+header {
+  height: 52px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 12px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand h1 {
+  font-family: var(--display);
+  font-size: 17px;
+  margin: 0;
+  color: var(--gold-light);
+  font-weight: 700;
+}
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+}
+.badge.green {
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.1);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+button {
+  font: 600 12px var(--body);
+  color: var(--fg);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+button:hover {
+  background: var(--card-hover);
+  border-color: var(--gold);
+}
+button.primary {
+  background: var(--green);
+  border-color: #059669;
+  color: #fff;
+}
+button.gold {
+  background: #78350f;
+  border-color: var(--gold);
+  color: #fef3c7;
+}
+button.danger {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: var(--red);
+  color: #fca5a5;
+}
+
+/* Main Split View */
+.workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  background: var(--bg);
+}
+
+/* Left Column: Director Controls */
+.controls-col {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.card h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+label {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+input, select, textarea {
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  background: #090d16;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+  width: 100%;
+}
+input:focus, select:focus {
+  outline: 1px solid var(--gold);
+  border-color: var(--gold);
+}
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.row > * { flex: 1; }
+.row.auto > * { flex: 0 0 auto; }
+.hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Logs & People */
+#people {
+  max-height: 140px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #090d16;
+}
+#people table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+#people td {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+#people td:last-child {
+  text-align: right;
+  color: var(--gold);
+}
+#log {
+  height: 110px;
+  overflow-y: auto;
+  background: #090d16;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: 11px/1.4 Consolas, monospace;
+  color: #a5b4fc;
+}
+
+/* Right Column: 9:16 Live Preview Frame */
+.preview-col {
+  width: 360px;
+  min-width: 320px;
+  max-width: 420px;
+  border-left: 1px solid var(--line);
+  background: #06090f;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  position: relative;
+}
+.preview-title {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  z-index: 10;
+}
+.stage-wrapper {
+  width: 100%;
+  height: calc(100% - 32px);
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.phone-frame {
+  aspect-ratio: 9 / 16;
+  height: 100%;
+  max-height: 100%;
+  background: #000;
+  border-radius: 16px;
+  border: 2px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  overflow: hidden;
+  position: relative;
+}
+.phone-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+</style>
+<style>
+header{height:auto;min-height:52px;flex-wrap:wrap;padding-block:10px}.brand,.actions{flex-wrap:wrap;min-width:0}
+.controls-col{min-width:0;container-type:inline-size}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.card,.row>*{min-width:0}.row{flex-wrap:wrap}.row input:not([type=checkbox]):not([type=range]){flex:1 1 90px}
+.preview-col{width:clamp(280px,27vw,460px);min-width:280px;max-width:460px}
+.phone-frame{width:100%;height:auto;max-width:calc((100vh - 145px)*9/16);aspect-ratio:9/16}
+#log{white-space:pre-wrap}.log-row{overflow-wrap:anywhere}.web-product{background:#090d16;border:1px solid var(--line);border-radius:8px;padding:12px}
+@container(max-width:839px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.grid>.card:last-child{grid-column:1/-1}}
+@container(max-width:539px){.grid{grid-template-columns:1fr}}
+@media(max-width:1000px){.workspace{overflow:auto;flex-direction:column}.controls-col{overflow:visible;flex:none}.preview-col{width:100%;max-width:none;min-height:650px}.stage-wrapper{height:600px}.phone-frame{width:337px;max-width:100%}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span style="font-size:18px">🪷</span>
+    <h1>Chánh Điện Tịnh Tâm</h1>
+    <span class="badge green" id="srvStatus">Cổng 3088 · Sẵn sàng</span>
+    <span class="badge" id="ttStatus">TikTok: Chưa kết nối</span>
+    <span class="badge" id="viewerCount">0 người ngồi tụng</span>
+  </div>
+  <div class="actions">
+    <button id="btnCopyObs">📋 Copy Link OBS Studio</button>
+    <button class="gold" id="btnPopout">🪟 Mở Cửa Sổ Phát (1080×1920)</button>
+    <button id="btnUnmute">🔊 Bật âm thanh</button>
+  </div>
+</header>
+
+<div class="workspace">
+  <!-- Cột Trái: Bảng Điều Khiển Director -->
+  <div class="controls-col">
+    <div class="grid">
+      <!-- Thẻ 1: Kết nối TikTok -->
+      <section class="card">
+        <h2>1 · Kết Nối TikTok LIVE</h2>
+        <label for="uid">Username kênh đang phát LIVE (bắt đầu bằng @)</label>
+        <div class="row">
+          <input id="uid" placeholder="@username_cua_ban" autocomplete="off">
+          <button class="primary" id="btnConnect" style="flex:0 0 auto">Kết nối</button>
+          <button class="danger" id="btnDisconnect" style="flex:0 0 auto">Ngắt</button>
+        </div>
+        <p class="hint">Chỉ đọc sự kiện công khai của phòng live (bình luận, quà, tim). An toàn 100%, không đòi hỏi cookie hay mật khẩu TikTok.</p>
+
+        <label style="margin-top:6px">Danh sách đạo hữu đang ngồi tụng kinh:</label>
+        <div id="people">
+          <table><tbody id="peopleBody"><tr><td class="hint" style="text-align:center;padding:12px">Chưa có ai</td><td></td></tr></tbody></table>
+        </div>
+      </section>
+
+      <!-- Thẻ 2: Thử tương tác & Bot -->
+      <section class="card">
+        <h2>2 · Thử Nghiệm Tương Tác</h2>
+        <div class="row">
+          <label>Tên người xem <input id="simName" value="Minh An"></label>
+          <label>Bình luận / Lời nguyện <input id="simText" value="Nam mô A Di Đà Phật, cầu an lành"></label>
+        </div>
+        <div class="row auto" style="margin-top:2px">
+          <button id="btnChat">Gửi bình luận</button>
+          <button id="btnLike">❤️ Thả tim</button>
+        </div>
+
+        <label style="margin-top:4px">Thử tặng quà (kèm xướng tên hồi hướng công đức):</label>
+        <div class="row">
+          <button data-gift="Hoa hồng" data-dia="1">🌹 Hoa hồng · 1</button>
+          <button data-gift="Đèn hoa sen" data-dia="30">🪷 Hoa sen · 30</button>
+          <button data-gift="Chuông vàng" data-dia="199">🔔 Chuông · 199</button>
+        </div>
+
+        <label style="margin-top:4px">Đổ người mẫu & Bot mô phỏng:</label>
+        <div class="row">
+          <button id="btnDemo15">15 người</button>
+          <button id="btnDemo36">36 người</button>
+          <button id="btnDemo64">64 người</button>
+          <button id="btnDemo100">100 người</button>
+          <button id="btnBots">🤖 Bật Bot</button>
+        </div>
+      </section>
+
+      <!-- Thẻ 3: Âm thanh & Cảnh -->
+      <section class="card">
+        <h2>3 · Âm Thanh & Tụng Niệm</h2>
+        <div class="row">
+          <label><input type="checkbox" id="chkMo" checked style="width:auto"> Tiếng gõ mõ</label>
+          <label>Nhịp mõ: <span id="bpmVal">52</span> BPM <input type="range" id="rngMo" min="20" max="100" value="52"></label>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="chkMusic" checked style="width:auto"> Nhạc thiền</label>
+          <label><input type="checkbox" id="chkChant" checked style="width:auto"> Tự đọc kinh định kỳ</label>
+        </div>
+        <div class="row">
+          <label>Giọng đọc AI (Edge TTS):
+            <select id="selVoice">
+              <option value="vi-VN-NamMinhNeural">Nam Minh (Giọng Nam Trầm Ấm)</option>
+              <option value="vi-VN-HoaiMyNeural">Hoài My (Giọng Nữ Nhẹ Nhàng)</option>
+            </select>
+          </label>
+          <label>Sức chứa:
+            <select id="selSeats">
+              <option value="auto">Tự động (24 ➔ 100)</option>
+              <option value="24">24 chỗ</option>
+              <option value="36">36 chỗ</option>
+              <option value="64">64 chỗ</option>
+              <option value="100">100 chỗ</option>
+            </select>
+          </label>
+        </div>
+        <div class="row auto">
+          <button id="btnMo1">Gõ mõ 1 tiếng</button>
+          <button id="btnChant1">Đọc kinh ngay</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Khu vực tổng hợp chức năng & Nhật ký -->
+    <section class="card" style="flex: 1; min-height: 220px;">
+      <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <div style="display: flex; gap: 6px; flex-wrap:wrap;">
+          <button class="gold tab-btn" data-tab="tab-logs">📜 Nhật Ký Sự Kiện</button>
+          <button class="tab-btn" data-tab="tab-avatar">🤖 Avatar & Nhân Vật AI</button>
+          <button class="tab-btn" data-tab="tab-products">🛍️ Sản Phẩm & Giỏ Hàng</button>
+          <button class="tab-btn" data-tab="tab-scripts">📖 Kịch Bản & Lời Đọc AI</button>
+        </div>
+        <span class="hint">LiveBrain · Điều phối trong Concat</span>
+      </div>
+
+      <!-- Tab 1: Nhật ký sự kiện -->
+      <div id="tab-logs" class="tab-pane" style="display: flex; flex: 1; flex-direction: column;">
+        <div id="log" style="flex: 1; min-height: 150px;"></div>
+      </div>
+
+      <!-- Tab 2: Avatar & Nhân Vật -->
+      <div id="tab-avatar" class="tab-pane" style="display: none; flex-direction: column; gap: 10px;">
+        <p class="hint">Chọn hình tướng xuất hiện trên các bồ đoàn thiền định hoặc chọn Avatar AI chính:</p>
+        <div class="row">
+          <button class="skin-btn" data-skin="monk">🧘 Sư Thầy</button>
+          <button class="skin-btn" data-skin="child">🧒 Chú Tiểu</button>
+          <button class="skin-btn" data-skin="nun">🧕 Ni Cô</button>
+          <button class="skin-btn" data-skin="granny">👵 Cụ Bà</button>
+          <button class="skin-btn" data-skin="man">👨 Cư Sĩ Nam</button>
+          <button class="skin-btn" data-skin="woman">👩 Cư Sĩ Nữ</button>
+        </div>
+        <p class="hint">Thư viện avatar, tạo nhân vật AI và video riêng được quản lý trong tab Avatar & Nhân Vật AI của Concat.</p>
+      </div>
+
+      <!-- Product data belongs to the existing Concat library. -->
+      <div id="tab-products" class="tab-pane" style="display:none;flex-direction:column;gap:10px">
+        <p class="hint">Thêm, chỉnh sửa, lưu và chọn sản phẩm trong tab Sản Phẩm & Giỏ Hàng của Concat. Sản phẩm ghim thực tế được đồng bộ ở đây.</p>
+        <div class="web-product"><strong id="webProductTitle">Chưa có sản phẩm được ghim.</strong><p id="webProductPrice"></p></div>
+        <div class="row auto"><button id="btnReadPinned" disabled>📢 Đọc tên và giá sản phẩm</button><button id="btnUnpin">Bỏ ghim</button></div>
+        <p class="hint">Tự động giới thiệu và LiveBrain dùng bộ điều phối hiện có trong Concat.</p>
+      </div>
+
+      <!-- Tab 4: Kịch bản & Lời đọc -->
+      <div id="tab-scripts" class="tab-pane" style="display: none; flex-direction: column; gap: 10px;">
+        <label>Nội dung lời đọc thủ công hoặc kịch bản cầu an:
+          <textarea id="txtAiScript" rows="3" placeholder="Nhập lời đọc cho AI phát thanh (VD: Cầu chúc cho gia đình quý đạo hữu thân tâm an lạc, tai qua nạn khỏi...)...">Nguyện đem công đức này, hướng về khắp tất cả, đệ tử và chúng sinh, đều trọn thành Phật đạo. Cầu chúc cho mọi người một ngày an lạc và nhiều may mắn.</textarea>
+        </label>
+        <div class="row auto">
+          <button class="primary" id="btnSpeakScript">🔊 AI Đọc kịch bản ngay</button>
+          <span class="hint">Thiết lập LiveBrain và giọng mẫu trong Concat.</span>
+          <button class="danger" id="btnStopSpeech">⏹ Dừng phát giọng</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Cột Phải: Live Preview 9:16 -->
+  <div class="preview-col">
+    <div class="preview-title">
+      <span>MÀN HÌNH PREVIEW (9:16)</span>
+      <span style="color:var(--gold-light)">1080 × 1920</span>
+    </div>
+    <div class="stage-wrapper">
+      <div class="phone-frame">
+        <iframe id="overlayFrame" src="/live/overlay.html"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let ws;
+let pinnedProduct=null;
+const scenePeople=new Map();
+let sceneCapacity=24;
+const host = window.location.host;
+function connectWS() {
+  ws = new WebSocket('ws://' + host + '/ws?role=control');
+  ws.onopen = () => {
+    document.getElementById('srvStatus').textContent = 'Server: Kết nối tốt';
+    document.getElementById('srvStatus').className = 'badge green';
+  };
+  ws.onclose = () => {
+    document.getElementById('srvStatus').textContent = 'Server: Mất kết nối, đang thử lại...';
+    document.getElementById('srvStatus').className = 'badge';
+    setTimeout(connectWS, 2000);
+  };
+  ws.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.t === 'state') updateState(m);
+    else if (m.t === 'log') appendLog(m.line);
+    else if (m.t === 'logs') {
+      const el = document.getElementById('log');
+      el.replaceChildren();for(const line of m.lines.slice(-500))appendLog(line);
+      el.scrollTop = el.scrollHeight;
+    }
+    else if (m.t === 'tiktok') {
+      updateTikTok(m.state || m);
+    }
+    else if(m.t==='settings'){sceneCapacity=m.cap||sceneCapacity;updateState({settings:m.settings});}
+    else if(m.t==='pin'){pinnedProduct=m.pinned;renderPinnedProduct();}
+    else if(m.t==='bots'){updateBots(m.on);}
+    else if(['join','leave','gift','skin'].includes(m.t)){
+      if(m.t==='join')scenePeople.set(m.v.id,m.v);
+      if(m.t==='leave')scenePeople.delete(m.id);
+      if(m.t==='gift'&&scenePeople.has(m.id))scenePeople.get(m.id).coins=m.total;
+      if(m.t==='skin'&&scenePeople.has(m.id))scenePeople.get(m.id).skin=m.skin;
+      sceneCapacity=m.cap||sceneCapacity;renderPeople([...scenePeople.values()]);
+      document.getElementById('viewerCount').textContent=scenePeople.size+'/'+sceneCapacity+' trong cảnh';
+    }
+  };
+}
+connectWS();
+
+function updateState(s) {
+  if(s.settings) {
+    for(const [id,key] of [['chkMo','mo'],['chkMusic','music'],['chkChant','autoChant']]) document.getElementById(id).checked=!!s.settings[key];
+    document.getElementById('rngMo').value=s.settings.moBpm;
+    document.getElementById('bpmVal').textContent=s.settings.moBpm;
+    document.getElementById('selVoice').value=s.settings.voice;
+    document.getElementById('selSeats').value=s.settings.seatMode;
+  }
+  if('pinned' in s) { pinnedProduct=s.pinned; renderPinnedProduct(); }
+  if(s.bots) updateBots(s.bots.on);
+  if (s.tiktok) updateTikTok(s.tiktok);
+  if (s.cap) sceneCapacity=s.cap;
+  if (s.viewers) {
+    scenePeople.clear();for(const person of s.viewers)scenePeople.set(person.id,person);
+    document.getElementById('viewerCount').textContent = s.viewers.length + '/' + s.cap + ' người';
+    renderPeople(s.viewers);
+  }
+}
+
+function updateTikTok(st) {
+  const el = document.getElementById('ttStatus');
+  if (st.status === 'connected') {
+    el.textContent = 'TikTok: @' + st.uniqueId;
+    el.className = 'badge green';
+    document.getElementById('btnConnect').disabled = true;
+    document.getElementById('btnDisconnect').disabled = false;
+  } else if (st.status === 'connecting') {
+    el.textContent = 'TikTok: Đang kết nối...';
+    el.className = 'badge';
+  } else {
+    el.textContent = 'TikTok: ' + (st.error ? 'Lỗi: ' + st.error : 'Chưa kết nối');
+    el.className = st.error ? 'badge' : 'badge';
+    document.getElementById('btnConnect').disabled = false;
+    document.getElementById('btnDisconnect').disabled = true;
+  }
+}
+
+function renderPeople(list) {
+  const tb = document.getElementById('peopleBody');
+  tb.replaceChildren();
+  if (!list || !list.length) {
+    tb.innerHTML = '<tr><td class="hint" style="text-align:center;padding:12px">Chưa có ai</td><td></td></tr>';
+    return;
+  }
+  for(const v of list.slice(0,100)){
+    const tr=document.createElement('tr'),name=document.createElement('td'),coins=document.createElement('td');
+    name.textContent=v.name+(v.demo?' · mô phỏng':'')+' ('+v.skin+')';coins.textContent=v.coins?v.coins+' 🪙':'';
+    tr.append(name,coins);tb.append(tr);
+  }
+}
+
+function appendLog(line) {
+  const el = document.getElementById('log');
+  const row=document.createElement('div');row.className='log-row';row.textContent=String(line).slice(0,1800);el.append(row);
+  while(el.children.length>500)el.firstElementChild.remove();
+  el.scrollTop = el.scrollHeight;
+}
+
+function send(cmd) {
+  const aliases={simChat:'chat',simGift:'gift',simLike:'like',demo:'fill'};
+  const message={...cmd,cmd:cmd.cmd||aliases[cmd.a]||cmd.a};
+  if(message.uid)message.uniqueId=message.uid;
+  if(message.dia!=null){message.diamonds=message.dia;message.count=1;}
+  delete message.a;delete message.uid;delete message.dia;
+  if (ws && ws.readyState === 1) { ws.send(JSON.stringify(message)); return true; }
+  appendLog('Chưa kết nối máy chủ; thao tác chưa được gửi.');return false;
+}
+
+// Action Buttons
+document.getElementById('btnConnect').onclick = () => {
+  const uid = document.getElementById('uid').value.trim();
+  if (uid) send({ t: 'ctl', a: 'connect', uid });
+};
+document.getElementById('btnDisconnect').onclick = () => {
+  send({ t: 'ctl', a: 'disconnect' });
+};
+
+document.getElementById('btnChat').onclick = () => {
+  const name = document.getElementById('simName').value.trim();
+  const text = document.getElementById('simText').value.trim();
+  if (name && text) send({ t: 'ctl', a: 'simChat', name, text });
+};
+document.getElementById('btnLike').onclick = () => {
+  const name = document.getElementById('simName').value.trim() || 'Minh An';
+  send({ t: 'ctl', a: 'simLike', name });
+};
+
+document.querySelectorAll('[data-gift]').forEach(btn => {
+  btn.onclick = () => {
+    const name = document.getElementById('simName').value.trim() || 'Minh An';
+    const gift = btn.dataset.gift;
+    const dia = +btn.dataset.dia || 1;
+    send({ t: 'ctl', a: 'simGift', name, gift, dia });
+  };
+});
+
+document.getElementById('btnDemo15').onclick = () => send({ t: 'ctl', a: 'demo', n: 15 });
+document.getElementById('btnDemo36').onclick = () => send({ t: 'ctl', a: 'demo', n: 36 });
+document.getElementById('btnDemo64').onclick = () => send({ t: 'ctl', a: 'demo', n: 64 });
+document.getElementById('btnDemo100').onclick = () => send({ t: 'ctl', a: 'demo', n: 100 });
+
+let botsActive = false;
+function updateBots(on) {
+  botsActive = !!on;
+  document.getElementById('btnBots').textContent = botsActive ? '🤖 Tắt Bot' : '🤖 Bật Bot';
+  document.getElementById('btnBots').className = botsActive ? 'danger' : '';
+}
+document.getElementById('btnBots').onclick = () => send({ t: 'ctl', a: 'bots', on: !botsActive, n: 18, pace: 'mid' });
+
+document.getElementById('btnMo1').onclick = () => send({ t: 'ctl', a: 'mo' });
+document.getElementById('btnChant1').onclick = () => send({ t: 'ctl', a: 'chant' });
+
+document.getElementById('rngMo').oninput = (e) => {
+  document.getElementById('bpmVal').textContent = e.target.value;
+  saveSettings();
+};
+document.getElementById('chkMo').onchange = saveSettings;
+document.getElementById('chkMusic').onchange = saveSettings;
+document.getElementById('chkChant').onchange = saveSettings;
+document.getElementById('selVoice').onchange = saveSettings;
+document.getElementById('selSeats').onchange = saveSettings;
+
+function saveSettings() {
+  send({
+    t: 'ctl',
+    a: 'settings',
+    settings: {
+      mo: document.getElementById('chkMo').checked,
+      moBpm: +document.getElementById('rngMo').value,
+      music: document.getElementById('chkMusic').checked,
+      autoChant: document.getElementById('chkChant').checked,
+      voice: document.getElementById('selVoice').value,
+      seatMode: document.getElementById('selSeats').value
+    }
+  });
+}
+
+// Copy OBS & Popout
+document.getElementById('btnCopyObs').onclick = () => {
+  const url = window.location.protocol + '//' + window.location.host + '/live/overlay.html';
+  navigator.clipboard.writeText(url).then(() => {
+    alert('Đã copy link Browser Source cho OBS:\n' + url + '\n(Kích thước chuẩn: 1080 x 1920)');
+  });
+};
+document.getElementById('btnPopout').onclick = () => {
+  window.open('/live/overlay.html', 'ChanhDienOverlay', 'width=450,height=800,menubar=no,toolbar=no');
+};
+document.getElementById('btnUnmute').onclick = () => {
+  const frame = document.getElementById('overlayFrame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({ t: 'unmute' }, '*');
+    // Overlay replies only after AudioContext is running.
+  }
+};
+addEventListener('message',e=>{
+  if(e.origin!==location.origin||e.data?.t!=='audioState')return;
+  appendLog(e.data.enabled?'🔊 Đã bật âm preview.':'Chưa bật được âm preview; bấm nút bật âm trong overlay.');
+});
+// Tabs switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('gold'));
+    btn.classList.add('gold');
+    document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+    const target = document.getElementById(btn.dataset.tab);
+    if (target) target.style.display = 'flex';
+  };
+});
+
+// AI & Product features
+function pinProduct(title, price) {
+  send({ t: 'ctl', a: 'pin', title, price });
+  appendLog(`📌 Đã ghim sản phẩm lên Live: ${title} (${price})`);
+  const frame = document.getElementById('overlayFrame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({ t: 'pin', title, price }, '*');
+  }
+}
+
+function speakProduct(text) {
+  if(send({ t: 'ctl', a: 'say', text })) appendLog('Đã gửi yêu cầu đọc sản phẩm; kết quả Edge TTS nằm trong nhật ký server.');
+}
+
+document.getElementById('btnSpeakScript').onclick = () => {
+  const text = document.getElementById('txtAiScript').value.trim();
+  if (text) {
+    if(send({ t: 'ctl', a: 'say', text })) appendLog('Đã gửi yêu cầu đọc kịch bản; kết quả Edge TTS nằm trong nhật ký server.');
+  }
+};
+
+let pinnedProductText = '';
+function renderPinnedProduct(){
+  const title=document.getElementById('webProductTitle'),price=document.getElementById('webProductPrice');
+  title.textContent=pinnedProduct?.title||'Chưa có sản phẩm được ghim.';price.textContent=pinnedProduct?.price||'';
+  pinnedProductText=pinnedProduct?[pinnedProduct.title,pinnedProduct.price].filter(Boolean).join('. '):'';
+  document.getElementById('btnReadPinned').disabled=!pinnedProductText;
+}
+document.getElementById('btnReadPinned').onclick=()=>{if(pinnedProductText)send({t:'ctl',cmd:'say',text:pinnedProductText});};
+document.getElementById('btnUnpin').onclick=()=>send({t:'ctl',cmd:'pin',title:'',price:''});
+const scriptInput=document.getElementById('txtAiScript');
+try{const saved=localStorage.getItem('concat.temple.script.v1');if(saved!==null)scriptInput.value=saved;}catch{}
+scriptInput.addEventListener('input',()=>{try{localStorage.setItem('concat.temple.script.v1',scriptInput.value);}catch{}});
+
+document.getElementById('btnStopSpeech').onclick = () => {
+  send({ t: 'ctl', a: 'stop' });
+};
+
+document.querySelectorAll('.skin-btn').forEach(btn => {
+  btn.onclick = () => {
+    const skin = btn.dataset.skin;
+    send({ t: 'ctl', a: 'skin', skin });
+  };
+});
+</script>
+</body>
+</html>

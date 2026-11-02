@@ -67,6 +67,7 @@ mod studio_bulk;
 mod studio_video_library;
 mod studio_video_preview;
 mod studio_live;
+mod studio_temple;
 mod studio_kedi_live;
 mod studio_live_video;
 mod studio_live_director;
@@ -253,6 +254,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     studio_motion_generation::bind(&app);
     studio_promax_avatars::bind(&app);
     studio_live::bind(&app);
+    let _temple = studio_temple::bind(&app);
     studio_bulk::bind(&app);
     studio_video_library::bind(&app);
     studio_publish::bind(&app);
@@ -503,6 +505,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     });
     app.on_titlebar_close(|| {
         log::info!("close: titlebar X pressed");
+        studio_temple::shutdown();
         studio_session::cancel_pending_login();
         Shell::with(|shell, app| {
             shell.studio.borrow_mut().close_project();
@@ -515,6 +518,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // System-driven close (Alt+F4, taskbar close): the same road out.
     app.window().on_close_requested(|| {
         log::info!("close: system close request (Alt+F4 / taskbar)");
+        studio_temple::shutdown();
         studio_session::cancel_pending_login();
         Shell::with(|shell, _app| {
             shell.studio.borrow_mut().close_project();
@@ -2067,6 +2071,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     );
 
     let result = app.run();
+    drop(_temple);
     studio_scenes::shutdown(&app);
     studio_native_production::shutdown();
     studio_hotclip::shutdown();

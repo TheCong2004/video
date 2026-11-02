@@ -13,6 +13,7 @@ import { Focus } from "util.slint";
 import { NumberField } from "primitives/number-field.slint";
 import { PaneScroll } from "workspace/pane.slint";
 import { StudioPage, StudioRoute, StudioBridge } from "workspace/studio-pane.slint";
+import { StudioLive } from "workspace/studio-live.slint";
 import { ProductionStudio } from "workspace/studio-production.slint";
 import { StudioWeb, StudioWebPage } from "workspace/studio-web.slint";
 import { StudioHotclip } from "workspace/studio-hotclip.slint";
@@ -1291,6 +1292,13 @@ export component StartScreen inherits Rectangle {
     // A native child cannot be covered by a Slint drawer/backdrop. Suspend
     // only its visibility while the navigation overlay is open.
     property <bool> web-host-visible: root.web-selected && !root.rail-overlay;
+    property <bool> temple-selected: root.studio-open && root.studio-route == StudioRoute.live;
+    property <bool> temple-host-visible: root.temple-selected && !root.rail-overlay;
+    changed temple-selected => { StudioLive.cd-page-active = root.temple-selected; }
+    changed temple-host-visible => {
+        StudioLive.cd-preview-allowed = root.temple-host-visible;
+        if !root.temple-host-visible { StudioLive.cd-hide-preview(); }
+    }
     property <bool> hotclip-selected: root.studio-open && root.studio-route == StudioRoute.hotclip;
     property <int> hotclip-open-request: StudioHotclip.open-request;
     changed hotclip-open-request => {
@@ -1421,7 +1429,14 @@ export component StartScreen inherits Rectangle {
         }
 
         if root.studio-route == StudioRoute.web: StudioWebPage { width: 100%; height: 100%; }
-        if root.studio-route != StudioRoute.web && root.studio-route != StudioRoute.hotclip: PaneScroll {
+        if root.studio-route == StudioRoute.live: StudioPage {
+            width: 100%; height: 100%;
+            viewport-width: Math.max(0px, root.width - root.rail-w);
+            viewport-height: root.height - root.topbar-h;
+            route: root.studio-route;
+            navigate(route) => { root.studio-route = route; }
+        }
+        if root.studio-route != StudioRoute.live && root.studio-route != StudioRoute.web && root.studio-route != StudioRoute.hotclip: PaneScroll {
             reset-key: root.studio-scroll-epoch;
             width: 100%;
             height: 100%;

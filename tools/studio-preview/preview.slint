@@ -41,7 +41,8 @@ export component Preview inherits Window {
     default-font-family: Theme.font;
     background: Floword.ground;
     launcher-view := StartScreen { visible: root.launcher; }
-    if !root.launcher && !root.editing && !root.avatar-panel && !root.avatar-picker && !root.hotclip: PaneScroll { reset-key: ProductionStudio.current-phase; StudioPage { route: root.route; navigate(route) => { root.route = route; } viewport-width: Math.max(0px, root.viewport-width * 1px - 12px); viewport-height: root.viewport-height * 1px; } }
+    if !root.launcher && !root.editing && !root.avatar-panel && !root.avatar-picker && !root.hotclip && root.route == StudioRoute.live: StudioPage { route: root.route; navigate(route) => { root.route = route; } viewport-width: root.viewport-width * 1px; viewport-height: root.viewport-height * 1px; }
+    if !root.launcher && !root.editing && !root.avatar-panel && !root.avatar-picker && !root.hotclip && root.route != StudioRoute.live: PaneScroll { reset-key: ProductionStudio.current-phase; StudioPage { route: root.route; navigate(route) => { root.route = route; } viewport-width: Math.max(0px, root.viewport-width * 1px - 12px); viewport-height: root.viewport-height * 1px; } }
     if root.hotclip: HotclipPane { }
     if root.avatar-picker: VerticalLayout { padding: 16px; alignment: start; PromaxAvatarPicker { } }
     if root.avatar-panel: PaneScroll { PromaxAvatarPanel { } }
